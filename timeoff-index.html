@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#00205B">
+<title>Time Off — Smurfit WestRock San Antonio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#00205B;
+    --blue:#006ACB;
+    --blue-deep:#004E96;
+    --mist:#EEF3FA;
+    --line:#CFDAEA;
+    --ink-soft:#42557A;
+    --paper:#FFFFFF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    font-family:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    background:var(--paper);color:var(--navy);
+    min-height:100vh;display:flex;justify-content:center;
+    padding:22px 18px 28px;
+  }
+  .wrap{width:100%;max-width:520px;display:flex;flex-direction:column;}
+
+  /* Header */
+  .head{display:flex;align-items:center;justify-content:space-between;
+    gap:12px;border-bottom:3px solid var(--navy);padding-bottom:12px;}
+  .mark{font-family:'Archivo Black',sans-serif;font-size:15px;
+    text-transform:uppercase;letter-spacing:-.01em;line-height:1.1;}
+  .mark small{display:block;font-family:'Archivo',sans-serif;font-weight:600;
+    font-size:11px;letter-spacing:.14em;color:var(--blue);margin-top:3px;}
+  .tag{background:var(--blue);color:#fff;font-weight:700;font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;padding:6px 10px;white-space:nowrap;}
+
+  /* Intro */
+  .intro{margin-top:34px;}
+  .intro h1{font-family:'Archivo Black',sans-serif;font-size:46px;line-height:.98;
+    letter-spacing:-.02em;text-transform:uppercase;}
+  .intro p{margin-top:12px;font-size:17px;color:var(--ink-soft);font-weight:500;}
+
+  /* Actions */
+  .actions{margin-top:28px;display:flex;flex-direction:column;gap:14px;}
+  .action{
+    display:flex;align-items:center;gap:16px;
+    min-height:104px;padding:20px 22px;
+    text-decoration:none;border:3px solid var(--navy);
+    transition:transform .12s ease, background-color .12s ease;
+  }
+  .action .body{flex:1;}
+  .action .name{font-family:'Archivo Black',sans-serif;font-size:23px;
+    line-height:1.1;text-transform:uppercase;}
+  .action .desc{margin-top:6px;font-size:14px;font-weight:500;line-height:1.35;}
+  .action .arrow{flex:none;width:26px;height:26px;}
+  .action:active{transform:scale(.985);}
+  .action:focus-visible{outline:4px solid var(--blue);outline-offset:3px;}
+
+  .action--go{background:var(--navy);border-color:var(--navy);}
+  .action--go .name{color:#fff;}
+  .action--go .desc{color:#BFD2EC;}
+  .action--go .arrow{stroke:#fff;}
+  .action--go:hover{background:#001845;}
+
+  .action--stop{background:var(--paper);}
+  .action--stop .name{color:var(--navy);}
+  .action--stop .desc{color:var(--ink-soft);}
+  .action--stop .arrow{stroke:var(--navy);}
+  .action--stop:hover{background:var(--mist);}
+
+  /* Footer */
+  .foot{margin-top:auto;padding-top:30px;}
+  .note{background:var(--mist);border-left:7px solid var(--blue);
+    padding:15px 17px;font-size:15px;font-weight:500;line-height:1.45;}
+  .note b{font-family:'Archivo Black',sans-serif;text-transform:uppercase;
+    font-size:12px;letter-spacing:.06em;display:block;margin-bottom:5px;color:var(--navy);}
+  .meta{margin-top:16px;padding-top:14px;border-top:2px solid var(--line);
+    display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    font-size:12px;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--ink-soft);}
+  .meta span b{color:var(--blue);font-weight:700;}
+
+  @media (max-width:360px){
+    .intro h1{font-size:38px;}
+    .action .name{font-size:20px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .action{transition:none;}
+    .action:active{transform:none;}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header class="head">
+      <div class="mark">Smurfit&nbsp;WestRock<small>San Antonio</small></div>
+      <div class="tag">Time Off</div>
+    </header>
+
+    <div class="intro">
+      <h1>Time off</h1>
+      <p>Choose what you need to do.</p>
+    </div>
+
+    <nav class="actions">
+
+      <a class="action action--go" href="https://forms.office.com/e/ZuGyfK4j70">
+        <span class="body">
+          <span class="name">Request time off</span>
+          <span class="desc">Vacation, floating holiday, or legacy carryover</span>
+        </span>
+        <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="3"
+             stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12h15M13 6l6 6-6 6"/>
+        </svg>
+      </a>
+
+      <!-- Replace the href below with your Cancel form link once the form is built -->
+      <a class="action action--stop" href="PASTE_CANCEL_FORM_LINK_HERE">
+        <span class="body">
+          <span class="name">Cancel a request</span>
+          <span class="desc">Call off time off you already asked for</span>
+        </span>
+        <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="3"
+             stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12h15M13 6l6 6-6 6"/>
+        </svg>
+      </a>
+
+    </nav>
+
+    <footer class="foot">
+      <div class="note">
+        <b>No phone?</b>
+        See [ your supervisor ] to fill out a paper request — you're covered either way.
+      </div>
+      <div class="meta">
+        <span>8 hours = <b>1 day</b></span>
+        <span>Questions? [ HR contact ]</span>
+      </div>
+    </footer>
+
+  </div>
+</body>
+</html>
