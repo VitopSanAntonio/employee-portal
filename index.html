@@ -39,6 +39,8 @@
     --card3-accent: #4d9fff;
     --card4-glow: rgba(107,26,107,0.4);
     --card4-accent: #c084fc;
+    --card5-glow: rgba(107,74,26,0.4);
+    --card5-accent: #fbbf24;
   }
   body {
     font-family: 'DM Sans', sans-serif;
@@ -79,7 +81,7 @@
   }
   h1 span { background: linear-gradient(135deg, #fff 0%, #8892a4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
   .subtitle { font-size: 16px; color: var(--muted); font-weight: 300; letter-spacing: 0.02em; }
-  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; }
   .card-status {
     grid-column: 1 / -1;
     flex-direction: row;
@@ -111,27 +113,32 @@
   .card:nth-child(2) { animation-delay: 0.35s; }
   .card:nth-child(3) { animation-delay: 0.5s; }
   .card:nth-child(4) { animation-delay: 0.65s; }
+  .card:nth-child(5) { animation-delay: 0.8s; }
   .card::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s ease; border-radius: 20px; }
   .card-suggestion::before { background: radial-gradient(ellipse at top left, var(--card1-glow), transparent 70%); }
   .card-safety::before { background: radial-gradient(ellipse at top left, var(--card2-glow), transparent 70%); }
   .card-maintenance::before { background: radial-gradient(ellipse at top left, var(--card3-glow), transparent 70%); }
   .card-status::before { background: radial-gradient(ellipse at top left, var(--card4-glow), transparent 70%); }
+  .card-timeoff::before { background: radial-gradient(ellipse at top left, var(--card5-glow), transparent 70%); }
   .card:hover::before { opacity: 1; }
   .card-suggestion:hover { border-color: var(--card1-accent); box-shadow: 0 20px 60px var(--card1-glow); transform: translateY(-6px); }
   .card-safety:hover { border-color: var(--card2-accent); box-shadow: 0 20px 60px var(--card2-glow); transform: translateY(-6px); }
   .card-maintenance:hover { border-color: var(--card3-accent); box-shadow: 0 20px 60px var(--card3-glow); transform: translateY(-6px); }
   .card-status:hover { border-color: var(--card4-accent); box-shadow: 0 20px 60px var(--card4-glow); transform: translateY(-6px); }
+  .card-timeoff:hover { border-color: var(--card5-accent); box-shadow: 0 20px 60px var(--card5-glow); transform: translateY(-6px); }
   .card-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; position: relative; z-index: 1; }
   .card-suggestion .card-icon { background: rgba(46,204,113,0.15); }
   .card-safety .card-icon { background: rgba(255,77,77,0.15); }
   .card-maintenance .card-icon { background: rgba(77,159,255,0.15); }
   .card-status .card-icon { background: rgba(192,132,252,0.15); }
+  .card-timeoff .card-icon { background: rgba(251,191,36,0.15); }
   .card-content { position: relative; z-index: 1; flex: 1; }
   .card-tag { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
   .card-suggestion .card-tag { color: var(--card1-accent); }
   .card-safety .card-tag { color: var(--card2-accent); }
   .card-maintenance .card-tag { color: var(--card3-accent); }
   .card-status .card-tag { color: var(--card4-accent); }
+  .card-timeoff .card-tag { color: var(--card5-accent); }
   .card h2 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; margin-bottom: 10px; line-height: 1.2; }
   .card p { font-size: 14px; color: var(--muted); line-height: 1.6; font-weight: 300; }
   .card-footer { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--border); margin-top: auto; }
@@ -142,6 +149,7 @@
   .card-safety:hover .card-arrow { background: rgba(255,77,77,0.2); border-color: var(--card2-accent); }
   .card-maintenance:hover .card-arrow { background: rgba(77,159,255,0.2); border-color: var(--card3-accent); }
   .card-status:hover .card-arrow { background: rgba(192,132,252,0.2); border-color: var(--card4-accent); }
+  .card-timeoff:hover .card-arrow { background: rgba(251,191,36,0.2); border-color: var(--card5-accent); }
   .urgent-badge {
     position: absolute; top: 16px; right: 16px; background: var(--card2-accent);
     color: white; font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
@@ -496,6 +504,18 @@
         <div class="card-tag" data-en="Report immediately" data-es="Reportar inmediatamente">Report immediately</div>
         <h2 data-en="Safety Concern" data-es="Reporte de Seguridad">Safety Concern</h2>
         <p data-en="Spotted a hazard or safety risk? Report it immediately. Your report triggers an urgent alert to the Safety Manager." data-es="¿Detectaste un peligro? Repórtalo de inmediato. Tu reporte genera una alerta urgente al Responsable de Seguridad.">Spotted a hazard or safety risk? Report it immediately. Your report triggers an urgent alert to the Safety Manager.</p>
+      </div>
+      <div class="card-footer">
+        <span class="card-time">⏱ 2 min</span>
+        <div class="card-arrow">↗</div>
+      </div>
+    </a>
+    <a class="card card-timeoff" href="time-off.html">
+      <div class="card-icon">🌴</div>
+      <div class="card-content">
+        <div class="card-tag" data-en="Request or cancel" data-es="Solicitar o cancelar">Request or cancel</div>
+        <h2 data-en="Time Off" data-es="Tiempo Libre">Time Off</h2>
+        <p data-en="Request vacation, a floating holiday, or carryover — or cancel time off you already asked for. Your supervisor is notified right away." data-es="Solicita vacaciones, un día flotante o vacaciones acumuladas — o cancela tiempo libre que ya pediste. Tu supervisor será notificado de inmediato.">Request vacation, a floating holiday, or carryover — or cancel time off you already asked for. Your supervisor is notified right away.</p>
       </div>
       <div class="card-footer">
         <span class="card-time">⏱ 2 min</span>
