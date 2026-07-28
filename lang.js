@@ -3,6 +3,11 @@
    Add data-en="..." data-es="..." to any element you want translated.
    For inputs/selects add data-en-placeholder / data-es-placeholder.
    For option elements, add data-en and data-es directly.
+
+   Language toggle: pages provide their own
+   <button id="lang-toggle" class="btn-lang" type="button"></button>
+   in the header; this script wires it up and sets its label. If a page
+   doesn't include one, a floating fallback button is created instead.
 ──────────────────────────────────────────────────────────────── */
 
 (function () {
@@ -33,9 +38,12 @@
       el.placeholder = el.getAttribute('data-' + lang + '-placeholder') || el.getAttribute('data-en-placeholder');
     });
 
-    // Update toggle button
+    // Update toggle button — label shows the language you'd switch TO
     const btn = document.getElementById('lang-toggle');
-    if (btn) btn.innerHTML = lang === 'en' ? '🇪🇸 ES' : '🇬🇧 EN';
+    if (btn) {
+      btn.textContent = lang === 'en' ? 'Español' : 'English';
+      btn.setAttribute('aria-label', lang === 'en' ? 'Switch to Spanish' : 'Cambiar a inglés');
+    }
   }
 
   function toggleLang() {
@@ -43,39 +51,40 @@
     setLang(current === 'en' ? 'es' : 'en');
   }
 
-  // Inject toggle button styles + element
-  const style = document.createElement('style');
-  style.textContent = `
-    #lang-toggle {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      z-index: 999;
-      background: rgba(0,32,91,0.85);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #fff;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 100px;
-      cursor: pointer;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      transition: border-color 0.2s, background 0.2s;
-      letter-spacing: 0.03em;
-    }
-    #lang-toggle:hover {
-      border-color: rgba(255,255,255,0.4);
-      background: rgba(0,32,91,0.95);
-    }
-  `;
-  document.head.appendChild(style);
+  let btn = document.getElementById('lang-toggle');
+  if (btn) {
+    btn.addEventListener('click', toggleLang);
+  } else {
+    // Fallback: no in-header toggle slot on this page — float one in the corner.
+    const style = document.createElement('style');
+    style.textContent = `
+      #lang-toggle {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 999;
+        background: rgba(0,32,91,0.9);
+        border: 1px solid rgba(255,255,255,0.25);
+        color: #fff;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,32,91,0.2);
+        transition: background 0.2s;
+      }
+      #lang-toggle:hover { background: rgba(0,32,91,1); }
+    `;
+    document.head.appendChild(style);
 
-  const btn = document.createElement('button');
-  btn.id = 'lang-toggle';
-  btn.onclick = toggleLang;
-  document.body.appendChild(btn);
+    btn = document.createElement('button');
+    btn.id = 'lang-toggle';
+    btn.type = 'button';
+    btn.onclick = toggleLang;
+    document.body.appendChild(btn);
+  }
 
   // Apply saved language on load
   const saved = localStorage.getItem(STORAGE_KEY) || 'en';
