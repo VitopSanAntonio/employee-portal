@@ -15,6 +15,8 @@
     document.querySelectorAll('[data-en]').forEach(el => {
       if (el.tagName === 'OPTION') {
         el.textContent = el.getAttribute('data-' + lang) || el.getAttribute('data-en');
+      } else if (el.tagName === 'OPTGROUP') {
+        el.label = el.getAttribute('data-' + lang) || el.getAttribute('data-en');
       } else if (el.children.length === 0 || el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'SPAN' || el.tagName === 'LABEL' || el.tagName === 'P' || el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'DIV') {
         // Only swap if it has no complex child elements (icons etc)
         const hasOnlyTextOrInline = [...el.childNodes].every(n =>

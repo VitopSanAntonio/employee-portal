@@ -539,16 +539,16 @@
           <label for="department" data-en="Department" data-es="Departamento">Department</label>
           <select id="department" name="department">
             <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
-            <option data-en="Quality" data-es="Calidad">Quality</option>
+            <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
             <option>Injection</option>
             <option>Assembly</option>
-            <option data-en="Shipping &amp; Receiving" data-es="Envíos y Recepción">Shipping &amp; Receiving</option>
-            <option data-en="Warehouse" data-es="Almacén">Warehouse</option>
-            <option data-en="BreakRoom" data-es="Sala de Descanso">BreakRoom</option>
-            <option data-en="Office / Admin" data-es="Oficina / Administración">Office / Admin</option>
-            <option data-en="Restroom / Locker" data-es="Baño / Casillero">Restroom / Locker</option>
+            <option value="Shipping &amp; Receiving" data-en="Shipping &amp; Receiving" data-es="Envíos y Recepción">Shipping &amp; Receiving</option>
+            <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
+            <option value="BreakRoom" data-en="BreakRoom" data-es="Sala de Descanso">BreakRoom</option>
+            <option value="Office / Admin" data-en="Office / Admin" data-es="Oficina / Administración">Office / Admin</option>
+            <option value="Restroom / Locker" data-en="Restroom / Locker" data-es="Baño / Casillero">Restroom / Locker</option>
             <option>Facility</option>
-            <option data-en="Other" data-es="Otro">Other</option>
+            <option value="Other" data-en="Other" data-es="Otro">Other</option>
           </select>
           <span class="field-error" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
         </div>
@@ -569,7 +569,7 @@
           <select id="issueType" name="issueType">
             <option value="" disabled selected data-en="Select equipment…" data-es="Selecciona equipo…">Select equipment…</option>
 
-            <optgroup label="🌡️ Cooling &amp; HVAC" data-en="Cooling &amp; HVAC" data-es="Enfriamiento y Climatización">
+            <optgroup label="🌡️ Cooling &amp; HVAC" data-en="🌡️ Cooling &amp; HVAC" data-es="🌡️ Enfriamiento y Climatización">
               <option>Pump skid cooling loop (PT-01)</option>
               <option>Cooling tower 10F (CT-01)</option>
               <option>Cooling tower 5FA (CT-02A)</option>
@@ -593,14 +593,14 @@
               <option>Mini Split Project Office (MSP-04)</option>
             </optgroup>
 
-            <optgroup label="💨 Air Systems" data-en="Air Systems" data-es="Sistemas de Aire">
+            <optgroup label="💨 Air Systems" data-en="💨 Air Systems" data-es="💨 Sistemas de Aire">
               <option>Air compressor 1 (AC-01)</option>
               <option>Air compressor 2 (AC-02)</option>
               <option>Air compressor 3 (AC-03)</option>
               <option>Air Dryer (DR-01)</option>
             </optgroup>
 
-            <optgroup label="⚙️ Production Equipment" data-en="Production Equipment" data-es="Equipo de Producción">
+            <optgroup label="⚙️ Production Equipment" data-en="⚙️ Production Equipment" data-es="⚙️ Equipo de Producción">
               <option>Debagging Machine (DM-01)</option>
               <option>Debagging Machine Vacuum pump (DMV-01)</option>
               <option>Rail Car pump (RCP-01)</option>
@@ -608,7 +608,7 @@
               <option>Box Machine EndFlex (BM-01)</option>
             </optgroup>
 
-            <optgroup label="🚪 Automatic Roll-Up Doors" data-en="Automatic Roll-Up Doors" data-es="Puertas Enrollables Automáticas">
+            <optgroup label="🚪 Automatic Roll-Up Doors" data-en="🚪 Automatic Roll-Up Doors" data-es="🚪 Puertas Enrollables Automáticas">
               <option>Roll-up door North 1 (N1)</option>
               <option>Roll-up door North 2 (N2)</option>
               <option>Roll-up door East 1 (E1)</option>
@@ -617,7 +617,7 @@
               <option>Roll-up door West 3 (W3)</option>
             </optgroup>
 
-            <optgroup label="🚜 Material Handling" data-en="Material Handling" data-es="Manejo de Materiales">
+            <optgroup label="🚜 Material Handling" data-en="🚜 Material Handling" data-es="🚜 Manejo de Materiales">
               <option>Forklift #1 (FL-01)</option>
               <option>Forklift #2 (FL-02)</option>
               <option>Forklift #3 (FL-03)</option>
@@ -626,7 +626,7 @@
               <option>Automatic Pallet Jack Shipping (APJ-03)</option>
             </optgroup>
 
-            <optgroup label="🔧 Utilities &amp; Amenities" data-en="Utilities &amp; Amenities" data-es="Servicios y Comodidades">
+            <optgroup label="🔧 Utilities &amp; Amenities" data-en="🔧 Utilities &amp; Amenities" data-es="🔧 Servicios y Comodidades">
               <option>Ice Machine (ICE-01)</option>
               <option>Water Dispenser Employee Breakroom (WD-01)</option>
               <option>Water Dispenser Mold Maintenance (WD-02)</option>
@@ -637,7 +637,7 @@
               <option>Big Fan 4 (BF-04)</option>
             </optgroup>
 
-            <option data-en="Other" data-es="Otro">Other</option>
+            <option value="Other" data-en="Other" data-es="Otro">Other</option>
           </select>
           <span class="field-error" data-en="Please select an equipment." data-es="Por favor selecciona un equipo.">Please select an equipment.</span>
         </div>
