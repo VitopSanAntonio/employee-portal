@@ -4,748 +4,276 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Maintenance Request — Smurfit Westrock</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="theme.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --navy:     #00205B;
-      --navy-mid: #002f7a;
-      --navy-light: #003a96;
-      --accent:   #4d9fff;
-      --accent-glow: rgba(77,159,255,0.18);
-      --accent-dark: #1a78d4;
-      --white:    #ffffff;
-      --off-white:#e8eef8;
-      --muted:    #8da4c4;
-      --border:   rgba(77,159,255,0.2);
-      --card-bg:  rgba(0,47,122,0.55);
-      --input-bg: rgba(0,35,90,0.6);
-      --error:    #ff6b6b;
-      --success:  #4ade80;
-    }
-
-    html, body {
-      min-height: 100vh;
-      font-family: 'DM Sans', sans-serif;
-      background-color: var(--navy);
-      color: var(--white);
-      overflow-x: hidden;
-    }
-
-    /* ── Background mesh ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 15% 20%, rgba(77,159,255,0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 85% 75%, rgba(0,100,200,0.10) 0%, transparent 55%),
-        radial-gradient(ellipse 40% 40% at 50% 0%,  rgba(0,62,148,0.25) 0%, transparent 50%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ── Grid overlay ── */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(77,159,255,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(77,159,255,0.04) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ── Page layout ── */
-    .page-wrapper {
-      position: relative;
-      z-index: 1;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 16px 60px;
-    }
-
-    /* ── Header ── */
-    .header {
-      width: 100%;
-      max-width: 640px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 32px;
-      animation: fadeDown 0.5s ease both;
-    }
-
-    .header a.back-link {
-      align-self: flex-start;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      transition: color 0.2s;
-    }
-    .header a.back-link:hover { color: var(--accent); }
-    .header a.back-link svg { width: 14px; height: 14px; }
-
-    .logo-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .logo-icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 20px rgba(77,159,255,0.35);
-      flex-shrink: 0;
-    }
-    .logo-icon svg { width: 26px; height: 26px; color: #fff; }
-
-    .header-text h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(22px, 5vw, 28px);
-      font-weight: 700;
-      line-height: 1.15;
-      letter-spacing: -0.01em;
-    }
-    .header-text p {
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 3px;
-      font-weight: 400;
-    }
-
-    /* ── Card ── */
-    .card {
-      width: 100%;
-      max-width: 640px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 36px 32px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      box-shadow:
-        0 8px 32px rgba(0,0,0,0.3),
-        inset 0 1px 0 rgba(255,255,255,0.06);
-      animation: fadeUp 0.55s 0.1s ease both;
-    }
-
-    /* ── Section dividers ── */
-    .section-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .section-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .section-gap { margin-top: 28px; }
-
-    /* ── Form grid ── */
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-    .form-row.full { grid-template-columns: 1fr; }
-
-    @media (max-width: 520px) {
-      .form-row { grid-template-columns: 1fr; }
-      .card { padding: 24px 18px; }
-    }
-
-    /* ── Field ── */
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    label {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--off-white);
-    }
-
-    input[type="text"],
-    input[type="email"],
-    textarea,
-    select {
-      width: 100%;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--white);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      font-weight: 400;
-      padding: 11px 14px;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-      -webkit-appearance: none;
-      appearance: none;
-    }
-    input::placeholder, textarea::placeholder { color: var(--muted); }
-    input:focus, textarea:focus, select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-      background: rgba(0,35,90,0.8);
-    }
-
-    textarea { resize: vertical; min-height: 100px; }
-
-    select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238da4c4' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-      padding-right: 36px;
-      cursor: pointer;
-    }
-    select option { background: #002060; color: #fff; }
-
-    /* ── Priority selector ── */
-    .priority-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
-    @media (max-width: 420px) { .priority-grid { grid-template-columns: repeat(2, 1fr); } }
-
-    .priority-option { display: none; }
-    .priority-option + label {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-      padding: 10px 6px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--input-bg);
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: center;
-      text-transform: none;
-      letter-spacing: 0;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--muted);
-      line-height: 1.2;
-    }
-    .priority-option + label .p-icon {
-      font-size: 20px;
-      line-height: 1;
-    }
-    .priority-option + label:hover {
-      border-color: var(--accent);
-      color: var(--white);
-    }
-    .priority-option:checked + label {
-      border-color: var(--accent);
-      background: rgba(77,159,255,0.15);
-      color: var(--white);
-      box-shadow: 0 0 0 2px var(--accent-glow);
-    }
-    /* per-priority accent colours */
-    #p-low:checked + label    { border-color: #4ade80; background: rgba(74,222,128,0.12); box-shadow: 0 0 0 2px rgba(74,222,128,0.2); }
-    #p-medium:checked + label { border-color: #facc15; background: rgba(250,204,21,0.12); box-shadow: 0 0 0 2px rgba(250,204,21,0.2); }
-    #p-high:checked + label   { border-color: #fb923c; background: rgba(251,146,60,0.12); box-shadow: 0 0 0 2px rgba(251,146,60,0.2); }
-    #p-critical:checked + label { border-color: #f87171; background: rgba(248,113,113,0.14); box-shadow: 0 0 0 2px rgba(248,113,113,0.25); }
-
-    /* ── Photo upload ── */
-    .photo-zone {
-      border: 2px dashed var(--border);
-      border-radius: 12px;
-      padding: 24px 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: var(--input-bg);
-      position: relative;
-    }
-    .photo-zone:hover, .photo-zone.drag-over {
-      border-color: var(--accent);
-      background: rgba(0,35,90,0.85);
-    }
-    .photo-zone input[type="file"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
-    }
-    .photo-zone .upload-icon { font-size: 28px; margin-bottom: 6px; }
-    .photo-zone p { font-size: 13px; color: var(--muted); line-height: 1.5; }
-    .photo-zone p strong { color: var(--accent); font-weight: 600; }
-    .photo-zone .file-name {
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--success);
-      font-weight: 500;
-    }
-
-    .preview-img {
-      display: none;
-      width: 100%;
-      max-height: 180px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-top: 10px;
-      border: 1px solid var(--border);
-    }
-
-    /* ── Optional badge ── */
-    .opt { font-size: 10px; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 4px; }
-
-    /* ── Submit button ── */
-    .submit-wrap {
-      margin-top: 28px;
-    }
-
-    .btn-submit {
-      width: 100%;
-      padding: 15px;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-      border: none;
-      border-radius: 12px;
-      color: #fff;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      cursor: pointer;
-      box-shadow: 0 4px 20px rgba(77,159,255,0.35);
-      transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .btn-submit:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 28px rgba(77,159,255,0.45);
-    }
-    .btn-submit:active:not(:disabled) { transform: translateY(0); }
-    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-    .btn-submit svg { width: 18px; height: 18px; }
-
-    .spinner {
-      display: none;
-      width: 18px; height: 18px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-
-    /* ── Validation ── */
-    .field-error {
-      font-size: 11px;
-      color: var(--error);
-      display: none;
-    }
-    .field.invalid input,
-    .field.invalid select,
-    .field.invalid textarea {
-      border-color: var(--error);
-    }
-    .field.invalid .field-error { display: block; }
-
-    .priority-error {
-      font-size: 11px;
-      color: var(--error);
-      display: none;
-      margin-top: 4px;
-    }
-    .priority-error.show { display: block; }
-
-    /* ── Success screen ── */
-    #success-screen {
-      display: none;
-      width: 100%;
-      max-width: 640px;
-      animation: fadeUp 0.5s ease both;
-    }
-
-    .success-card {
-      background: var(--card-bg);
-      border: 1px solid rgba(77,159,255,0.25);
-      border-radius: 20px;
-      padding: 48px 32px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      text-align: center;
-    }
-    .success-icon {
-      width: 72px; height: 72px;
-      margin: 0 auto 20px;
-      border-radius: 50%;
-      background: rgba(74,222,128,0.15);
-      border: 2px solid rgba(74,222,128,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
-    }
-    .success-icon svg { width: 36px; height: 36px; color: var(--success); }
-    .success-card h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 26px;
-      margin-bottom: 10px;
-    }
-    .success-card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
-    .ref-badge {
-      display: inline-block;
-      margin: 18px auto 8px;
-      padding: 10px 22px;
-      background: rgba(77,159,255,0.12);
-      border: 1px solid var(--accent);
-      border-radius: 100px;
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: var(--accent);
-    }
-    .success-note {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 6px;
-    }
-
-    /* SMS / video note */
+    .page-main { padding: var(--space-6) 0 var(--space-8); }
     .sms-note {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      margin: 16px auto 0;
-      padding: 12px 16px;
-      background: rgba(77,159,255,0.07);
-      border: 1px solid rgba(77,159,255,0.18);
-      border-radius: 12px;
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.55;
-      text-align: left;
-      max-width: 360px;
+      display: flex; gap: var(--space-3); align-items: flex-start;
+      margin: var(--space-4) auto 0; padding: var(--space-3) var(--space-4);
+      background: var(--blue-05); border: 1px solid var(--blue-04); border-radius: var(--radius-md);
+      font-size: var(--text-body-sm); color: var(--blue-01); line-height: 1.55; text-align: left; max-width: 360px;
     }
     .sms-note .sms-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-    .sms-note a {
-      color: var(--accent);
-      font-weight: 600;
-      text-decoration: none;
-      white-space: nowrap;
-    }
+    .sms-note a { color: var(--blue-02); font-weight: var(--weight-semibold); text-decoration: none; white-space: nowrap; }
     .sms-note a:hover { text-decoration: underline; }
-
-    .btn-new {
-      margin-top: 28px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 11px 24px;
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      background: transparent;
-      color: var(--off-white);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-    }
-    .btn-new:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* ── Animations ── */
-    @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-14px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(18px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes popIn {
-      from { opacity: 0; transform: scale(0.5); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
   </style>
 </head>
 <body>
-<div class="page-wrapper">
+<div class="shell">
 
-  <!-- Header -->
-  <div class="header">
-    <a href="index.html" class="back-link">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
-      <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
-    </a>
-
-    <div class="logo-row">
-      <div class="logo-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-        </svg>
+  <header class="page-header">
+    <div class="wrap-narrow page-header-inner">
+      <div class="header-top-row">
+        <a href="index.html" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
+        </a>
+        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
       </div>
-      <div class="header-text">
-        <h1 data-en="Maintenance Request" data-es="Solicitud de Mantenimiento">Maintenance Request</h1>
-        <p data-en="Smurfit Westrock — Facility" data-es="Smurfit Westrock — Instalaciones">Smurfit Westrock — Facility</p>
+      <div class="page-title-row">
+        <span class="icon-tile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </span>
+        <div class="page-title-text">
+          <h1 data-en="Maintenance Request" data-es="Solicitud de Mantenimiento">Maintenance Request</h1>
+          <p data-en="Smurfit Westrock — Facility" data-es="Smurfit Westrock — Instalaciones">Smurfit Westrock — Facility</p>
+        </div>
       </div>
     </div>
-  </div>
+  </header>
 
-  <!-- Form card -->
-  <div class="card" id="form-card">
-    <form id="maint-form" novalidate>
+  <main class="page-main">
+    <div class="wrap-narrow">
 
-      <!-- Section 1: Location -->
-      <div class="section-label" data-en="Location &amp; Category" data-es="Ubicación y Categoría">Location &amp; Category</div>
-      <div class="form-row">
-        <div class="field" id="f-department">
-          <label for="department" data-en="Department" data-es="Departamento">Department</label>
-          <select id="department" name="department">
-            <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
-            <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
-            <option>Injection</option>
-            <option>Assembly</option>
-            <option value="Shipping &amp; Receiving" data-en="Shipping &amp; Receiving" data-es="Envíos y Recepción">Shipping &amp; Receiving</option>
-            <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
-            <option value="BreakRoom" data-en="BreakRoom" data-es="Sala de Descanso">BreakRoom</option>
-            <option value="Office / Admin" data-en="Office / Admin" data-es="Oficina / Administración">Office / Admin</option>
-            <option value="Restroom / Locker" data-en="Restroom / Locker" data-es="Baño / Casillero">Restroom / Locker</option>
-            <option>Facility</option>
-            <option value="Other" data-en="Other" data-es="Otro">Other</option>
-          </select>
-          <span class="field-error" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
-        </div>
+      <!-- Form card -->
+      <div class="form-card" id="form-card">
+        <form id="maint-form" novalidate>
 
-        <div class="field" id="f-location">
-          <label for="location" data-en="Specific Location" data-es="Ubicación Específica">Specific Location</label>
-          <input type="text" id="location" name="location"
-            data-en-placeholder="e.g. Line 3, Room 201…"
-            data-es-placeholder="ej. Línea 3, Sala 201…"
-            placeholder="e.g. Line 3, Room 201…" />
-          <span class="field-error" data-en="Please enter the location." data-es="Por favor ingresa la ubicación.">Please enter the location.</span>
-        </div>
-      </div>
+          <!-- Section 1: Location -->
+          <div class="section-label" data-en="Location &amp; Category" data-es="Ubicación y Categoría">Location &amp; Category</div>
+          <div class="form-row">
+            <div class="field" id="f-department">
+              <label for="department" data-en="Department" data-es="Departamento">Department</label>
+              <select id="department" name="department">
+                <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
+                <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
+                <option>Injection</option>
+                <option>Assembly</option>
+                <option value="Shipping &amp; Receiving" data-en="Shipping &amp; Receiving" data-es="Envíos y Recepción">Shipping &amp; Receiving</option>
+                <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
+                <option value="BreakRoom" data-en="BreakRoom" data-es="Sala de Descanso">BreakRoom</option>
+                <option value="Office / Admin" data-en="Office / Admin" data-es="Oficina / Administración">Office / Admin</option>
+                <option value="Restroom / Locker" data-en="Restroom / Locker" data-es="Baño / Casillero">Restroom / Locker</option>
+                <option>Facility</option>
+                <option value="Other" data-en="Other" data-es="Otro">Other</option>
+              </select>
+              <span class="field-error" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
+            </div>
 
-      <div class="form-row full section-gap">
-        <div class="field" id="f-issueType">
-          <label for="issueType" data-en="Equipment" data-es="Equipo">Equipment</label>
-          <select id="issueType" name="issueType">
-            <option value="" disabled selected data-en="Select equipment…" data-es="Selecciona equipo…">Select equipment…</option>
-
-            <optgroup label="🌡️ Cooling &amp; HVAC" data-en="🌡️ Cooling &amp; HVAC" data-es="🌡️ Enfriamiento y Climatización">
-              <option>Pump skid cooling loop (PT-01)</option>
-              <option>Cooling tower 10F (CT-01)</option>
-              <option>Cooling tower 5FA (CT-02A)</option>
-              <option>Cooling tower 5FB (CT-02B)</option>
-              <option>AC-Chiller (C-01)</option>
-              <option>AC-Chiller (C-02)</option>
-              <option>Chiller Pump 1 (CB-01)</option>
-              <option>Chiller Pump 2 (CB-02)</option>
-              <option>Air Handler 1 (AH-01)</option>
-              <option>Air Handler 2 (AH-02)</option>
-              <option>Air Handler 3 (AH-03)</option>
-              <option>Air Handler 4 (AH-04)</option>
-              <option>Air Handler 5 (AH-05)</option>
-              <option>Air Handler 6 (AH-06)</option>
-              <option>Air Handler 7 (AH-07)</option>
-              <option>Rooftop unit HVAC Office (RTU-01)</option>
-              <option>Rooftop unit HVAC Quality lab (RTU-02)</option>
-              <option>Mini Split IT Room (MSP-01)</option>
-              <option>Mini Split Shipping (MSP-02)</option>
-              <option>Mini Split Meeting Room (MSP-03)</option>
-              <option>Mini Split Project Office (MSP-04)</option>
-            </optgroup>
-
-            <optgroup label="💨 Air Systems" data-en="💨 Air Systems" data-es="💨 Sistemas de Aire">
-              <option>Air compressor 1 (AC-01)</option>
-              <option>Air compressor 2 (AC-02)</option>
-              <option>Air compressor 3 (AC-03)</option>
-              <option>Air Dryer (DR-01)</option>
-            </optgroup>
-
-            <optgroup label="⚙️ Production Equipment" data-en="⚙️ Production Equipment" data-es="⚙️ Equipo de Producción">
-              <option>Debagging Machine (DM-01)</option>
-              <option>Debagging Machine Vacuum pump (DMV-01)</option>
-              <option>Rail Car pump (RCP-01)</option>
-              <option>Wrapping Machine 2 (WM-02)</option>
-              <option>Box Machine EndFlex (BM-01)</option>
-            </optgroup>
-
-            <optgroup label="🚪 Automatic Roll-Up Doors" data-en="🚪 Automatic Roll-Up Doors" data-es="🚪 Puertas Enrollables Automáticas">
-              <option>Roll-up door North 1 (N1)</option>
-              <option>Roll-up door North 2 (N2)</option>
-              <option>Roll-up door East 1 (E1)</option>
-              <option>Roll-up door West 1 (W1)</option>
-              <option>Roll-up door West 2 (W2)</option>
-              <option>Roll-up door West 3 (W3)</option>
-            </optgroup>
-
-            <optgroup label="🚜 Material Handling" data-en="🚜 Material Handling" data-es="🚜 Manejo de Materiales">
-              <option>Forklift #1 (FL-01)</option>
-              <option>Forklift #2 (FL-02)</option>
-              <option>Forklift #3 (FL-03)</option>
-              <option>Automatic Pallet Jack 01 IM (APJ-01)</option>
-              <option>Automatic Pallet Jack 02 IM (APJ-02)</option>
-              <option>Automatic Pallet Jack Shipping (APJ-03)</option>
-            </optgroup>
-
-            <optgroup label="🔧 Utilities &amp; Amenities" data-en="🔧 Utilities &amp; Amenities" data-es="🔧 Servicios y Comodidades">
-              <option>Ice Machine (ICE-01)</option>
-              <option>Water Dispenser Employee Breakroom (WD-01)</option>
-              <option>Water Dispenser Mold Maintenance (WD-02)</option>
-              <option>Water Filter Manager Breakroom (WD-03)</option>
-              <option>Big Fan 1 (BF-01)</option>
-              <option>Big Fan 2 (BF-02)</option>
-              <option>Big Fan 3 (BF-03)</option>
-              <option>Big Fan 4 (BF-04)</option>
-            </optgroup>
-
-            <option value="Other" data-en="Other" data-es="Otro">Other</option>
-          </select>
-          <span class="field-error" data-en="Please select an equipment." data-es="Por favor selecciona un equipo.">Please select an equipment.</span>
-        </div>
-      </div>
-
-      <!-- Section 2: Priority -->
-      <div class="section-label section-gap" data-en="Priority Level" data-es="Nivel de Prioridad">Priority Level</div>
-      <div class="priority-grid" id="priority-grid" role="radiogroup" aria-label="Priority">
-        <input type="radio" name="priority" id="p-low"      value="Low"      class="priority-option" />
-        <label for="p-low">
-          <span class="p-icon">🟢</span>
-          <span data-en="Low" data-es="Bajo">Low</span><br/><small style="font-size:10px;opacity:.7" data-en="Not urgent" data-es="No urgente">Not urgent</small>
-        </label>
-
-        <input type="radio" name="priority" id="p-medium"   value="Medium"   class="priority-option" />
-        <label for="p-medium">
-          <span class="p-icon">🟡</span>
-          <span data-en="Medium" data-es="Medio">Medium</span><br/><small style="font-size:10px;opacity:.7" data-en="This week" data-es="Esta semana">This week</small>
-        </label>
-
-        <input type="radio" name="priority" id="p-high"     value="High"     class="priority-option" />
-        <label for="p-high">
-          <span class="p-icon">🟠</span>
-          <span data-en="High" data-es="Alto">High</span><br/><small style="font-size:10px;opacity:.7" data-en="Today" data-es="Hoy">Today</small>
-        </label>
-
-        <input type="radio" name="priority" id="p-critical" value="Critical" class="priority-option" />
-        <label for="p-critical">
-          <span class="p-icon">🔴</span>
-          <span data-en="Critical" data-es="Crítico">Critical</span><br/><small style="font-size:10px;opacity:.7" data-en="Immediate" data-es="Inmediato">Immediate</small>
-        </label>
-      </div>
-      <span class="priority-error" id="priority-error" data-en="Please select a priority level." data-es="Por favor selecciona un nivel de prioridad.">Please select a priority level.</span>
-
-      <!-- Section 3: Description -->
-      <div class="section-label section-gap" data-en="Details" data-es="Detalles">Details</div>
-      <div class="form-row full">
-        <div class="field" id="f-description">
-          <label for="description" data-en="Description" data-es="Descripción">Description</label>
-          <textarea id="description" name="description" rows="4"
-            data-en-placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"
-            data-es-placeholder="Describe el problema claramente — qué observaste, cuándo comenzó, impacto en las operaciones…"
-            placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"></textarea>
-          <span class="field-error" data-en="Please describe the issue." data-es="Por favor describe el problema.">Please describe the issue.</span>
-        </div>
-      </div>
-
-      <!-- Section 4: Photo & Contact -->
-      <div class="section-label section-gap" data-en="Photo &amp; Contact" data-es="Foto y Contacto">Photo &amp; Contact</div>
-      <div class="form-row full">
-        <div class="field">
-          <label><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
-          <div class="photo-zone" id="photo-zone">
-            <input type="file" id="photo-input" accept="image/*" capture="environment" />
-            <div class="upload-icon">📷</div>
-            <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br /><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
-            <div class="file-name" id="file-name-display"></div>
+            <div class="field" id="f-location">
+              <label for="location" data-en="Specific Location" data-es="Ubicación Específica">Specific Location</label>
+              <input type="text" id="location" name="location"
+                data-en-placeholder="e.g. Line 3, Room 201…"
+                data-es-placeholder="ej. Línea 3, Sala 201…"
+                placeholder="e.g. Line 3, Room 201…" />
+              <span class="field-error" data-en="Please enter the location." data-es="Por favor ingresa la ubicación.">Please enter the location.</span>
+            </div>
           </div>
-          <img id="preview-img" class="preview-img" alt="Preview" />
+
+          <div class="form-row full section-gap">
+            <div class="field" id="f-issueType">
+              <label for="issueType" data-en="Equipment" data-es="Equipo">Equipment</label>
+              <select id="issueType" name="issueType">
+                <option value="" disabled selected data-en="Select equipment…" data-es="Selecciona equipo…">Select equipment…</option>
+
+                <optgroup label="🌡️ Cooling &amp; HVAC" data-en="🌡️ Cooling &amp; HVAC" data-es="🌡️ Enfriamiento y Climatización">
+                  <option>Pump skid cooling loop (PT-01)</option>
+                  <option>Cooling tower 10F (CT-01)</option>
+                  <option>Cooling tower 5FA (CT-02A)</option>
+                  <option>Cooling tower 5FB (CT-02B)</option>
+                  <option>AC-Chiller (C-01)</option>
+                  <option>AC-Chiller (C-02)</option>
+                  <option>Chiller Pump 1 (CB-01)</option>
+                  <option>Chiller Pump 2 (CB-02)</option>
+                  <option>Air Handler 1 (AH-01)</option>
+                  <option>Air Handler 2 (AH-02)</option>
+                  <option>Air Handler 3 (AH-03)</option>
+                  <option>Air Handler 4 (AH-04)</option>
+                  <option>Air Handler 5 (AH-05)</option>
+                  <option>Air Handler 6 (AH-06)</option>
+                  <option>Air Handler 7 (AH-07)</option>
+                  <option>Rooftop unit HVAC Office (RTU-01)</option>
+                  <option>Rooftop unit HVAC Quality lab (RTU-02)</option>
+                  <option>Mini Split IT Room (MSP-01)</option>
+                  <option>Mini Split Shipping (MSP-02)</option>
+                  <option>Mini Split Meeting Room (MSP-03)</option>
+                  <option>Mini Split Project Office (MSP-04)</option>
+                </optgroup>
+
+                <optgroup label="💨 Air Systems" data-en="💨 Air Systems" data-es="💨 Sistemas de Aire">
+                  <option>Air compressor 1 (AC-01)</option>
+                  <option>Air compressor 2 (AC-02)</option>
+                  <option>Air compressor 3 (AC-03)</option>
+                  <option>Air Dryer (DR-01)</option>
+                </optgroup>
+
+                <optgroup label="⚙️ Production Equipment" data-en="⚙️ Production Equipment" data-es="⚙️ Equipo de Producción">
+                  <option>Debagging Machine (DM-01)</option>
+                  <option>Debagging Machine Vacuum pump (DMV-01)</option>
+                  <option>Rail Car pump (RCP-01)</option>
+                  <option>Wrapping Machine 2 (WM-02)</option>
+                  <option>Box Machine EndFlex (BM-01)</option>
+                </optgroup>
+
+                <optgroup label="🚪 Automatic Roll-Up Doors" data-en="🚪 Automatic Roll-Up Doors" data-es="🚪 Puertas Enrollables Automáticas">
+                  <option>Roll-up door North 1 (N1)</option>
+                  <option>Roll-up door North 2 (N2)</option>
+                  <option>Roll-up door East 1 (E1)</option>
+                  <option>Roll-up door West 1 (W1)</option>
+                  <option>Roll-up door West 2 (W2)</option>
+                  <option>Roll-up door West 3 (W3)</option>
+                </optgroup>
+
+                <optgroup label="🚜 Material Handling" data-en="🚜 Material Handling" data-es="🚜 Manejo de Materiales">
+                  <option>Forklift #1 (FL-01)</option>
+                  <option>Forklift #2 (FL-02)</option>
+                  <option>Forklift #3 (FL-03)</option>
+                  <option>Automatic Pallet Jack 01 IM (APJ-01)</option>
+                  <option>Automatic Pallet Jack 02 IM (APJ-02)</option>
+                  <option>Automatic Pallet Jack Shipping (APJ-03)</option>
+                </optgroup>
+
+                <optgroup label="🔧 Utilities &amp; Amenities" data-en="🔧 Utilities &amp; Amenities" data-es="🔧 Servicios y Comodidades">
+                  <option>Ice Machine (ICE-01)</option>
+                  <option>Water Dispenser Employee Breakroom (WD-01)</option>
+                  <option>Water Dispenser Mold Maintenance (WD-02)</option>
+                  <option>Water Filter Manager Breakroom (WD-03)</option>
+                  <option>Big Fan 1 (BF-01)</option>
+                  <option>Big Fan 2 (BF-02)</option>
+                  <option>Big Fan 3 (BF-03)</option>
+                  <option>Big Fan 4 (BF-04)</option>
+                </optgroup>
+
+                <option value="Other" data-en="Other" data-es="Otro">Other</option>
+              </select>
+              <span class="field-error" data-en="Please select an equipment." data-es="Por favor selecciona un equipo.">Please select an equipment.</span>
+            </div>
+          </div>
+
+          <!-- Section 2: Priority -->
+          <div class="section-label section-gap" data-en="Priority Level" data-es="Nivel de Prioridad">Priority Level</div>
+          <div class="pill-grid" id="priority-grid" role="radiogroup" aria-label="Priority">
+            <div>
+              <input type="radio" name="priority" id="p-low" value="Low" class="pill-input" />
+              <label class="pill-label" for="p-low">
+                <span class="p-icon">🟢</span>
+                <span data-en="Low" data-es="Bajo">Low</span><br/><small style="font-size:10px;opacity:.75" data-en="Not urgent" data-es="No urgente">Not urgent</small>
+              </label>
+            </div>
+            <div>
+              <input type="radio" name="priority" id="p-medium" value="Medium" class="pill-input" />
+              <label class="pill-label" for="p-medium">
+                <span class="p-icon">🟡</span>
+                <span data-en="Medium" data-es="Medio">Medium</span><br/><small style="font-size:10px;opacity:.75" data-en="This week" data-es="Esta semana">This week</small>
+              </label>
+            </div>
+            <div>
+              <input type="radio" name="priority" id="p-high" value="High" class="pill-input" />
+              <label class="pill-label" for="p-high">
+                <span class="p-icon">🟠</span>
+                <span data-en="High" data-es="Alto">High</span><br/><small style="font-size:10px;opacity:.75" data-en="Today" data-es="Hoy">Today</small>
+              </label>
+            </div>
+            <div>
+              <input type="radio" name="priority" id="p-critical" value="Critical" class="pill-input" />
+              <label class="pill-label" for="p-critical">
+                <span class="p-icon">🔴</span>
+                <span data-en="Critical" data-es="Crítico">Critical</span><br/><small style="font-size:10px;opacity:.75" data-en="Immediate" data-es="Inmediato">Immediate</small>
+              </label>
+            </div>
+          </div>
+          <span class="field-error" id="priority-error" style="margin-top:6px" data-en="Please select a priority level." data-es="Por favor selecciona un nivel de prioridad.">Please select a priority level.</span>
+
+          <!-- Section 3: Description -->
+          <div class="section-label section-gap" data-en="Details" data-es="Detalles">Details</div>
+          <div class="form-row full">
+            <div class="field" id="f-description">
+              <label for="description" data-en="Description" data-es="Descripción">Description</label>
+              <textarea id="description" name="description" rows="4"
+                data-en-placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"
+                data-es-placeholder="Describe el problema claramente — qué observaste, cuándo comenzó, impacto en las operaciones…"
+                placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"></textarea>
+              <span class="field-error" data-en="Please describe the issue." data-es="Por favor describe el problema.">Please describe the issue.</span>
+            </div>
+          </div>
+
+          <!-- Section 4: Photo & Contact -->
+          <div class="section-label section-gap" data-en="Photo &amp; Contact" data-es="Foto y Contacto">Photo &amp; Contact</div>
+          <div class="form-row full">
+            <div class="field">
+              <label><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <div class="photo-zone" id="photo-zone">
+                <input type="file" id="photo-input" accept="image/*" capture="environment" />
+                <div class="upload-icon">📷</div>
+                <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br /><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
+                <div class="file-name" id="file-name-display"></div>
+              </div>
+              <img id="preview-img" class="preview-img" alt="Preview" />
+            </div>
+          </div>
+
+          <div class="form-row full section-gap">
+            <div class="field" id="f-email">
+              <label for="email"><span data-en="Your Email" data-es="Tu Correo Electrónico">Your Email</span> <span class="opt" data-en="(for confirmation)" data-es="(para confirmación)">(for confirmation)</span></label>
+              <input type="email" id="email" name="email"
+                data-en-placeholder="your.name@smurfitwrk.com"
+                data-es-placeholder="tu.nombre@smurfitwrk.com"
+                placeholder="your.name@smurfitwrk.com" />
+              <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <div class="section-gap">
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+              <svg id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              <div class="spinner" id="spinner"></div>
+              <span id="btn-text" data-en="Submit Maintenance Request" data-es="Enviar Solicitud de Mantenimiento">Submit Maintenance Request</span>
+            </button>
+          </div>
+
+        </form>
+      </div><!-- /card -->
+
+      <!-- Success screen -->
+      <div id="success-screen" style="display:none">
+        <div class="success-card">
+          <div class="success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2 data-en="Request Submitted!" data-es="¡Solicitud Enviada!">Request Submitted!</h2>
+          <p data-en="Your maintenance request has been logged and routed to the Facility team." data-es="Tu solicitud de mantenimiento ha sido registrada y enviada al equipo de Instalaciones.">Your maintenance request has been logged and routed to the Facility team.</p>
+          <div class="ref-badge" id="ref-display">MNT-0001</div>
+          <div class="success-note" data-en="Save this reference number. You'll receive a confirmation email shortly." data-es="Guarda este número de referencia. Recibirás un correo de confirmación en breve.">Save this reference number. You'll receive a confirmation email shortly.</div>
+          <div class="sms-note">
+            <span class="sms-icon">📹</span>
+            <span data-en="Need to send additional information like videos? Text us at <a href='sms:+19409232744'>+1 (940) 923-2744</a>" data-es="¿Necesitas enviar información adicional como videos? Envía un mensaje a <a href='sms:+19409232744'>+1 (940) 923-2744</a>">Need to send additional information like videos? Text us at <a href="sms:+19409232744">+1 (940) 923-2744</a></span>
+          </div>
+          <div class="btn-row">
+            <a href="index.html" class="btn btn-outline" data-en="← Back to Employee Portal" data-es="← Volver al Portal">← Back to Employee Portal</a>
+          </div>
         </div>
       </div>
 
-      <div class="form-row full" style="margin-top:14px;">
-        <div class="field" id="f-email">
-          <label for="email"><span data-en="Your Email" data-es="Tu Correo Electrónico">Your Email</span> <span class="opt" data-en="(for confirmation)" data-es="(para confirmación)">(for confirmation)</span></label>
-          <input type="email" id="email" name="email"
-            data-en-placeholder="your.name@smurfitwrk.com"
-            data-es-placeholder="tu.nombre@smurfitwrk.com"
-            placeholder="your.name@smurfitwrk.com" />
-          <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
-        </div>
-      </div>
-
-      <!-- Submit -->
-      <div class="submit-wrap">
-        <button type="submit" class="btn-submit" id="submit-btn">
-          <svg id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-          <div class="spinner" id="spinner"></div>
-          <span id="btn-text" data-en="Submit Maintenance Request" data-es="Enviar Solicitud de Mantenimiento">Submit Maintenance Request</span>
-        </button>
-      </div>
-
-    </form>
-  </div><!-- /card -->
-
-  <!-- Success screen -->
-  <div id="success-screen">
-    <div class="success-card">
-      <div class="success-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </div>
-      <h2 data-en="Request Submitted!" data-es="¡Solicitud Enviada!">Request Submitted!</h2>
-      <p data-en="Your maintenance request has been logged and routed to the Facility team." data-es="Tu solicitud de mantenimiento ha sido registrada y enviada al equipo de Instalaciones.">Your maintenance request has been logged and routed to the Facility team.</p>
-      <div class="ref-badge" id="ref-display">MNT-0001</div>
-      <div class="success-note" data-en="Save this reference number. You'll receive a confirmation email shortly." data-es="Guarda este número de referencia. Recibirás un correo de confirmación en breve.">Save this reference number. You'll receive a confirmation email shortly.</div>
-      <div class="sms-note">
-        <span class="sms-icon">📹</span>
-        <span data-en="Need to send additional information like videos? Text us at <a href='sms:+19409232744'>+1 (940) 923-2744</a>" data-es="¿Necesitas enviar información adicional como videos? Envía un mensaje a <a href='sms:+19409232744'>+1 (940) 923-2744</a>">Need to send additional information like videos? Text us at <a href="sms:+19409232744">+1 (940) 923-2744</a></span>
-      </div>
-      <a href="index.html" class="btn-new" data-en="← Back to Employee Portal" data-es="← Volver al Portal">← Back to Employee Portal</a>
     </div>
-  </div>
+  </main>
 
-</div><!-- /page-wrapper -->
+</div>
 
 <script>
   // ── Config ──────────────────────────────────────────────────

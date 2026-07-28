@@ -4,663 +4,216 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Employee Suggestion — Smurfit Westrock</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="theme.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --navy:        #00205B;
-      --accent:      #2ecc71;
-      --accent-glow: rgba(46,204,113,0.18);
-      --accent-dark: #1fa85a;
-      --white:       #ffffff;
-      --off-white:   #e8eef8;
-      --muted:       #8da4c4;
-      --border:      rgba(46,204,113,0.2);
-      --border-idle: rgba(77,120,255,0.2);
-      --card-bg:     rgba(0,47,122,0.55);
-      --input-bg:    rgba(0,35,90,0.6);
-      --error:       #ff6b6b;
-      --success:     #4ade80;
-    }
-
-    html, body {
-      min-height: 100vh;
-      font-family: 'DM Sans', sans-serif;
-      background-color: var(--navy);
-      color: var(--white);
-      overflow-x: hidden;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 15% 20%, rgba(46,204,113,0.06) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 85% 75%, rgba(10,100,40,0.08) 0%, transparent 55%),
-        radial-gradient(ellipse 40% 40% at 50% 0%,  rgba(0,62,148,0.25) 0%, transparent 50%);
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .page-wrapper {
-      position: relative;
-      z-index: 1;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 16px 60px;
-    }
-
-    /* ── Header ── */
-    .header {
-      width: 100%;
-      max-width: 640px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 32px;
-      animation: fadeDown 0.5s ease both;
-    }
-
-    .back-link {
-      align-self: flex-start;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      transition: color 0.2s;
-    }
-    .back-link:hover { color: var(--accent); }
-    .back-link svg { width: 14px; height: 14px; }
-
-    .logo-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .logo-icon {
-      width: 52px; height: 52px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 20px rgba(46,204,113,0.35);
-      flex-shrink: 0;
-      font-size: 24px;
-    }
-
-    .header-text h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(22px, 5vw, 28px);
-      font-weight: 700;
-      line-height: 1.15;
-      letter-spacing: -0.01em;
-    }
-    .header-text p { font-size: 13px; color: var(--muted); margin-top: 3px; }
-
-    /* ── Card ── */
-    .card {
-      width: 100%;
-      max-width: 640px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 36px 32px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-      animation: fadeUp 0.55s 0.1s ease both;
-    }
-    @media (max-width: 520px) { .card { padding: 24px 18px; } }
-
-    /* ── Section labels ── */
-    .section-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .section-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-    .section-gap { margin-top: 28px; }
-
-    /* ── Form grid ── */
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .form-row.full { grid-template-columns: 1fr; }
-    @media (max-width: 520px) { .form-row { grid-template-columns: 1fr; } }
-
-    .field { display: flex; flex-direction: column; gap: 6px; }
-
-    label {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--off-white);
-    }
-    .opt { font-weight: 300; text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--muted); }
-
-    input[type="text"],
-    input[type="email"],
-    textarea,
-    select {
-      width: 100%;
-      background: var(--input-bg);
-      border: 1px solid var(--border-idle);
-      border-radius: 10px;
-      color: var(--white);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      padding: 11px 14px;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-      -webkit-appearance: none;
-      appearance: none;
-    }
-    input::placeholder, textarea::placeholder { color: var(--muted); }
-    input:focus, textarea:focus, select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-      background: rgba(0,35,90,0.8);
-    }
-    textarea { resize: vertical; min-height: 120px; }
-
-    select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238da4c4' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-      padding-right: 36px;
-      cursor: pointer;
-    }
-    select option { background: #002060; color: #fff; }
-
-    /* ── Field validation ── */
-    .field-error {
-      font-size: 11px;
-      color: var(--error);
-      display: none;
-      margin-top: 2px;
-    }
-    .field.invalid input,
-    .field.invalid textarea,
-    .field.invalid select {
-      border-color: var(--error);
-      box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
-    }
-    .field.invalid .field-error { display: block; }
-
-    /* ── Anonymous Toggle ── */
-    .anon-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 4px;
-    }
-
-    .anon-option { position: relative; }
-    .anon-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
-
-    .anon-label {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 16px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border-idle);
-      background: var(--input-bg);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-    }
-    .anon-label:hover {
-      border-color: var(--accent);
-      background: rgba(46,204,113,0.05);
-    }
-    .anon-emoji { font-size: 22px; line-height: 1; }
-    .anon-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--off-white);
-    }
-    .anon-sub {
-      font-size: 11px;
-      color: var(--muted);
-      font-weight: 300;
-    }
-
-    .anon-option input[type="radio"]:checked + .anon-label {
-      border-color: var(--accent);
-      background: rgba(46,204,113,0.12);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-    .anon-option input[type="radio"]:checked + .anon-label .anon-title {
-      color: var(--accent);
-    }
-
-    #anon-error {
-      font-size: 11px;
-      color: var(--error);
-      display: none;
-      margin-top: 6px;
-    }
-    #anon-error.show { display: block; }
-
-    /* ── Email reveal ── */
-    #email-field-wrap {
-      overflow: hidden;
-      max-height: 0;
-      opacity: 0;
-      transition: max-height 0.35s ease, opacity 0.3s ease, margin-top 0.3s ease;
-      margin-top: 0;
-    }
-    #email-field-wrap.visible {
-      max-height: 100px;
-      opacity: 1;
-      margin-top: 14px;
-    }
-
-    /* ── Character counter ── */
-    .char-counter {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-    .char-counter .count { font-weight: 600; transition: color 0.2s; }
-    .char-counter .count.warn  { color: #f59e0b; }
-    .char-counter .count.ready { color: var(--accent); }
-    .char-min-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
-
-    /* ── Privacy notice ── */
-    .privacy-notice {
-      margin-top: 20px;
-      padding: 12px 16px;
-      border-radius: 10px;
-      background: rgba(46,204,113,0.06);
-      border: 1px solid rgba(46,204,113,0.15);
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.6;
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-    .privacy-notice .lock { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-
-    /* ── Submit button ── */
-    .submit-wrap { margin-top: 28px; }
-
-    .btn-submit {
-      width: 100%;
-      padding: 14px 24px;
-      border-radius: 12px;
-      border: none;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-      color: #001a0d;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-      box-shadow: 0 4px 20px rgba(46,204,113,0.3);
-    }
-    .btn-submit:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 8px 28px rgba(46,204,113,0.4);
-    }
-    .btn-submit:active:not(:disabled) { transform: translateY(0); }
-    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    .btn-submit svg { width: 18px; height: 18px; flex-shrink: 0; }
-
-    .spinner {
-      width: 18px; height: 18px;
-      border: 2px solid rgba(0,26,13,0.3);
-      border-top-color: #001a0d;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      display: none;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Success screen ── */
-    #success-screen { display: none; width: 100%; max-width: 640px; animation: fadeUp 0.5s ease both; }
-
-    .success-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 48px 32px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .success-icon {
-      width: 72px; height: 72px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 0 0 12px rgba(46,204,113,0.1), 0 0 0 24px rgba(46,204,113,0.05);
-      animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
-    }
-    .success-icon svg { width: 32px; height: 32px; color: #001a0d; }
-
-    @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-    .success-card h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 26px;
-      font-weight: 700;
-    }
-    .success-card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
-
-    .ref-badge {
-      background: rgba(46,204,113,0.12);
-      border: 1px solid rgba(46,204,113,0.3);
-      border-radius: 10px;
-      padding: 10px 24px;
-      font-family: 'Playfair Display', serif;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--accent);
-      letter-spacing: 0.05em;
-    }
-
-    .success-note {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-    .success-anon-note {
-      font-size: 13px;
-      line-height: 1.5;
-      padding: 10px 16px;
-      border-radius: 10px;
-      background: rgba(46,204,113,0.07);
-      border: 1px solid rgba(46,204,113,0.15);
-    }
-
-    .btn-new {
-      display: inline-block;
-      padding: 11px 24px;
-      border-radius: 10px;
-      border: 1px solid var(--border-idle);
-      background: transparent;
-      color: var(--off-white);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .btn-new:hover {
-      border-color: var(--accent);
-      background: rgba(46,204,113,0.08);
-    }
-    .btn-new-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-
-    /* ── Photo upload ── */
-    .photo-zone {
-      border: 2px dashed var(--border-idle);
-      border-radius: 12px;
-      padding: 24px 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: var(--input-bg);
-      position: relative;
-    }
-    .photo-zone:hover, .photo-zone.drag-over { border-color: var(--accent); background: rgba(0,35,90,0.85); }
-    .photo-zone.has-photo { border-color: var(--success); border-style: solid; }
-    .photo-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-    .photo-zone .upload-icon { font-size: 28px; margin-bottom: 6px; }
-    .photo-zone p { font-size: 13px; color: var(--muted); line-height: 1.5; }
-    .photo-zone p strong { color: var(--accent); font-weight: 600; }
-    .photo-zone .file-name { margin-top: 8px; font-size: 12px; color: var(--success); font-weight: 500; }
-    .preview-img { display: none; width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border-idle); }
-
-    /* ── Animations ── */
-    @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes fadeUp   { from { opacity: 0; transform: translateY(20px);  } to { opacity: 1; transform: translateY(0); } }
+    .page-main { padding: var(--space-6) 0 var(--space-8); }
+    .char-counter { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); font-size: var(--text-body-sm); color: var(--text-secondary); margin-top: var(--space-2); }
+    .char-counter .count { font-weight: var(--weight-semibold); transition: color 0.2s; }
+    .char-counter .count.warn { color: #B76E00; }
+    .char-counter .count.ready { color: var(--status-success); }
+    #email-field-wrap { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.35s ease, opacity 0.3s ease, margin-top 0.3s ease; margin-top: 0; }
+    #email-field-wrap.visible { max-height: 120px; opacity: 1; margin-top: var(--space-4); }
+    .privacy-notice { margin-top: var(--space-5); }
   </style>
 </head>
 <body>
-<div class="page-wrapper">
+<div class="shell">
 
-  <!-- Header -->
-  <div class="header">
-    <a class="back-link" href="index.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
-      <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
-    </a>
-    <div class="logo-row">
-      <div class="logo-icon">💡</div>
-      <div class="header-text">
-        <h1 data-en="Employee Suggestion" data-es="Sugerencia de Empleado">Employee Suggestion</h1>
-        <p data-en="Share an idea · Anonymous or identified" data-es="Comparte una idea · Anónimo o identificado">Share an idea · Anonymous or identified</p>
+  <header class="page-header">
+    <div class="wrap-narrow page-header-inner">
+      <div class="header-top-row">
+        <a href="index.html" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
+        </a>
+        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
+      </div>
+      <div class="page-title-row">
+        <span class="icon-tile icon-tile--green">💡</span>
+        <div class="page-title-text">
+          <h1 data-en="Employee Suggestion" data-es="Sugerencia de Empleado">Employee Suggestion</h1>
+          <p data-en="Share an idea · Anonymous or identified" data-es="Comparte una idea · Anónimo o identificado">Share an idea · Anonymous or identified</p>
+        </div>
       </div>
     </div>
-  </div>
+  </header>
 
-  <!-- Form Card -->
-  <div class="card" id="form-card">
-    <form id="suggestion-form" novalidate>
+  <main class="page-main">
+    <div class="wrap-narrow">
 
-      <!-- Section 1: Department & Category -->
-      <div class="section-label" data-en="Your Idea" data-es="Tu Idea">Your Idea</div>
-      <div class="form-row">
-        <div class="field" id="f-department">
-          <label for="department" data-en="Department" data-es="Departamento">Department</label>
-          <select id="department" name="department">
-            <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
-            <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
-            <option>Injection</option>
-            <option>Mold</option>
-            <option>Assembly</option>
-            <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
-            <option>Facility</option>
-            <option value="Common Areas" data-en="Common Areas" data-es="Áreas Comunes">Common Areas</option>
-            <option value="Maintenance" data-en="Maintenance" data-es="Mantenimiento">Maintenance</option>
-            <option value="Safety &amp; Environment" data-en="Safety &amp; Environment" data-es="Seguridad y Medio Ambiente">Safety &amp; Environment</option>
-            <option value="Logistics" data-en="Logistics" data-es="Logística">Logistics</option>
-            <option value="Finance" data-en="Finance" data-es="Finanzas">Finance</option>
-            <option value="Human Resources" data-en="Human Resources" data-es="Recursos Humanos">Human Resources</option>
-            <option>IT</option>
-            <option value="Management" data-en="Management" data-es="Gerencia">Management</option>
-            <option value="Other" data-en="Other" data-es="Otro">Other</option>
-          </select>
-          <span class="field-error" data-en="Please select your department." data-es="Por favor selecciona tu departamento.">Please select your department.</span>
-        </div>
+      <!-- Form Card -->
+      <div class="form-card" id="form-card">
+        <form id="suggestion-form" novalidate>
 
-        <div class="field" id="f-category">
-          <label for="category" data-en="Category" data-es="Categoría">Category</label>
-          <select id="category" name="category">
-            <option value="" disabled selected data-en="Select category…" data-es="Selecciona categoría…">Select category…</option>
-            <option value="Safety" data-en="Safety" data-es="Seguridad">Safety</option>
-            <option value="Cost Saving" data-en="Cost Saving" data-es="Ahorro de Costos">Cost Saving</option>
-            <option value="Process Improvement" data-en="Process Improvement" data-es="Mejora de Proceso">Process Improvement</option>
-            <option value="People Wellness / Culture" data-en="People Wellness / Culture" data-es="Bienestar / Cultura">People Wellness / Culture</option>
-            <option value="Environment" data-en="Environment" data-es="Medio Ambiente">Environment</option>
-            <option value="Technology" data-en="Technology" data-es="Tecnología">Technology</option>
-            <option value="Other" data-en="Other" data-es="Otro">Other</option>
-          </select>
-          <span class="field-error" data-en="Please select a category." data-es="Por favor selecciona una categoría.">Please select a category.</span>
-        </div>
-      </div>
+          <!-- Section 1: Department & Category -->
+          <div class="section-label" data-en="Your Idea" data-es="Tu Idea">Your Idea</div>
+          <div class="form-row">
+            <div class="field" id="f-department">
+              <label for="department" data-en="Department" data-es="Departamento">Department</label>
+              <select id="department" name="department">
+                <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
+                <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
+                <option>Injection</option>
+                <option>Mold</option>
+                <option>Assembly</option>
+                <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
+                <option>Facility</option>
+                <option value="Common Areas" data-en="Common Areas" data-es="Áreas Comunes">Common Areas</option>
+                <option value="Maintenance" data-en="Maintenance" data-es="Mantenimiento">Maintenance</option>
+                <option value="Safety &amp; Environment" data-en="Safety &amp; Environment" data-es="Seguridad y Medio Ambiente">Safety &amp; Environment</option>
+                <option value="Logistics" data-en="Logistics" data-es="Logística">Logistics</option>
+                <option value="Finance" data-en="Finance" data-es="Finanzas">Finance</option>
+                <option value="Human Resources" data-en="Human Resources" data-es="Recursos Humanos">Human Resources</option>
+                <option>IT</option>
+                <option value="Management" data-en="Management" data-es="Gerencia">Management</option>
+                <option value="Other" data-en="Other" data-es="Otro">Other</option>
+              </select>
+              <span class="field-error" data-en="Please select your department." data-es="Por favor selecciona tu departamento.">Please select your department.</span>
+            </div>
 
-      <!-- Section 2: Suggestion -->
-      <div class="section-label section-gap" data-en="Your Suggestion" data-es="Tu Sugerencia">Your Suggestion</div>
-      <div class="form-row full">
-        <div class="field" id="f-suggestion">
-          <label for="suggestion" data-en="Suggestion" data-es="Sugerencia">Suggestion</label>
-          <textarea id="suggestion" name="suggestion" rows="5"
-            data-en-placeholder="Describe your idea in detail — what problem does it solve, how would it work, and what would the benefit be?"
-            data-es-placeholder="Describe tu idea en detalle — ¿qué problema resuelve, cómo funcionaría y cuál sería el beneficio?"
-            placeholder="Describe your idea in detail — what problem does it solve, how would it work, and what would the benefit be?"></textarea>
-          <div class="char-counter">
-            <span data-en="Characters:" data-es="Caracteres:">Characters:</span>
-            <span class="count" id="char-count">0</span>
-            <span data-en="· minimum 20" data-es="· mínimo 20">· minimum 20</span>
+            <div class="field" id="f-category">
+              <label for="category" data-en="Category" data-es="Categoría">Category</label>
+              <select id="category" name="category">
+                <option value="" disabled selected data-en="Select category…" data-es="Selecciona categoría…">Select category…</option>
+                <option value="Safety" data-en="Safety" data-es="Seguridad">Safety</option>
+                <option value="Cost Saving" data-en="Cost Saving" data-es="Ahorro de Costos">Cost Saving</option>
+                <option value="Process Improvement" data-en="Process Improvement" data-es="Mejora de Proceso">Process Improvement</option>
+                <option value="People Wellness / Culture" data-en="People Wellness / Culture" data-es="Bienestar / Cultura">People Wellness / Culture</option>
+                <option value="Environment" data-en="Environment" data-es="Medio Ambiente">Environment</option>
+                <option value="Technology" data-en="Technology" data-es="Tecnología">Technology</option>
+                <option value="Other" data-en="Other" data-es="Otro">Other</option>
+              </select>
+              <span class="field-error" data-en="Please select a category." data-es="Por favor selecciona una categoría.">Please select a category.</span>
+            </div>
           </div>
-          <span class="field-error" id="suggestion-error" data-en="Please enter at least 20 characters." data-es="Por favor ingresa al menos 20 caracteres.">Please enter at least 20 characters.</span>
-        </div>
-      </div>
 
-      <!-- Estimated Benefit -->
-      <div class="form-row full" style="margin-top:14px;">
-        <div class="field" id="f-benefit">
-          <label for="benefit"><span data-en="Estimated Benefit" data-es="Beneficio Estimado">Estimated Benefit</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
-          <textarea id="benefit" name="benefit" rows="3"
-            data-en-placeholder="What improvement, saving, or impact do you expect? e.g. reduce downtime by 20%, save ~$5k/year, improve team morale…"
-            data-es-placeholder="¿Qué mejora, ahorro o impacto esperas? ej. reducir tiempo muerto 20%, ahorrar ~$5k/año, mejorar el ambiente…"
-            placeholder="What improvement, saving, or impact do you expect? e.g. reduce downtime by 20%, save ~$5k/year, improve team morale…"></textarea>
-        </div>
-      </div>
-
-      <!-- Section: Photo -->
-      <div class="section-label section-gap">
-        <span data-en="Photo" data-es="Foto">Photo</span>
-        <span style="font-weight:300;text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted);margin-left:4px;" data-en="(optional)" data-es="(opcional)">(optional)</span>
-      </div>
-      <div class="form-row full">
-        <div class="field">
-          <div class="photo-zone" id="photo-zone">
-            <input type="file" id="photo-input" accept="image/*" capture="environment" />
-            <div class="upload-icon">📷</div>
-            <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br/><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
-            <div class="file-name" id="file-name-display"></div>
+          <!-- Section 2: Suggestion -->
+          <div class="section-label section-gap" data-en="Your Suggestion" data-es="Tu Sugerencia">Your Suggestion</div>
+          <div class="form-row full">
+            <div class="field" id="f-suggestion">
+              <label for="suggestion" data-en="Suggestion" data-es="Sugerencia">Suggestion</label>
+              <textarea id="suggestion" name="suggestion" rows="5"
+                data-en-placeholder="Describe your idea in detail — what problem does it solve, how would it work, and what would the benefit be?"
+                data-es-placeholder="Describe tu idea en detalle — ¿qué problema resuelve, cómo funcionaría y cuál sería el beneficio?"
+                placeholder="Describe your idea in detail — what problem does it solve, how would it work, and what would the benefit be?"></textarea>
+              <div class="char-counter">
+                <span data-en="Characters:" data-es="Caracteres:">Characters:</span>
+                <span class="count" id="char-count">0</span>
+                <span data-en="· minimum 20" data-es="· mínimo 20">· minimum 20</span>
+              </div>
+              <span class="field-error" id="suggestion-error" data-en="Please enter at least 20 characters." data-es="Por favor ingresa al menos 20 caracteres.">Please enter at least 20 characters.</span>
+            </div>
           </div>
-          <img id="preview-img" class="preview-img" alt="Preview" />
-        </div>
-      </div>
 
-      <!-- Section 3: Anonymity -->
-      <div class="section-label section-gap" data-en="Identity" data-es="Identidad">Identity</div>
-
-      <div class="field" id="f-anon">
-        <label data-en="Submit Anonymously?" data-es="¿Enviar Anónimamente?">Submit Anonymously?</label>
-        <div class="anon-grid" id="anon-grid">
-          <div class="anon-option">
-            <input type="radio" name="anonymous" id="anon-yes" value="Yes" />
-            <label class="anon-label" for="anon-yes">
-              <span class="anon-emoji">🔒</span>
-              <span class="anon-title" data-en="Yes, anonymously" data-es="Sí, anónimamente">Yes, anonymously</span>
-              <span class="anon-sub" data-en="Your identity is fully protected" data-es="Tu identidad está completamente protegida">Your identity is fully protected</span>
-            </label>
+          <!-- Estimated Benefit -->
+          <div class="form-row full section-gap">
+            <div class="field" id="f-benefit">
+              <label for="benefit"><span data-en="Estimated Benefit" data-es="Beneficio Estimado">Estimated Benefit</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <textarea id="benefit" name="benefit" rows="3"
+                data-en-placeholder="What improvement, saving, or impact do you expect? e.g. reduce downtime by 20%, save ~$5k/year, improve team morale…"
+                data-es-placeholder="¿Qué mejora, ahorro o impacto esperas? ej. reducir tiempo muerto 20%, ahorrar ~$5k/año, mejorar el ambiente…"
+                placeholder="What improvement, saving, or impact do you expect? e.g. reduce downtime by 20%, save ~$5k/year, improve team morale…"></textarea>
+            </div>
           </div>
-          <div class="anon-option">
-            <input type="radio" name="anonymous" id="anon-no" value="No" />
-            <label class="anon-label" for="anon-no">
-              <span class="anon-emoji">👤</span>
-              <span class="anon-title" data-en="No, include my name" data-es="No, incluir mi nombre">No, include my name</span>
-              <span class="anon-sub" data-en="We'll follow up by email" data-es="Te contactaremos por correo">We'll follow up by email</span>
-            </label>
+
+          <!-- Section: Photo -->
+          <div class="section-label section-gap">
+            <span data-en="Photo" data-es="Foto">Photo</span>
+            <span class="opt" style="margin-left:4px" data-en="(optional)" data-es="(opcional)">(optional)</span>
+          </div>
+          <div class="form-row full">
+            <div class="field">
+              <div class="photo-zone" id="photo-zone">
+                <input type="file" id="photo-input" accept="image/*" capture="environment" />
+                <div class="upload-icon">📷</div>
+                <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br/><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
+                <div class="file-name" id="file-name-display"></div>
+              </div>
+              <img id="preview-img" class="preview-img" alt="Preview" />
+            </div>
+          </div>
+
+          <!-- Section 3: Anonymity -->
+          <div class="section-label section-gap" data-en="Identity" data-es="Identidad">Identity</div>
+
+          <div class="field" id="f-anon">
+            <label data-en="Submit Anonymously?" data-es="¿Enviar Anónimamente?">Submit Anonymously?</label>
+            <div class="pill-grid pill-grid--2" id="anon-grid" style="margin-top:6px">
+              <div>
+                <input type="radio" name="anonymous" id="anon-yes" value="Yes" class="pill-input" />
+                <label class="choice-card" for="anon-yes">
+                  <span class="emoji">🔒</span>
+                  <span class="title" data-en="Yes, anonymously" data-es="Sí, anónimamente">Yes, anonymously</span>
+                  <span class="sub" data-en="Your identity is fully protected" data-es="Tu identidad está completamente protegida">Your identity is fully protected</span>
+                </label>
+              </div>
+              <div>
+                <input type="radio" name="anonymous" id="anon-no" value="No" class="pill-input" />
+                <label class="choice-card" for="anon-no">
+                  <span class="emoji">👤</span>
+                  <span class="title" data-en="No, include my name" data-es="No, incluir mi nombre">No, include my name</span>
+                  <span class="sub" data-en="We'll follow up by email" data-es="Te contactaremos por correo">We'll follow up by email</span>
+                </label>
+              </div>
+            </div>
+            <div class="field-error" id="anon-error" style="margin-top:6px" data-en="Please select an option." data-es="Por favor selecciona una opción.">Please select an option.</div>
+          </div>
+
+          <!-- Email (hidden until "No" selected) -->
+          <div id="email-field-wrap">
+            <div class="field" id="f-email">
+              <label for="email" data-en="Your Email" data-es="Tu Correo Electrónico">Your Email</label>
+              <input type="email" id="email" name="email"
+                data-en-placeholder="your.name@smurfitwestrock.com"
+                data-es-placeholder="tu.nombre@smurfitwestrock.com"
+                placeholder="your.name@smurfitwestrock.com" />
+              <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
+            </div>
+          </div>
+
+          <!-- Privacy notice -->
+          <div class="notice privacy-notice">
+            <span style="font-size:16px">🔒</span>
+            <span data-en="Anonymous submissions are completely private. Your identity cannot be traced and will never be shared with anyone." data-es="Las sugerencias anónimas son completamente privadas. Tu identidad no puede ser rastreada ni compartida con nadie.">Anonymous submissions are completely private. Your identity cannot be traced and will never be shared with anyone.</span>
+          </div>
+
+          <!-- Submit -->
+          <div class="section-gap">
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+              <svg id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              <div class="spinner" id="spinner"></div>
+              <span id="btn-text" data-en="Submit Suggestion" data-es="Enviar Sugerencia">Submit Suggestion</span>
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Success Screen -->
+      <div id="success-screen" style="display:none">
+        <div class="success-card">
+          <div class="success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2 data-en="Suggestion Received!" data-es="¡Sugerencia Recibida!">Suggestion Received!</h2>
+          <p data-en="Thank you for helping us improve. Your idea has been logged and routed to the right team." data-es="Gracias por ayudarnos a mejorar. Tu idea ha sido registrada y enviada al equipo correspondiente.">Thank you for helping us improve. Your idea has been logged and routed to the right team.</p>
+          <div class="ref-badge" id="ref-display">SUG-XXXXXX</div>
+          <p class="success-note" data-en="⏱ We'll respond within 5 business days. Keep this reference number for any follow-up queries." data-es="⏱ Responderemos dentro de 5 días hábiles. Guarda este número de referencia para cualquier consulta.">⏱ We'll respond within 5 business days. Keep this reference number for any follow-up queries.</p>
+          <div class="success-extra" id="success-anon-note"></div>
+          <div class="btn-row">
+            <button class="btn btn-outline" data-en="Submit another idea" data-es="Enviar otra idea" onclick="resetForm()">Submit another idea</button>
+            <a href="index.html" class="btn btn-outline" data-en="← Back to Portal" data-es="← Volver al Portal">← Back to Portal</a>
           </div>
         </div>
-        <div id="anon-error" data-en="Please select an option." data-es="Por favor selecciona una opción.">Please select an option.</div>
       </div>
 
-      <!-- Email (hidden until "No" selected) -->
-      <div id="email-field-wrap">
-        <div class="field" id="f-email">
-          <label for="email" data-en="Your Email" data-es="Tu Correo Electrónico">Your Email</label>
-          <input type="email" id="email" name="email"
-            data-en-placeholder="your.name@smurfitwestrock.com"
-            data-es-placeholder="tu.nombre@smurfitwestrock.com"
-            placeholder="your.name@smurfitwestrock.com" />
-          <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
-        </div>
-      </div>
-
-      <!-- Privacy notice -->
-      <div class="privacy-notice">
-        <span class="lock">🔒</span>
-        <span data-en="Anonymous submissions are completely private. Your identity cannot be traced and will never be shared with anyone." data-es="Las sugerencias anónimas son completamente privadas. Tu identidad no puede ser rastreada ni compartida con nadie.">Anonymous submissions are completely private. Your identity cannot be traced and will never be shared with anyone.</span>
-      </div>
-
-      <!-- Submit -->
-      <div class="submit-wrap">
-        <button type="submit" class="btn-submit" id="submit-btn">
-          <svg id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-          <div class="spinner" id="spinner"></div>
-          <span id="btn-text" data-en="Submit Suggestion" data-es="Enviar Sugerencia">Submit Suggestion</span>
-        </button>
-      </div>
-
-    </form>
-  </div>
-
-  <!-- Success Screen -->
-  <div id="success-screen">
-    <div class="success-card">
-      <div class="success-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </div>
-      <h2 data-en="Suggestion Received!" data-es="¡Sugerencia Recibida!">Suggestion Received!</h2>
-      <p data-en="Thank you for helping us improve. Your idea has been logged<br/>and routed to the right team." data-es="Gracias por ayudarnos a mejorar. Tu idea ha sido registrada<br/>y enviada al equipo correspondiente.">Thank you for helping us improve. Your idea has been logged<br/>and routed to the right team.</p>
-      <div class="ref-badge" id="ref-display">SUG-XXXXXX</div>
-      <p class="success-note" data-en="⏱ We'll respond within <strong>5 business days</strong>.<br/>Keep this reference number for any follow-up queries." data-es="⏱ Responderemos dentro de <strong>5 días hábiles</strong>.<br/>Guarda este número de referencia para cualquier consulta.">⏱ We'll respond within <strong>5 business days</strong>.<br/>Keep this reference number for any follow-up queries.</p>
-      <div class="success-anon-note" id="success-anon-note"></div>
-      <div class="btn-new-row">
-        <button class="btn-new" data-en="Submit another idea" data-es="Enviar otra idea" onclick="resetForm()">Submit another idea</button>
-        <a href="index.html" class="btn-new" data-en="← Back to Portal" data-es="← Volver al Portal">← Back to Portal</a>
-      </div>
     </div>
-  </div>
+  </main>
 
 </div>
 
@@ -675,7 +228,6 @@
   const btnIcon       = document.getElementById('btn-icon');
   const btnText       = document.getElementById('btn-text');
   const refDisplay    = document.getElementById('ref-display');
-  const anonError     = document.getElementById('anon-error');
   const emailWrap     = document.getElementById('email-field-wrap');
   const charCount     = document.getElementById('char-count');
   const successAnon   = document.getElementById('success-anon-note');
@@ -733,7 +285,6 @@
   // ── Anonymity toggle show/hide email ────────────────────────
   document.querySelectorAll('input[name="anonymous"]').forEach(radio => {
     radio.addEventListener('change', () => {
-      anonError.classList.remove('show');
       document.getElementById('f-anon').classList.remove('invalid');
       if (radio.value === 'No') {
         emailWrap.classList.add('visible');
@@ -767,10 +318,10 @@
     ok = validateField('suggestion', sug.length >= 20) && ok;
 
     if (!anonPicked) {
-      anonError.classList.add('show');
+      document.getElementById('f-anon').classList.add('invalid');
       ok = false;
     } else {
-      anonError.classList.remove('show');
+      document.getElementById('f-anon').classList.remove('invalid');
     }
 
     if (anonPicked && anonPicked.value === 'No') {
@@ -847,7 +398,6 @@
     charCount.textContent = '0';
     charCount.classList.remove('warn', 'ready');
     emailWrap.classList.remove('visible');
-    anonError.classList.remove('show');
     document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
     photoBase64 = ''; photoName = '';
     fileNameEl.textContent = '';
@@ -865,3 +415,4 @@
 </script>
 <script src="lang.js"></script>
 </body>
+</html>

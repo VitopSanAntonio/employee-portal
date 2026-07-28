@@ -4,501 +4,186 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Check Request Status — Smurfit Westrock</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="theme.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .page-main { padding: var(--space-6) 0 var(--space-8); }
 
-    :root {
-      --navy:      #00205B;
-      --navy-mid:  #002f7a;
-      --accent:    #4d9fff;
-      --accent-glow: rgba(77,159,255,0.18);
-      --accent-dark: #1a78d4;
-      --white:     #ffffff;
-      --off-white: #e8eef8;
-      --muted:     #8da4c4;
-      --border:    rgba(77,159,255,0.2);
-      --card-bg:   rgba(0,47,122,0.55);
-      --input-bg:  rgba(0,35,90,0.6);
-      --error:     #ff6b6b;
-      --success:   #4ade80;
-      --warning:   #facc15;
-      --orange:    #fb923c;
-    }
-
-    html, body {
-      min-height: 100vh;
-      font-family: 'DM Sans', sans-serif;
-      background-color: var(--navy);
-      color: var(--white);
-      overflow-x: hidden;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 15% 20%, rgba(77,159,255,0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 85% 75%, rgba(0,100,200,0.10) 0%, transparent 55%);
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(77,159,255,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(77,159,255,0.04) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .page-wrapper {
-      position: relative;
-      z-index: 1;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 16px 60px;
-    }
-
-    /* ── Header ── */
-    .header {
-      width: 100%;
-      max-width: 580px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 32px;
-      animation: fadeDown 0.5s ease both;
-    }
-
-    .back-link {
-      align-self: flex-start;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-    .back-link:hover { color: var(--accent); }
-    .back-link svg { width: 14px; height: 14px; }
-
-    .logo-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .logo-icon {
-      width: 52px; height: 52px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 20px rgba(77,159,255,0.35);
-      flex-shrink: 0;
-    }
-    .logo-icon svg { width: 26px; height: 26px; }
-
-    .header-text h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(22px, 5vw, 28px);
-      font-weight: 700;
-      line-height: 1.15;
-    }
-    .header-text p {
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 3px;
-    }
-
-    /* ── Card ── */
-    .card {
-      width: 100%;
-      max-width: 580px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 36px 32px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-      animation: fadeUp 0.55s 0.1s ease both;
-    }
-
-    @media (max-width: 520px) {
-      .card { padding: 24px 18px; }
-    }
-
-    .section-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .section-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    /* ── Search box ── */
-    .search-row {
-      display: flex;
-      gap: 10px;
-    }
+    .search-row { display: flex; gap: var(--space-3); }
     .search-row input {
       flex: 1;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--white);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 600;
+      min-width: 0;
+      font-weight: var(--weight-semibold);
       letter-spacing: 0.05em;
-      padding: 13px 16px;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
       text-transform: uppercase;
     }
-    .search-row input::placeholder {
-      color: var(--muted);
-      font-weight: 400;
-      text-transform: none;
-      letter-spacing: 0;
+    .search-row input::placeholder { font-weight: var(--weight-regular); text-transform: none; letter-spacing: 0; }
+    .search-row input.error-state { border-color: var(--status-danger); }
+    @media (max-width: 480px) {
+      .search-row { flex-direction: column; }
+      .btn-lookup { justify-content: center; }
     }
-    .search-row input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-    .search-row input.error-state { border-color: var(--error); }
 
     .btn-lookup {
-      padding: 13px 22px;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      padding: 12px 22px;
+      background: var(--blue-02);
       border: none;
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       color: #fff;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
+      font-family: var(--font-display);
+      font-size: var(--text-t3);
+      font-weight: var(--weight-semibold);
       cursor: pointer;
-      box-shadow: 0 4px 16px rgba(77,159,255,0.3);
-      transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+      transition: background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: var(--space-2);
       white-space: nowrap;
     }
-    .btn-lookup:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 22px rgba(77,159,255,0.4);
-    }
+    .btn-lookup:hover:not(:disabled) { background: var(--blue-01); }
     .btn-lookup:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-lookup svg { width: 16px; height: 16px; }
 
-    .hint {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 8px;
-    }
-    .hint span {
-      font-weight: 600;
-      color: var(--off-white);
-    }
+    .hint { font-size: var(--text-body-sm); color: var(--text-secondary); margin-top: var(--space-2); }
+    .hint span { font-weight: var(--weight-semibold); color: var(--text-primary); }
 
-    .error-msg {
-      display: none;
-      font-size: 12px;
-      color: var(--error);
-      margin-top: 8px;
-    }
+    .error-msg { display: none; font-size: var(--text-body-sm); color: var(--status-danger); margin-top: var(--space-2); }
     .error-msg.show { display: block; }
 
-    /* ── Spinner ── */
     .lookup-spinner {
       display: none;
-      margin: 32px auto;
+      margin: var(--space-6) auto;
       width: 36px; height: 36px;
-      border: 3px solid rgba(77,159,255,0.2);
-      border-top-color: var(--accent);
-      border-radius: 50%;
+      border: 3px solid var(--blue-05);
+      border-top-color: var(--blue-03);
+      border-radius: var(--radius-circle);
       animation: spin 0.8s linear infinite;
     }
     .lookup-spinner.show { display: block; }
 
-    /* ── Result card ── */
-    #result-area {
-      display: none;
-      margin-top: 28px;
-      animation: fadeUp 0.4s ease both;
-    }
-
-    .result-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
+    #result-area { display: none; margin-top: var(--space-6); }
+    .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-5); flex-wrap: wrap; gap: var(--space-3); }
     .ref-id {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      background: rgba(77,159,255,0.1);
-      border: 1px solid rgba(77,159,255,0.25);
-      border-radius: 100px;
-      padding: 5px 14px;
+      font-size: var(--text-body-sm); font-weight: var(--weight-bold); letter-spacing: 0.08em;
+      color: var(--blue-02); background: var(--blue-05); border: 1px solid var(--blue-04);
+      border-radius: var(--radius-pill); padding: 5px 14px;
     }
 
-    /* Status badge */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 7px 16px;
-      border-radius: 100px;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-    }
-    .status-badge .dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .status-pending   { background: rgba(250,204,21,0.12);  border: 1px solid rgba(250,204,21,0.4);  color: #facc15; }
-    .status-pending   .dot { background: #facc15; box-shadow: 0 0 6px rgba(250,204,21,0.6); animation: pulse 1.5s ease-in-out infinite; }
-    .status-progress  { background: rgba(77,159,255,0.12);  border: 1px solid rgba(77,159,255,0.4);  color: var(--accent); }
-    .status-progress  .dot { background: var(--accent); box-shadow: 0 0 6px rgba(77,159,255,0.6); animation: pulse 1.5s ease-in-out infinite; }
-    .status-done      { background: rgba(74,222,128,0.12);  border: 1px solid rgba(74,222,128,0.4);  color: var(--success); }
-    .status-done      .dot { background: var(--success); }
-    .status-open      { background: rgba(251,146,60,0.12);  border: 1px solid rgba(251,146,60,0.4);  color: var(--orange); }
-    .status-open      .dot { background: var(--orange); box-shadow: 0 0 6px rgba(251,146,60,0.6); animation: pulse 1.5s ease-in-out infinite; }
-    .status-default   { background: rgba(141,164,196,0.12); border: 1px solid rgba(141,164,196,0.3); color: var(--muted); }
-    .status-default   .dot { background: var(--muted); }
-
-    /* Detail rows */
-    .detail-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-4); }
     @media (max-width: 460px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-box { background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
+    .detail-box .d-label { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px; }
+    .detail-box .d-value { font-size: var(--text-t3); font-weight: var(--weight-medium); color: var(--text-primary); }
 
-    .detail-box {
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 14px;
-    }
-    .detail-box .d-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-    .detail-box .d-value {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--off-white);
-    }
+    .comments-box { background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-4); }
+    .comments-box .d-label { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: var(--space-2); }
+    .comments-box .d-value { font-size: var(--text-t3); color: var(--text-primary); line-height: 1.6; }
+    .comments-box .no-comments { font-size: var(--text-body-sm); color: var(--text-secondary); font-style: italic; }
 
-    .comments-box {
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-    }
-    .comments-box .d-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    .comments-box .d-value {
-      font-size: 14px;
-      color: var(--off-white);
-      line-height: 1.6;
-    }
-    .comments-box .no-comments {
-      font-size: 13px;
-      color: var(--muted);
-      font-style: italic;
-    }
+    .divider { height: 1px; background: var(--border-default); margin: var(--space-5) 0; }
 
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 20px 0;
-    }
-
-    .btn-new-search {
-      margin-top: 20px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 20px;
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      background: transparent;
-      color: var(--muted);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-new-search:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* ── Not found ── */
-    #not-found {
-      display: none;
-      margin-top: 24px;
-      text-align: center;
-      padding: 28px 16px;
-      animation: fadeUp 0.4s ease both;
-    }
-    #not-found .nf-icon { font-size: 36px; margin-bottom: 10px; }
-    #not-found h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 20px;
-      margin-bottom: 8px;
-    }
-    #not-found p { font-size: 13px; color: var(--muted); line-height: 1.6; }
-
-    /* ── Animations ── */
-    @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-14px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.4; }
-    }
+    #not-found { display: none; margin-top: var(--space-5); text-align: center; padding: var(--space-6) var(--space-4); }
+    #not-found .nf-icon { font-size: 34px; margin-bottom: var(--space-2); }
+    #not-found h3 { font-size: var(--text-h4); margin-bottom: var(--space-2); }
+    #not-found p { font-size: var(--text-body-sm); color: var(--text-secondary); line-height: 1.6; }
   </style>
 </head>
 <body>
-<div class="page-wrapper">
+<div class="shell">
 
-  <!-- Header -->
-  <div class="header">
-    <a href="index.html" class="back-link">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
-      <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
-    </a>
-    <div class="logo-row">
-      <div class="logo-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
+  <header class="page-header">
+    <div class="wrap-narrow page-header-inner">
+      <div class="header-top-row">
+        <a href="index.html" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
+        </a>
+        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
       </div>
-      <div class="header-text">
-        <h1 data-en="Check Request Status" data-es="Verificar Estado de Solicitud">Check Request Status</h1>
-        <p data-en="Smurfit Westrock — Employee Portal" data-es="Smurfit Westrock — Portal del Empleado">Smurfit Westrock — Employee Portal</p>
+      <div class="page-title-row">
+        <span class="icon-tile icon-tile--deep">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </span>
+        <div class="page-title-text">
+          <h1 data-en="Check Request Status" data-es="Verificar Estado de Solicitud">Check Request Status</h1>
+          <p data-en="Smurfit Westrock — Employee Portal" data-es="Smurfit Westrock — Portal del Empleado">Smurfit Westrock — Employee Portal</p>
+        </div>
       </div>
     </div>
-  </div>
+  </header>
 
-  <!-- Card -->
-  <div class="card">
-    <div class="section-label" data-en="Enter Your Reference Number" data-es="Ingresa Tu Número de Referencia">Enter Your Reference Number</div>
+  <main class="page-main">
+    <div class="wrap-narrow">
 
-    <div class="search-row">
-      <input
-        type="text"
-        id="ref-input"
-        data-en-placeholder="e.g. MNT-0001, SAF-0042 or SUG-0123"
-        data-es-placeholder="ej. MNT-0001, SAF-0042 o SUG-0123"
-        placeholder="e.g. MNT-0001, SAF-0042 or SUG-0123"
-        maxlength="10"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <button class="btn-lookup" id="lookup-btn" onclick="lookupStatus()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <span data-en="Look up" data-es="Buscar">Look up</span>
-      </button>
-    </div>
-    <div class="hint" data-en="Format: <span>MNT-0001</span> · <span>SAF-123456</span> · <span>SUG-123456</span>" data-es="Formato: <span>MNT-0001</span> · <span>SAF-123456</span> · <span>SUG-123456</span>">Format: <span>MNT-0001</span> · <span>SAF-123456</span> · <span>SUG-123456</span></div>
-    <div class="error-msg" id="error-msg" data-en="Please enter a valid reference number (e.g. MNT-0001 or SAF-123456)." data-es="Por favor ingresa un número de referencia válido (ej. MNT-0001 o SAF-123456).">Please enter a valid reference number (e.g. MNT-0001 or SAF-123456).</div>
+      <div class="form-card">
+        <div class="section-label" data-en="Enter Your Reference Number" data-es="Ingresa Tu Número de Referencia">Enter Your Reference Number</div>
 
-    <!-- Spinner -->
-    <div class="lookup-spinner" id="lookup-spinner"></div>
+        <div class="search-row">
+          <input
+            type="text"
+            id="ref-input"
+            data-en-placeholder="e.g. MNT-0001, SAF-0042 or SUG-0123"
+            data-es-placeholder="ej. MNT-0001, SAF-0042 o SUG-0123"
+            placeholder="e.g. MNT-0001, SAF-0042 or SUG-0123"
+            maxlength="10"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="btn-lookup" id="lookup-btn" onclick="lookupStatus()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span data-en="Look up" data-es="Buscar">Look up</span>
+          </button>
+        </div>
+        <div class="hint" data-en="Format: <span>MNT-0001</span> · <span>SAF-123456</span> · <span>SUG-123456</span>" data-es="Formato: <span>MNT-0001</span> · <span>SAF-123456</span> · <span>SUG-123456</span>">Format: <span>MNT-0001</span> · <span>SAF-123456</span> · <span>SUG-123456</span></div>
+        <div class="error-msg" id="error-msg" data-en="Please enter a valid reference number (e.g. MNT-0001 or SAF-123456)." data-es="Por favor ingresa un número de referencia válido (ej. MNT-0001 o SAF-123456).">Please enter a valid reference number (e.g. MNT-0001 or SAF-123456).</div>
 
-    <!-- Not found -->
-    <div id="not-found">
-      <div class="nf-icon">🔍</div>
-      <h3 data-en="Reference Not Found" data-es="Referencia No Encontrada">Reference Not Found</h3>
-      <p data-en="We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email." data-es="No encontramos una solicitud con ese número de referencia.<br/>Verifica el número en tu correo de confirmación.">We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email.</p>
-    </div>
+        <!-- Spinner -->
+        <div class="lookup-spinner" id="lookup-spinner"></div>
 
-    <!-- Result -->
-    <div id="result-area">
-      <div class="divider"></div>
-      <div class="result-header">
-        <div class="ref-id" id="result-ref"></div>
-        <div class="status-badge" id="result-status-badge">
-          <div class="dot"></div>
-          <span id="result-status-text"></span>
+        <!-- Not found -->
+        <div id="not-found">
+          <div class="nf-icon">🔍</div>
+          <h3 data-en="Reference Not Found" data-es="Referencia No Encontrada">Reference Not Found</h3>
+          <p data-en="We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email." data-es="No encontramos una solicitud con ese número de referencia.<br/>Verifica el número en tu correo de confirmación.">We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email.</p>
+        </div>
+
+        <!-- Result -->
+        <div id="result-area">
+          <div class="divider"></div>
+          <div class="result-header">
+            <div class="ref-id" id="result-ref"></div>
+            <div class="status-pill" id="result-status-badge">
+              <div class="dot"></div>
+              <span id="result-status-text"></span>
+            </div>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-box">
+              <div class="d-label" data-en="Type" data-es="Tipo">Type</div>
+              <div class="d-value" id="result-type">—</div>
+            </div>
+            <div class="detail-box">
+              <div class="d-label" data-en="Submitted" data-es="Enviado">Submitted</div>
+              <div class="d-value" id="result-date">—</div>
+            </div>
+          </div>
+
+          <div class="comments-box">
+            <div class="d-label" data-en="Team Comments" data-es="Comentarios del Equipo">Team Comments</div>
+            <div class="d-value" id="result-comments"></div>
+          </div>
+
+          <button class="btn btn-outline" style="margin-top:var(--space-5)" onclick="resetSearch()" data-en="← Search another reference" data-es="← Buscar otra referencia">
+            ← Search another reference
+          </button>
         </div>
       </div>
 
-      <div class="detail-grid">
-        <div class="detail-box">
-          <div class="d-label" data-en="Type" data-es="Tipo">Type</div>
-          <div class="d-value" id="result-type">—</div>
-        </div>
-        <div class="detail-box">
-          <div class="d-label" data-en="Submitted" data-es="Enviado">Submitted</div>
-          <div class="d-value" id="result-date">—</div>
-        </div>
-      </div>
-
-      <div class="comments-box">
-        <div class="d-label" data-en="Team Comments" data-es="Comentarios del Equipo">Team Comments</div>
-        <div class="d-value" id="result-comments"></div>
-      </div>
-
-      <button class="btn-new-search" onclick="resetSearch()" data-en="← Search another reference" data-es="← Buscar otra referencia">
-        ← Search another reference
-      </button>
     </div>
-  </div>
+  </main>
 
 </div>
 
@@ -575,7 +260,7 @@
     const statusTx = document.getElementById('result-status-text');
     const status   = (data.status || 'Unknown').trim();
     statusTx.textContent = status;
-    badge.className = 'status-badge ' + getStatusClass(status);
+    badge.className = 'status-pill ' + getStatusClass(status);
 
     // Type
     const typeEl = document.getElementById('result-type');
