@@ -29,7 +29,7 @@
       <div class="header-top-row">
         <a href="index.html" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
+          <span data-en="Back to portal" data-es="Volver al portal">Back to portal</span>
         </a>
         <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
       </div>
@@ -38,8 +38,8 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
         </span>
         <div class="page-title-text">
-          <h1 data-en="Maintenance Request" data-es="Solicitud de Mantenimiento">Maintenance Request</h1>
-          <p data-en="Smurfit Westrock — Facility" data-es="Smurfit Westrock — Instalaciones">Smurfit Westrock — Facility</p>
+          <h1 data-en="Maintenance request" data-es="Solicitud de mantenimiento">Maintenance request</h1>
+          <p data-en="Smurfit Westrock — facility" data-es="Smurfit Westrock — instalaciones">Smurfit Westrock — facility</p>
         </div>
       </div>
     </div>
@@ -53,7 +53,7 @@
         <form id="maint-form" novalidate>
 
           <!-- Section 1: Location -->
-          <div class="section-label" data-en="Location &amp; Category" data-es="Ubicación y Categoría">Location &amp; Category</div>
+          <div class="section-label" data-en="Location &amp; category" data-es="Ubicación y categoría">Location &amp; category</div>
           <div class="form-row">
             <div class="field" id="f-department">
               <label for="department" data-en="Department" data-es="Departamento">Department</label>
@@ -74,7 +74,7 @@
             </div>
 
             <div class="field" id="f-location">
-              <label for="location" data-en="Specific Location" data-es="Ubicación Específica">Specific Location</label>
+              <label for="location" data-en="Specific location" data-es="Ubicación específica">Specific location</label>
               <input type="text" id="location" name="location"
                 data-en-placeholder="e.g. Line 3, Room 201…"
                 data-es-placeholder="ej. Línea 3, Sala 201…"
@@ -164,34 +164,46 @@
           </div>
 
           <!-- Section 2: Priority -->
-          <div class="section-label section-gap" data-en="Priority Level" data-es="Nivel de Prioridad">Priority Level</div>
-          <div class="pill-grid" id="priority-grid" role="radiogroup" aria-label="Priority">
+          <div class="section-label section-gap" data-en="Priority level" data-es="Nivel de prioridad">Priority level</div>
+          <div class="pill-grid pill-grid--row" id="priority-grid" role="radiogroup" aria-label="Priority">
             <div>
               <input type="radio" name="priority" id="p-low" value="Low" class="pill-input" />
-              <label class="pill-label" for="p-low">
-                <span class="p-icon">🟢</span>
-                <span data-en="Low" data-es="Bajo">Low</span><br/><small style="font-size:10px;opacity:.75" data-en="Not urgent" data-es="No urgente">Not urgent</small>
+              <label class="pill-label pill-label--row" for="p-low">
+                <span class="priority-dot" style="background:var(--green-02)"></span>
+                <span class="p-text">
+                  <span class="p-name" data-en="Low" data-es="Bajo">Low</span>
+                  <span class="p-sub" data-en="Not urgent" data-es="No urgente">Not urgent</span>
+                </span>
               </label>
             </div>
             <div>
               <input type="radio" name="priority" id="p-medium" value="Medium" class="pill-input" />
-              <label class="pill-label" for="p-medium">
-                <span class="p-icon">🟡</span>
-                <span data-en="Medium" data-es="Medio">Medium</span><br/><small style="font-size:10px;opacity:.75" data-en="This week" data-es="Esta semana">This week</small>
+              <label class="pill-label pill-label--row" for="p-medium">
+                <span class="priority-dot" style="background:var(--safety-yellow);border:1px solid var(--border-strong)"></span>
+                <span class="p-text">
+                  <span class="p-name" data-en="Medium" data-es="Medio">Medium</span>
+                  <span class="p-sub" data-en="This week" data-es="Esta semana">This week</span>
+                </span>
               </label>
             </div>
             <div>
               <input type="radio" name="priority" id="p-high" value="High" class="pill-input" />
-              <label class="pill-label" for="p-high">
-                <span class="p-icon">🟠</span>
-                <span data-en="High" data-es="Alto">High</span><br/><small style="font-size:10px;opacity:.75" data-en="Today" data-es="Hoy">Today</small>
+              <label class="pill-label pill-label--row" for="p-high">
+                <span class="priority-dot" style="background:var(--fuchsia-02)"></span>
+                <span class="p-text">
+                  <span class="p-name" data-en="High" data-es="Alto">High</span>
+                  <span class="p-sub" data-en="Today" data-es="Hoy">Today</span>
+                </span>
               </label>
             </div>
             <div>
               <input type="radio" name="priority" id="p-critical" value="Critical" class="pill-input" />
-              <label class="pill-label" for="p-critical">
-                <span class="p-icon">🔴</span>
-                <span data-en="Critical" data-es="Crítico">Critical</span><br/><small style="font-size:10px;opacity:.75" data-en="Immediate" data-es="Inmediato">Immediate</small>
+              <label class="pill-label pill-label--row" for="p-critical">
+                <span class="priority-dot" style="background:var(--status-danger)"></span>
+                <span class="p-text">
+                  <span class="p-name" data-en="Critical" data-es="Crítico">Critical</span>
+                  <span class="p-sub" data-en="Immediate" data-es="Inmediato">Immediate</span>
+                </span>
               </label>
             </div>
           </div>
@@ -211,13 +223,15 @@
           </div>
 
           <!-- Section 4: Photo & Contact -->
-          <div class="section-label section-gap" data-en="Photo &amp; Contact" data-es="Foto y Contacto">Photo &amp; Contact</div>
+          <div class="section-label section-gap" data-en="Photo &amp; contact" data-es="Foto y contacto">Photo &amp; contact</div>
           <div class="form-row full">
             <div class="field">
               <label><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
               <div class="photo-zone" id="photo-zone">
                 <input type="file" id="photo-input" accept="image/*" capture="environment" />
-                <div class="upload-icon">📷</div>
+                <div class="upload-icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--blue-02)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>
+                </div>
                 <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br /><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
                 <div class="file-name" id="file-name-display"></div>
               </div>
@@ -227,7 +241,7 @@
 
           <div class="form-row full section-gap">
             <div class="field" id="f-email">
-              <label for="email"><span data-en="Your Email" data-es="Tu Correo Electrónico">Your Email</span> <span class="opt" data-en="(for confirmation)" data-es="(para confirmación)">(for confirmation)</span></label>
+              <label for="email"><span data-en="Your email" data-es="Tu correo electrónico">Your email</span> <span class="opt" data-en="(for confirmation)" data-es="(para confirmación)">(for confirmation)</span></label>
               <input type="email" id="email" name="email"
                 data-en-placeholder="your.name@smurfitwrk.com"
                 data-es-placeholder="tu.nombre@smurfitwrk.com"
@@ -243,7 +257,7 @@
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
               <div class="spinner" id="spinner"></div>
-              <span id="btn-text" data-en="Submit Maintenance Request" data-es="Enviar Solicitud de Mantenimiento">Submit Maintenance Request</span>
+              <span id="btn-text" data-en="Submit maintenance request" data-es="Enviar solicitud de mantenimiento">Submit maintenance request</span>
             </button>
           </div>
 
@@ -256,16 +270,18 @@
           <div class="success-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
-          <h2 data-en="Request Submitted!" data-es="¡Solicitud Enviada!">Request Submitted!</h2>
-          <p data-en="Your maintenance request has been logged and routed to the Facility team." data-es="Tu solicitud de mantenimiento ha sido registrada y enviada al equipo de Instalaciones.">Your maintenance request has been logged and routed to the Facility team.</p>
+          <h2 data-en="Request submitted!" data-es="¡Solicitud enviada!">Request submitted!</h2>
+          <p data-en="Your maintenance request has been logged and routed to the facility team." data-es="Tu solicitud de mantenimiento ha sido registrada y enviada al equipo de instalaciones.">Your maintenance request has been logged and routed to the facility team.</p>
           <div class="ref-badge" id="ref-display">MNT-0001</div>
           <div class="success-note" data-en="Save this reference number. You'll receive a confirmation email shortly." data-es="Guarda este número de referencia. Recibirás un correo de confirmación en breve.">Save this reference number. You'll receive a confirmation email shortly.</div>
           <div class="sms-note">
-            <span class="sms-icon">📹</span>
+            <span class="sms-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+            </span>
             <span data-en="Need to send additional information like videos? Text us at <a href='sms:+19409232744'>+1 (940) 923-2744</a>" data-es="¿Necesitas enviar información adicional como videos? Envía un mensaje a <a href='sms:+19409232744'>+1 (940) 923-2744</a>">Need to send additional information like videos? Text us at <a href="sms:+19409232744">+1 (940) 923-2744</a></span>
           </div>
           <div class="btn-row">
-            <a href="index.html" class="btn btn-outline" data-en="← Back to Employee Portal" data-es="← Volver al Portal">← Back to Employee Portal</a>
+            <a href="index.html" class="btn btn-outline" data-en="Back to employee portal" data-es="Volver al portal">Back to employee portal</a>
           </div>
         </div>
       </div>

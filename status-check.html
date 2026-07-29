@@ -74,20 +74,27 @@
     .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-4); }
     @media (max-width: 460px) { .detail-grid { grid-template-columns: 1fr; } }
     .detail-box { background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
-    .detail-box .d-label { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px; }
+    .detail-box .d-label { font-size: var(--text-body-sm); font-weight: var(--weight-semibold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px; }
     .detail-box .d-value { font-size: var(--text-t3); font-weight: var(--weight-medium); color: var(--text-primary); }
 
     .comments-box { background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-4); }
-    .comments-box .d-label { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: var(--space-2); }
+    .comments-box .d-label { font-size: var(--text-body-sm); font-weight: var(--weight-semibold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: var(--space-2); }
     .comments-box .d-value { font-size: var(--text-t3); color: var(--text-primary); line-height: 1.6; }
     .comments-box .no-comments { font-size: var(--text-body-sm); color: var(--text-secondary); font-style: italic; }
 
     .divider { height: 1px; background: var(--border-default); margin: var(--space-5) 0; }
 
     #not-found { display: none; margin-top: var(--space-5); text-align: center; padding: var(--space-6) var(--space-4); }
-    #not-found .nf-icon { font-size: 34px; margin-bottom: var(--space-2); }
-    #not-found h3 { font-size: var(--text-h4); margin-bottom: var(--space-2); }
-    #not-found p { font-size: var(--text-body-sm); color: var(--text-secondary); line-height: 1.6; }
+    #not-found .nf-icon {
+      width: 56px; height: 56px; margin: 0 auto var(--space-3);
+      border-radius: var(--radius-circle);
+      background: var(--surface-sunken);
+      border: 1px solid var(--border-default);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-secondary);
+    }
+    #not-found h3 { font-size: var(--text-t1); margin-bottom: var(--space-2); }
+    #not-found p { font-size: var(--text-t3); color: var(--text-secondary); line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -98,7 +105,7 @@
       <div class="header-top-row">
         <a href="index.html" class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          <span data-en="Back to Portal" data-es="Volver al Portal">Back to Portal</span>
+          <span data-en="Back to portal" data-es="Volver al portal">Back to portal</span>
         </a>
         <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
       </div>
@@ -107,8 +114,8 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         </span>
         <div class="page-title-text">
-          <h1 data-en="Check Request Status" data-es="Verificar Estado de Solicitud">Check Request Status</h1>
-          <p data-en="Smurfit Westrock — Employee Portal" data-es="Smurfit Westrock — Portal del Empleado">Smurfit Westrock — Employee Portal</p>
+          <h1 data-en="Check request status" data-es="Verificar estado de solicitud">Check request status</h1>
+          <p data-en="Smurfit Westrock — employee portal" data-es="Smurfit Westrock — portal del empleado">Smurfit Westrock — employee portal</p>
         </div>
       </div>
     </div>
@@ -118,7 +125,7 @@
     <div class="wrap-narrow">
 
       <div class="form-card">
-        <div class="section-label" data-en="Enter Your Reference Number" data-es="Ingresa Tu Número de Referencia">Enter Your Reference Number</div>
+        <div class="section-label" data-en="Enter your reference number" data-es="Ingresa tu número de referencia">Enter your reference number</div>
 
         <div class="search-row">
           <input
@@ -144,8 +151,10 @@
 
         <!-- Not found -->
         <div id="not-found">
-          <div class="nf-icon">🔍</div>
-          <h3 data-en="Reference Not Found" data-es="Referencia No Encontrada">Reference Not Found</h3>
+          <div class="nf-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+          <h3 data-en="Reference not found" data-es="Referencia no encontrada">Reference not found</h3>
           <p data-en="We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email." data-es="No encontramos una solicitud con ese número de referencia.<br/>Verifica el número en tu correo de confirmación.">We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email.</p>
         </div>
 
@@ -172,12 +181,12 @@
           </div>
 
           <div class="comments-box">
-            <div class="d-label" data-en="Team Comments" data-es="Comentarios del Equipo">Team Comments</div>
+            <div class="d-label" data-en="Team comments" data-es="Comentarios del equipo">Team comments</div>
             <div class="d-value" id="result-comments"></div>
           </div>
 
-          <button class="btn btn-outline" style="margin-top:var(--space-5)" onclick="resetSearch()" data-en="← Search another reference" data-es="← Buscar otra referencia">
-            ← Search another reference
+          <button class="btn btn-outline" style="margin-top:var(--space-5)" onclick="resetSearch()" data-en="Search another reference" data-es="Buscar otra referencia">
+            Search another reference
           </button>
         </div>
       </div>
