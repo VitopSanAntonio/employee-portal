@@ -112,7 +112,9 @@
   <header class="hero">
     <div class="wrap hero-inner">
       <div class="hero-top">
-        <img src="smurfit-logo.png" alt="Smurfit Westrock" class="hero-logo">
+        <span class="hero-logo-chip">
+          <img src="smurfit-logo.png" alt="Smurfit Westrock" class="hero-logo">
+        </span>
         <div class="hero-top-right">
           <span class="eyebrow">
             <span class="dot"></span>
@@ -243,11 +245,15 @@
      PWA: iOS Install Banner
 ═══════════════════════════════════════════════════════ -->
 <div id="pwa-install-banner" role="complementary" aria-label="Install app">
-  <button class="banner-close" id="banner-close-x" aria-label="Close">✕</button>
-  <div class="banner-icon">📱</div>
+  <button class="banner-close" id="banner-close-x" aria-label="Close">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+  </button>
+  <div class="banner-icon">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+  </div>
   <div class="banner-text">
-    <strong>Install Employee Portal</strong>
-    <span>Tap <span class="banner-share-icon">⬆ Share</span> then <strong style="color:var(--text-primary)">Add to Home Screen</strong> for faster access.</span>
+    <strong>Install employee portal</strong>
+    <span>Tap <span class="banner-share-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</span> then <strong style="color:var(--text-primary)">Add to home screen</strong> for faster access.</span>
   </div>
   <button class="banner-got-it" id="banner-got-it">Got it</button>
 </div>
@@ -269,10 +275,10 @@
       </svg>
     </div>
 
-    <h2>Submitted! 🎉</h2>
+    <h2>Submitted!</h2>
     <p>Thank you — your submission has been received and the right team has been notified.</p>
     <div class="ref-badge" id="success-ref-code">REF #—</div>
-    <button class="btn btn-primary" id="success-close-btn">Back to Portal →</button>
+    <button class="btn btn-primary" id="success-close-btn">Back to portal</button>
   </div>
 </div>
 

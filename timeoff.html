@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Off — Employee Portal</title>
+
+<!-- ═══════════ PWA: Web App Manifest ═══════════ -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Portal">
+<link rel="apple-touch-icon" href="portal-icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="portal-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="portal-icon-192.png">
+<link rel="apple-touch-icon" sizes="167x167" href="portal-icon-192.png">
+<meta name="theme-color" content="#00205B">
+<meta name="msapplication-TileColor" content="#00205B">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<style>
+  .page-main { padding: var(--space-6) 0 var(--space-8); }
+  .types-strip {
+    background: var(--surface-sunken); border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg); padding: var(--space-5); margin-top: var(--space-5);
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: var(--space-3) var(--space-5);
+  }
+  .types-label {
+    font-size: var(--text-body-sm); font-weight: var(--weight-semibold); letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--blue-03); width: 100%; text-align: center; margin-bottom: 2px;
+  }
+  .type-item { font-size: var(--text-t3); color: var(--text-primary); }
+  .type-item span { color: var(--text-secondary); font-weight: var(--weight-light); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="page-header">
+    <div class="wrap-narrow page-header-inner">
+      <div class="header-top-row">
+        <a href="index.html" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span data-en="Back to portal" data-es="Volver al portal">Back to portal</span>
+        </a>
+        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
+      </div>
+      <div class="page-title-row">
+        <span class="icon-tile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+        </span>
+        <div class="page-title-text">
+          <h1 data-en="Time off" data-es="Tiempo libre">Time off</h1>
+          <p data-en="Request or cancel time off you already asked for" data-es="Solicita o cancela tiempo libre que ya pediste">Request or cancel time off you already asked for</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <div class="wrap">
+
+      <div class="grid-cards">
+
+        <a class="card" href="https://forms.cloud.microsoft/e/ZuGyfK4j70">
+          <span class="icon-tile icon-tile--green">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          </span>
+          <div style="flex:1">
+            <div class="card-tag" style="color:var(--green-02)" data-en="Ask for time off" data-es="Pedir tiempo libre">Ask for time off</div>
+            <h2 style="margin-top:6px" data-en="Request time off" data-es="Solicitar tiempo libre">Request time off</h2>
+            <p style="margin-top:6px" data-en="Pick your dates and the type of time off. Your supervisor is notified right away, and you'll get an email once it's approved." data-es="Elige tus fechas y el tipo de tiempo libre. Tu supervisor será notificado de inmediato, y recibirás un correo cuando sea aprobado.">Pick your dates and the type of time off. Your supervisor is notified right away, and you'll get an email once it's approved.</p>
+          </div>
+          <div class="card-footer">
+            <span class="time" data-en="2 min" data-es="2 min">2 min</span>
+            <span class="card-arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </span>
+          </div>
+        </a>
+
+        <a class="card" href="https://forms.cloud.microsoft/e/gRUsQwKJKM">
+          <span class="icon-tile">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+          </span>
+          <div style="flex:1">
+            <div class="card-tag" data-en="Changed your plans?" data-es="¿Cambiaron tus planes?">Changed your plans?</div>
+            <h2 style="margin-top:6px" data-en="Cancel a request" data-es="Cancelar una solicitud">Cancel a request</h2>
+            <p style="margin-top:6px" data-en="Call off time off you already asked for. Enter the same dates and type you originally requested, and your hours go back to your balance." data-es="Cancela tiempo libre que ya pediste. Ingresa las mismas fechas y tipo que solicitaste, y tus horas regresan a tu saldo.">Call off time off you already asked for. Enter the same dates and type you originally requested, and your hours go back to your balance.</p>
+          </div>
+          <div class="card-footer">
+            <span class="time" data-en="2 min" data-es="2 min">2 min</span>
+            <span class="card-arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </span>
+          </div>
+        </a>
+
+      </div>
+
+      <div class="types-strip">
+        <div class="types-label" data-en="Types of time off" data-es="Tipos de tiempo libre">Types of time off</div>
+        <div class="type-item" data-en="Vacation" data-es="Vacaciones">Vacation</div>
+        <div class="type-item" data-en="Floating holiday" data-es="Día flotante">Floating holiday</div>
+        <div class="type-item" data-en="Legacy carryover" data-es="Vacaciones acumuladas">Legacy carryover</div>
+        <div class="type-item"><span data-en="8 hours = 1 full day" data-es="8 horas = 1 día completo">8 hours = 1 full day</span></div>
+      </div>
+
+      <div class="notice" style="margin-top:var(--space-5)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span data-en="Your request is only visible to you and your team. Questions? Contact HR." data-es="Tu solicitud solo es visible para ti y tu equipo. ¿Preguntas? Contacta a Recursos Humanos.">Your request is only visible to you and your team. Questions? Contact HR.</span>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script src="lang.js"></script>
+</body>
+</html>

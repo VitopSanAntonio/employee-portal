@@ -237,7 +237,20 @@ button { font-family: inherit; }
   gap: var(--space-5);
   flex-wrap: wrap;
 }
-.hero-logo { height: 34px; width: auto; filter: brightness(0) invert(1); }
+/* Logo clear-space chip: the 2-colour lockup is never inverted — on the
+   Deep Blue hero it sits on a white chip so the light-blue emblem survives. */
+.hero-logo-chip {
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+}
+.hero-logo { height: 26px; width: auto; display: block; }
+@media (min-width: 700px) {
+  .hero-logo-chip { padding: 12px 18px; }
+  .hero-logo { height: 32px; }
+}
 .hero-top-right { display: flex; align-items: center; gap: var(--space-3); }
 
 .hero-copy { max-width: 660px; display: flex; flex-direction: column; gap: var(--space-4); }
@@ -319,9 +332,9 @@ button { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 11px;
+  font-size: var(--text-body-sm);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
@@ -622,7 +635,7 @@ select {
 select option { color: var(--text-primary); }
 
 .field-error {
-  font-size: var(--text-body-sm);
+  font-size: var(--text-t3);
   color: var(--status-danger);
   display: none;
 }
@@ -645,6 +658,15 @@ select option { color: var(--text-primary); }
   .pill-grid { grid-template-columns: repeat(2, 1fr); }
 }
 .pill-input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+/* Priority / urgency dot — colour keeps its meaning, but every level also
+   carries a text label so colour is never the only signal. */
+.priority-dot {
+  width: 14px; height: 14px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
 .pill-label {
   display: flex;
   flex-direction: column;
@@ -658,20 +680,34 @@ select option { color: var(--text-primary); }
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-standard);
   text-align: center;
-  font-size: 11px;
-  font-weight: var(--weight-medium);
+  min-height: 88px;
   color: var(--text-secondary);
-  line-height: 1.25;
 }
-.pill-label .p-icon { font-size: 20px; line-height: 1; }
-.pill-label:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+.pill-label .p-name { font-size: var(--text-t3); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.2; }
+.pill-label .p-sub { font-size: var(--text-body-sm); line-height: 1.4; color: var(--text-secondary); }
+.pill-label:hover { border-color: var(--accent-primary); }
 .pill-input:checked + .pill-label {
   border-color: var(--accent-primary);
   background: var(--blue-05);
-  color: var(--blue-01);
   box-shadow: 0 0 0 2px var(--blue-04);
 }
+.pill-input:checked + .pill-label .p-name { color: var(--blue-01); }
+.pill-input:checked + .pill-label .p-sub { color: var(--blue-02); }
 .pill-input:focus-visible + .pill-label { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Row layout — priority dot beside a title/caption column (maintenance's
+   4-level scale reads better as two rows of two than four cramped columns). */
+.pill-grid--row { grid-template-columns: repeat(2, 1fr); }
+.pill-label--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  text-align: left;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+}
+.pill-label--row .p-text { display: flex; flex-direction: column; gap: 1px; }
 
 /* anonymity toggle uses a wider card style */
 .choice-card {
@@ -694,7 +730,9 @@ select option { color: var(--text-primary); }
   background: var(--blue-05);
   box-shadow: 0 0 0 2px var(--blue-04);
 }
-.choice-card .emoji { font-size: 22px; line-height: 1; }
+.choice-card .c-icon { color: var(--gray-02); display: flex; }
+.choice-card .c-icon svg { width: 24px; height: 24px; }
+.pill-input:checked + .choice-card .c-icon { color: var(--blue-01); }
 .choice-card .title { font-size: var(--text-t3); font-weight: var(--weight-semibold); color: var(--text-primary); }
 .choice-card .sub { font-size: var(--text-body-sm); color: var(--text-secondary); }
 
@@ -762,7 +800,7 @@ select option { color: var(--text-primary); }
   color: var(--blue-01);
   letter-spacing: 0.04em;
 }
-.success-note { font-size: var(--text-body-sm); color: var(--text-secondary); }
+.success-note { font-size: var(--text-t3); color: var(--text-secondary); }
 .success-extra {
   font-size: var(--text-t3);
   line-height: 1.55;
