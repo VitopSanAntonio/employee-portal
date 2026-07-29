@@ -156,6 +156,12 @@
             </div>
           </div>
 
+          <!-- Submission error -->
+          <div class="submit-error" id="submit-error" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <span data-en="Your report could not be sent — check your connection and try again. If it keeps failing, report the hazard to your supervisor in person." data-es="No se pudo enviar tu reporte — verifica tu conexión e inténtalo de nuevo. Si sigue fallando, informa del peligro a tu supervisor en persona.">Your report could not be sent — check your connection and try again. If it keeps failing, report the hazard to your supervisor in person.</span>
+          </div>
+
           <!-- Submit -->
           <div class="section-gap">
             <button type="submit" class="btn btn-primary" id="submit-btn">
@@ -208,6 +214,7 @@
   const fileNameEl  = document.getElementById('file-name-display');
   const refDisplay  = document.getElementById('ref-display');
   const urgencyErr  = document.getElementById('urgency-error');
+  const submitError = document.getElementById('submit-error');
 
   // ── Photo handling ──────────────────────────────────────────
   let photoBase64 = '';
@@ -295,15 +302,25 @@
     btnIcon.style.display  = 'none';
     spinner.style.display  = 'block';
     btnText.textContent    = 'Submitting…';
+    submitError.classList.remove('show');
 
+    let sent = false;
     try {
-      await fetch(WEBHOOK_URL, {
+      const res = await fetch(WEBHOOK_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload)
       });
+      sent = res.ok;
     } catch (err) {
-      console.warn('Webhook error:', err);
+      console.error('Webhook error:', err);
+    }
+
+    if (!sent) {
+      restoreSubmitButton();
+      submitError.classList.add('show');
+      submitError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
     }
 
     refDisplay.textContent   = refId;
@@ -322,6 +339,14 @@
   });
 
   // ── Reset ───────────────────────────────────────────────────
+  function restoreSubmitButton() {
+    submitBtn.disabled    = false;
+    btnIcon.style.display = 'block';
+    spinner.style.display = 'none';
+    const lang = localStorage.getItem('portalLang') || 'en';
+    btnText.textContent = btnText.getAttribute('data-' + lang) || btnText.getAttribute('data-en');
+  }
+
   function resetForm() {
     form.reset();
     photoBase64 = ''; photoName = '';
@@ -331,10 +356,8 @@
     photoZone.classList.remove('has-photo');
     document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
     urgencyErr.classList.remove('show');
-    submitBtn.disabled         = false;
-    btnIcon.style.display      = 'block';
-    spinner.style.display      = 'none';
-    btnText.textContent        = 'Submit safety report';
+    submitError.classList.remove('show');
+    restoreSubmitButton();
     formCard.style.display     = 'block';
     successScr.style.display   = 'none';
     window.scrollTo(0, 0);

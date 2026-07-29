@@ -184,6 +184,12 @@
             <span data-en="Anonymous submissions are completely private. Your identity cannot be traced and will never be shared with anyone." data-es="Las sugerencias anónimas son completamente privadas. Tu identidad no puede ser rastreada ni compartida con nadie.">Anonymous submissions are completely private. Your identity cannot be traced and will never be shared with anyone.</span>
           </div>
 
+          <!-- Submission error -->
+          <div class="submit-error" id="submit-error" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <span data-en="Your suggestion could not be sent — check your connection and try again." data-es="No se pudo enviar tu sugerencia — verifica tu conexión e inténtalo de nuevo.">Your suggestion could not be sent — check your connection and try again.</span>
+          </div>
+
           <!-- Submit -->
           <div class="section-gap">
             <button type="submit" class="btn btn-primary" id="submit-btn">
@@ -235,6 +241,7 @@
   const emailWrap     = document.getElementById('email-field-wrap');
   const charCount     = document.getElementById('char-count');
   const successAnon   = document.getElementById('success-anon-note');
+  const submitError   = document.getElementById('submit-error');
 
   const photoInput  = document.getElementById('photo-input');
   const photoZone   = document.getElementById('photo-zone');
@@ -361,15 +368,25 @@
     btnIcon.style.display     = 'none';
     spinner.style.display     = 'block';
     btnText.textContent       = 'Submitting…';
+    submitError.classList.remove('show');
 
+    let sent = false;
     try {
-      await fetch(WEBHOOK_URL, {
+      const res = await fetch(WEBHOOK_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload)
       });
+      sent = res.ok;
     } catch (err) {
-      console.warn('Webhook error:', err);
+      console.error('Webhook error:', err);
+    }
+
+    if (!sent) {
+      restoreSubmitButton();
+      submitError.classList.add('show');
+      submitError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
     }
 
     // Build success screen
@@ -397,6 +414,14 @@
   });
 
   // ── Reset ────────────────────────────────────────────────────
+  function restoreSubmitButton() {
+    submitBtn.disabled    = false;
+    btnIcon.style.display = 'block';
+    spinner.style.display = 'none';
+    const lang = localStorage.getItem('portalLang') || 'en';
+    btnText.textContent = btnText.getAttribute('data-' + lang) || btnText.getAttribute('data-en');
+  }
+
   function resetForm() {
     form.reset();
     charCount.textContent = '0';
@@ -408,10 +433,8 @@
     previewImg.style.display = 'none';
     previewImg.src = '';
     photoZone.classList.remove('has-photo');
-    submitBtn.disabled      = false;
-    btnIcon.style.display   = 'block';
-    spinner.style.display   = 'none';
-    btnText.textContent     = 'Submit suggestion';
+    submitError.classList.remove('show');
+    restoreSubmitButton();
     formCard.style.display  = 'block';
     successScr.style.display = 'none';
     window.scrollTo(0, 0);

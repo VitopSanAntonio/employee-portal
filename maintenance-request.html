@@ -250,6 +250,12 @@
             </div>
           </div>
 
+          <!-- Submission error -->
+          <div class="submit-error" id="submit-error" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <span data-en="Your request could not be sent — check your connection and try again." data-es="No se pudo enviar tu solicitud — verifica tu conexión e inténtalo de nuevo.">Your request could not be sent — check your connection and try again.</span>
+          </div>
+
           <!-- Submit -->
           <div class="section-gap">
             <button type="submit" class="btn btn-primary" id="submit-btn">
@@ -309,6 +315,7 @@
   const fileNameDisplay = document.getElementById('file-name-display');
   const refDisplay = document.getElementById('ref-display');
   const priorityError = document.getElementById('priority-error');
+  const submitError = document.getElementById('submit-error');
 
   // ── Photo handling ───────────────────────────────────────────
   let photoBase64 = '';
@@ -410,20 +417,31 @@
     btnIcon.style.display = 'none';
     spinner.style.display = 'block';
     btnText.textContent = 'Submitting…';
+    submitError.classList.remove('show');
 
-    let referenceId = 'MNT-????'; // fallback if response fails
+    let sent = false;
+    let referenceId = 'MNT-????'; // fallback if the flow doesn't echo one back
     try {
       const res  = await fetch(WEBHOOK_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload)
       });
-      // Power Automate should return: { "referenceId": "MNT-0042" }
-      const data = await res.json();
-      if (data && data.referenceId) referenceId = data.referenceId;
+      sent = res.ok;
+      if (sent) {
+        // Power Automate should return: { "referenceId": "MNT-0042" }
+        const data = await res.json().catch(() => null);
+        if (data && data.referenceId) referenceId = data.referenceId;
+      }
     } catch (err) {
-      console.warn('Webhook error:', err);
-      // Still show success screen even if network fails
+      console.error('Webhook error:', err);
+    }
+
+    if (!sent) {
+      restoreSubmitButton();
+      submitError.classList.add('show');
+      submitError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
     }
 
     refDisplay.textContent   = referenceId;
@@ -446,6 +464,14 @@
   document.querySelectorAll('input[name="priority"]').forEach(r => {
     r.addEventListener('change', () => priorityError.classList.remove('show'));
   });
+
+  function restoreSubmitButton() {
+    submitBtn.disabled    = false;
+    btnIcon.style.display = 'block';
+    spinner.style.display = 'none';
+    const lang = localStorage.getItem('portalLang') || 'en';
+    btnText.textContent = btnText.getAttribute('data-' + lang) || btnText.getAttribute('data-en');
+  }
 </script>
 <script src="lang.js"></script>
 </body>
