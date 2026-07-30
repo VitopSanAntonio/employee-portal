@@ -369,6 +369,8 @@ button { font-family: inherit; }
   text-transform: uppercase;
   color: var(--blue-03);
 }
+/* Darker than --green-02 so small tag text meets WCAG AA contrast on white */
+.card-tag--green { color: #00753F; }
 .card h2 {
   font-size: var(--text-t1);
   font-weight: var(--weight-bold);
@@ -446,6 +448,9 @@ button { font-family: inherit; }
   gap: var(--space-5);
   grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
 }
+
+/* ── Shared page scaffolding (sub-pages) ── */
+.page-main { padding: var(--space-6) 0 var(--space-8); }
 
 /* ── Notice bar ── */
 .notice {

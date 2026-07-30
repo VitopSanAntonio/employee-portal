@@ -1,0 +1,19 @@
+{
+  "name": "employee-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smurfit Westrock employee portal — static site tests and CI tooling",
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:forms && npm run test:pages && npm run test:a11y",
+    "test:forms": "node tests/forms.test.mjs",
+    "test:pages": "node tests/pages.test.mjs",
+    "test:a11y": "node tests/axe.test.mjs",
+    "lint:html": "html-validate index.html safety-concern.html suggestion-form.html maintenance-request.html status-check.html time-off.html"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "html-validate": "^9.5.5",
+    "playwright": "^1.54.0"
+  }
+}

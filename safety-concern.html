@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Safety Concern — Smurfit Westrock</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="portal-icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Portal">
@@ -16,7 +17,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="theme.css" />
   <style>
-    .page-main { padding: var(--space-6) 0 var(--space-8); }
     .urgent-pill {
       display: inline-flex; align-items: center; gap: 6px;
       background: var(--safety-yellow); color: var(--blue-01);
@@ -36,7 +36,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           <span data-en="Back to portal" data-es="Volver al portal">Back to portal</span>
         </a>
-        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
+        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button" aria-label="Change language"></button>
       </div>
       <div class="page-title-row">
         <span class="icon-tile icon-tile--safety">
@@ -148,6 +148,7 @@
                 <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br /><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
                 <div class="file-name" id="file-name-display"></div>
               </div>
+              <!-- [html-validate-disable-next element-required-attributes: src is set at runtime when a photo is attached] -->
               <img id="preview-img" class="preview-img" alt="Preview" />
               <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
@@ -176,7 +177,7 @@
               <svg id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               </svg>
-              <div class="spinner" id="spinner"></div>
+              <span class="spinner" id="spinner"></span>
               <span id="btn-text" data-en="Submit safety report" data-es="Enviar reporte de seguridad">Submit safety report</span>
             </button>
           </div>
@@ -195,7 +196,7 @@
           <div class="ref-badge" id="ref-display">SAF-XXXXXX</div>
           <div class="success-note" data-en="Keep this reference number for follow-up queries." data-es="Guarda este número de referencia para consultas posteriores.">Keep this reference number for follow-up queries.</div>
           <div class="btn-row">
-            <button class="btn btn-outline" data-en="Submit another report" data-es="Enviar otro reporte" onclick="resetForm()">Submit another report</button>
+            <button type="button" class="btn btn-outline" data-en="Submit another report" data-es="Enviar otro reporte" onclick="resetForm()">Submit another report</button>
             <a href="index.html" class="btn btn-outline" data-en="Back to portal" data-es="Volver al portal">Back to portal</a>
           </div>
         </div>
@@ -206,82 +207,20 @@
 
 </div>
 
+<script src="form-utils.js"></script>
+<script src="photo-upload.js"></script>
 <script>
   const WEBHOOK_URL = 'https://default67d2558fa4af4478bc72d7585f436b.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/1f419039518e43309b27078c7a621c5c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=TtDTXnVMMuOukYUrEQZw45roIVlik-XiozcmIARM22M';
 
   const form        = document.getElementById('safety-form');
   const formCard    = document.getElementById('form-card');
   const successScr  = document.getElementById('success-screen');
-  const submitBtn   = document.getElementById('submit-btn');
-  const spinner     = document.getElementById('spinner');
-  const btnIcon     = document.getElementById('btn-icon');
-  const btnText     = document.getElementById('btn-text');
-  const photoInput  = document.getElementById('photo-input');
-  const photoZone   = document.getElementById('photo-zone');
-  const previewImg  = document.getElementById('preview-img');
-  const fileNameEl  = document.getElementById('file-name-display');
   const refDisplay  = document.getElementById('ref-display');
   const urgencyErr  = document.getElementById('urgency-error');
-  const submitError = document.getElementById('submit-error');
-  const photoError  = document.getElementById('photo-error');
 
-  // ── Photo handling ──────────────────────────────────────────
-  const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-  let photoBase64 = '';
-  let photoName   = '';
-
-  function clearPhoto() {
-    photoInput.value = '';
-    photoBase64 = ''; photoName = '';
-    fileNameEl.textContent = '';
-    previewImg.style.display = 'none';
-    previewImg.src = '';
-    photoZone.classList.remove('has-photo');
-  }
-
-  photoInput.addEventListener('change', () => {
-    const file = photoInput.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/') || file.size > MAX_PHOTO_BYTES) {
-      clearPhoto();
-      photoError.classList.add('show');
-      return;
-    }
-    photoError.classList.remove('show');
-    photoName = file.name;
-    fileNameEl.textContent = '✓ ' + file.name;
-    photoZone.classList.add('has-photo');
-    const reader = new FileReader();
-    reader.onload = e => {
-      photoBase64 = e.target.result.split(',')[1];
-      previewImg.src = e.target.result;
-      previewImg.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  });
-
-  photoZone.addEventListener('dragover', e => { e.preventDefault(); photoZone.classList.add('drag-over'); });
-  photoZone.addEventListener('dragleave', () => photoZone.classList.remove('drag-over'));
-  photoZone.addEventListener('drop', e => {
-    e.preventDefault();
-    photoZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    photoInput.files = dt.files;
-    photoInput.dispatchEvent(new Event('change'));
-  });
+  const photo = PortalPhoto.init();
 
   // ── Validation ──────────────────────────────────────────────
-  function validateField(id, test) {
-    const field = document.getElementById('f-' + id);
-    if (!field) return test;
-    if (!test) { field.classList.add('invalid'); return false; }
-    field.classList.remove('invalid');
-    return true;
-  }
-
   function validateForm() {
     const loc      = document.getElementById('location').value;
     const desc     = document.getElementById('description').value.trim();
@@ -289,13 +228,13 @@
     const emailVal = document.getElementById('email').value.trim();
 
     let ok = true;
-    ok = validateField('location',    loc)             && ok;
-    ok = validateField('description', desc.length >= 10) && ok;
+    ok = PortalForm.validateField('location',    loc)             && ok;
+    ok = PortalForm.validateField('description', desc.length >= 10) && ok;
 
     if (!urgency) { urgencyErr.classList.add('show'); ok = false; }
     else            urgencyErr.classList.remove('show');
 
-    if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+    if (emailVal && !PortalForm.isValidEmail(emailVal)) {
       document.getElementById('f-email').classList.add('invalid');
       ok = false;
     } else {
@@ -311,7 +250,7 @@
 
     // Fallback only — the flow should assign the real ID and return
     // { "referenceId": "SAF-000123" } so IDs are unique server-side.
-    const refId = 'SAF-' + (100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+    const refId = PortalForm.fallbackRefId('SAF');
 
     const payload = {
       referenceId: refId,
@@ -320,72 +259,37 @@
       description: document.getElementById('description').value.trim(),
       solution:    document.getElementById('solution').value.trim(),
       email:       document.getElementById('email').value.trim(),
-      photo:       photoBase64,
-      photoName:   photoName
+      photo:       photo.base64,
+      photoName:   photo.name
     };
 
-    submitBtn.disabled  = true;
-    btnIcon.style.display  = 'none';
-    spinner.style.display  = 'block';
-    btnText.textContent    = 'Submitting…';
-    submitError.classList.remove('show');
+    PortalForm.setSubmitting();
+    const { ok, referenceId } = await PortalForm.submitJSON(WEBHOOK_URL, payload);
 
-    let sent = false;
-    let serverRefId = '';
-    try {
-      const res = await fetch(WEBHOOK_URL, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload)
-      });
-      sent = res.ok;
-      if (sent) {
-        const data = await res.json().catch(() => null);
-        if (data && data.referenceId) serverRefId = data.referenceId;
-      }
-    } catch (err) {
-      console.error('Webhook error:', err);
-    }
-
-    if (!sent) {
-      restoreSubmitButton();
-      submitError.classList.add('show');
-      submitError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!ok) {
+      PortalForm.showSubmitError();
       return;
     }
 
-    refDisplay.textContent   = serverRefId || refId;
+    refDisplay.textContent   = referenceId || refId;
     formCard.style.display   = 'none';
     successScr.style.display = 'block';
     window.scrollTo(0, 0);
   });
 
-  // ── Clear invalid on input ──────────────────────────────────
-  document.querySelectorAll('input, select, textarea').forEach(el => {
-    el.addEventListener('input',  () => { const f = el.closest('.field'); if (f) f.classList.remove('invalid'); });
-    el.addEventListener('change', () => { const f = el.closest('.field'); if (f) f.classList.remove('invalid'); });
-  });
+  PortalForm.clearInvalidOnInput();
   document.querySelectorAll('input[name="urgency"]').forEach(r => {
     r.addEventListener('change', () => urgencyErr.classList.remove('show'));
   });
 
   // ── Reset ───────────────────────────────────────────────────
-  function restoreSubmitButton() {
-    submitBtn.disabled    = false;
-    btnIcon.style.display = 'block';
-    spinner.style.display = 'none';
-    const lang = localStorage.getItem('portalLang') || 'en';
-    btnText.textContent = btnText.getAttribute('data-' + lang) || btnText.getAttribute('data-en');
-  }
-
   function resetForm() {
     form.reset();
-    clearPhoto();
-    photoError.classList.remove('show');
+    photo.clear();
     document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
     urgencyErr.classList.remove('show');
-    submitError.classList.remove('show');
-    restoreSubmitButton();
+    document.getElementById('submit-error').classList.remove('show');
+    PortalForm.restoreSubmitButton();
     formCard.style.display     = 'block';
     successScr.style.display   = 'none';
     window.scrollTo(0, 0);

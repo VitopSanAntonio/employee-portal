@@ -5,7 +5,7 @@
    Bump CACHE_VERSION when shell assets change to evict old caches.
 ──────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'portal-v1';
+const CACHE_VERSION = 'portal-v2';
 const SHELL = [
   'index.html',
   'safety-concern.html',
@@ -15,6 +15,8 @@ const SHELL = [
   'time-off.html',
   'theme.css',
   'lang.js',
+  'form-utils.js',
+  'photo-upload.js',
   'manifest.json',
   'portal-icon-192.png',
   'portal-icon-512.png',
