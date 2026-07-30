@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Safety Concern — Smurfit Westrock</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Portal">
+  <link rel="apple-touch-icon" href="portal-icon-192.png">
+  <meta name="theme-color" content="#00205B">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
@@ -62,22 +69,22 @@
               <select id="location" name="location">
                 <option value="" disabled selected data-en="Select your department…" data-es="Selecciona tu departamento…">Select your department…</option>
                 <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
-                <option>Injection Molding</option>
-                <option>Assembly</option>
+                <option value="Injection Molding" data-en="Injection Molding" data-es="Moldeo por Inyección">Injection Molding</option>
+                <option value="Assembly" data-en="Assembly" data-es="Ensamble">Assembly</option>
                 <option value="Mold Maintenance" data-en="Mold Maintenance" data-es="Mantenimiento de Moldes">Mold Maintenance</option>
                 <option value="General Maintenance" data-en="General Maintenance" data-es="Mantenimiento General">General Maintenance</option>
-                <option>Flobin area</option>
+                <option value="Flobin area" data-en="Flobin area" data-es="Área de Flobin">Flobin area</option>
                 <option value="Break room / Common Area" data-en="Break room / Common Area" data-es="Descanso / Área Común">Break room / Common Area</option>
                 <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
                 <option value="Other" data-en="Other" data-es="Otro">Other</option>
               </select>
-              <span class="field-error" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
+              <span class="field-error" role="alert" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
             </div>
           </div>
 
           <!-- Section 2: Urgency -->
-          <div class="section-label section-gap" data-en="Urgency level" data-es="Nivel de urgencia">Urgency level</div>
-          <div class="pill-grid pill-grid--3" role="radiogroup">
+          <div class="section-label section-gap" id="urgency-label" data-en="Urgency level" data-es="Nivel de urgencia">Urgency level</div>
+          <div class="pill-grid pill-grid--3" role="radiogroup" aria-labelledby="urgency-label">
             <div>
               <input type="radio" name="urgency" id="urgLow" value="Low — No immediate danger" class="pill-input" />
               <label class="pill-label" for="urgLow">
@@ -103,25 +110,25 @@
               </label>
             </div>
           </div>
-          <span class="field-error" id="urgency-error" style="margin-top:6px" data-en="Please select an urgency level." data-es="Por favor selecciona un nivel de urgencia.">Please select an urgency level.</span>
+          <span class="field-error" role="alert" id="urgency-error" style="margin-top:6px" data-en="Please select an urgency level." data-es="Por favor selecciona un nivel de urgencia.">Please select an urgency level.</span>
 
           <!-- Section 3: Details -->
           <div class="section-label section-gap" data-en="Details" data-es="Detalles">Details</div>
           <div class="form-row full">
             <div class="field" id="f-description">
               <label for="description" data-en="Description" data-es="Descripción">Description</label>
-              <textarea id="description" name="description" rows="4"
+              <textarea id="description" name="description" rows="4" maxlength="4000"
                 data-en-placeholder="Describe the safety concern — what you observed, where exactly, and when it happened…"
                 data-es-placeholder="Describe el reporte de seguridad — qué observaste, dónde exactamente y cuándo ocurrió…"
                 placeholder="Describe the safety concern — what you observed, where exactly, and when it happened…"></textarea>
-              <span class="field-error" data-en="Please describe the concern." data-es="Por favor describe el problema.">Please describe the concern.</span>
+              <span class="field-error" role="alert" data-en="Please describe the concern." data-es="Por favor describe el problema.">Please describe the concern.</span>
             </div>
           </div>
 
           <div class="form-row full section-gap">
             <div class="field">
               <label for="solution"><span data-en="Near miss / suggested solution" data-es="Casi accidente / solución sugerida">Near miss / suggested solution</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
-              <textarea id="solution" name="solution" rows="3"
+              <textarea id="solution" name="solution" rows="3" maxlength="4000"
                 data-en-placeholder="Was anyone nearly hurt? Do you have an idea to fix this?"
                 data-es-placeholder="¿Alguien estuvo a punto de lesionarse? ¿Tienes alguna idea para solucionarlo?"
                 placeholder="Was anyone nearly hurt? Do you have an idea to fix this?"></textarea>
@@ -132,7 +139,7 @@
           <div class="section-label section-gap" data-en="Photo &amp; contact" data-es="Foto y contacto">Photo &amp; contact</div>
           <div class="form-row full">
             <div class="field">
-              <label><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <label for="photo-input"><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
               <div class="photo-zone" id="photo-zone">
                 <input type="file" id="photo-input" accept="image/*" capture="environment" />
                 <div class="upload-icon">
@@ -142,7 +149,7 @@
                 <div class="file-name" id="file-name-display"></div>
               </div>
               <img id="preview-img" class="preview-img" alt="Preview" />
-              <span class="field-error" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
+              <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
           </div>
 
@@ -153,7 +160,7 @@
                 data-en-placeholder="your.name@smurfitwestrock.com"
                 data-es-placeholder="tu.nombre@smurfitwestrock.com"
                 placeholder="your.name@smurfitwestrock.com" />
-              <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
+              <span class="field-error" role="alert" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
             </div>
           </div>
 

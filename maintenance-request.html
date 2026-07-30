@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Maintenance Request — Smurfit Westrock</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Portal">
+  <link rel="apple-touch-icon" href="portal-icon-192.png">
+  <meta name="theme-color" content="#00205B">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
@@ -60,17 +67,17 @@
               <select id="department" name="department">
                 <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
                 <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
-                <option>Injection</option>
-                <option>Assembly</option>
+                <option value="Injection" data-en="Injection" data-es="Inyección">Injection</option>
+                <option value="Assembly" data-en="Assembly" data-es="Ensamble">Assembly</option>
                 <option value="Shipping &amp; Receiving" data-en="Shipping &amp; Receiving" data-es="Envíos y Recepción">Shipping &amp; Receiving</option>
                 <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
                 <option value="BreakRoom" data-en="BreakRoom" data-es="Sala de Descanso">BreakRoom</option>
                 <option value="Office / Admin" data-en="Office / Admin" data-es="Oficina / Administración">Office / Admin</option>
                 <option value="Restroom / Locker" data-en="Restroom / Locker" data-es="Baño / Casillero">Restroom / Locker</option>
-                <option>Facility</option>
+                <option value="Facility" data-en="Facility" data-es="Instalaciones">Facility</option>
                 <option value="Other" data-en="Other" data-es="Otro">Other</option>
               </select>
-              <span class="field-error" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
+              <span class="field-error" role="alert" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
             </div>
 
             <div class="field" id="f-location">
@@ -79,7 +86,7 @@
                 data-en-placeholder="e.g. Line 3, Room 201…"
                 data-es-placeholder="ej. Línea 3, Sala 201…"
                 placeholder="e.g. Line 3, Room 201…" />
-              <span class="field-error" data-en="Please enter the location." data-es="Por favor ingresa la ubicación.">Please enter the location.</span>
+              <span class="field-error" role="alert" data-en="Please enter the location." data-es="Por favor ingresa la ubicación.">Please enter the location.</span>
             </div>
           </div>
 
@@ -159,13 +166,13 @@
 
                 <option value="Other" data-en="Other" data-es="Otro">Other</option>
               </select>
-              <span class="field-error" data-en="Please select an equipment." data-es="Por favor selecciona un equipo.">Please select an equipment.</span>
+              <span class="field-error" role="alert" data-en="Please select an equipment." data-es="Por favor selecciona un equipo.">Please select an equipment.</span>
             </div>
           </div>
 
           <!-- Section 2: Priority -->
-          <div class="section-label section-gap" data-en="Priority level" data-es="Nivel de prioridad">Priority level</div>
-          <div class="pill-grid pill-grid--row" id="priority-grid" role="radiogroup" aria-label="Priority">
+          <div class="section-label section-gap" id="priority-label" data-en="Priority level" data-es="Nivel de prioridad">Priority level</div>
+          <div class="pill-grid pill-grid--row" id="priority-grid" role="radiogroup" aria-labelledby="priority-label">
             <div>
               <input type="radio" name="priority" id="p-low" value="Low" class="pill-input" />
               <label class="pill-label pill-label--row" for="p-low">
@@ -207,18 +214,18 @@
               </label>
             </div>
           </div>
-          <span class="field-error" id="priority-error" style="margin-top:6px" data-en="Please select a priority level." data-es="Por favor selecciona un nivel de prioridad.">Please select a priority level.</span>
+          <span class="field-error" role="alert" id="priority-error" style="margin-top:6px" data-en="Please select a priority level." data-es="Por favor selecciona un nivel de prioridad.">Please select a priority level.</span>
 
           <!-- Section 3: Description -->
           <div class="section-label section-gap" data-en="Details" data-es="Detalles">Details</div>
           <div class="form-row full">
             <div class="field" id="f-description">
               <label for="description" data-en="Description" data-es="Descripción">Description</label>
-              <textarea id="description" name="description" rows="4"
+              <textarea id="description" name="description" rows="4" maxlength="4000"
                 data-en-placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"
                 data-es-placeholder="Describe el problema claramente — qué observaste, cuándo comenzó, impacto en las operaciones…"
                 placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"></textarea>
-              <span class="field-error" data-en="Please describe the issue." data-es="Por favor describe el problema.">Please describe the issue.</span>
+              <span class="field-error" role="alert" data-en="Please describe the issue." data-es="Por favor describe el problema.">Please describe the issue.</span>
             </div>
           </div>
 
@@ -226,7 +233,7 @@
           <div class="section-label section-gap" data-en="Photo &amp; contact" data-es="Foto y contacto">Photo &amp; contact</div>
           <div class="form-row full">
             <div class="field">
-              <label><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <label for="photo-input"><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
               <div class="photo-zone" id="photo-zone">
                 <input type="file" id="photo-input" accept="image/*" capture="environment" />
                 <div class="upload-icon">
@@ -236,7 +243,7 @@
                 <div class="file-name" id="file-name-display"></div>
               </div>
               <img id="preview-img" class="preview-img" alt="Preview" />
-              <span class="field-error" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
+              <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
           </div>
 
@@ -244,10 +251,10 @@
             <div class="field" id="f-email">
               <label for="email"><span data-en="Your email" data-es="Tu correo electrónico">Your email</span> <span class="opt" data-en="(for confirmation)" data-es="(para confirmación)">(for confirmation)</span></label>
               <input type="email" id="email" name="email"
-                data-en-placeholder="your.name@smurfitwrk.com"
-                data-es-placeholder="tu.nombre@smurfitwrk.com"
-                placeholder="your.name@smurfitwrk.com" />
-              <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
+                data-en-placeholder="your.name@smurfitwestrock.com"
+                data-es-placeholder="tu.nombre@smurfitwestrock.com"
+                placeholder="your.name@smurfitwestrock.com" />
+              <span class="field-error" role="alert" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
             </div>
           </div>
 
