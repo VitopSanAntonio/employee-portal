@@ -1,0 +1,30 @@
+# Deployment config for the submission proxy.
+#
+#   cd worker && wrangler deploy
+#
+# Nothing secret belongs in this file — it is committed. The flow URLs and the
+# employee access code are Worker secrets, set once per environment:
+#
+#   wrangler secret put FLOW_SAFETY
+#   wrangler secret put FLOW_SUGGESTION
+#   wrangler secret put FLOW_MAINTENANCE
+#   wrangler secret put FLOW_STATUS
+#   wrangler secret put ACCESS_CODE
+#
+# Deploying from source overwrites whatever is currently live, including any
+# edit made in the Cloudflare dashboard. If the two have drifted, reconcile
+# before the first `wrangler deploy` — this file is meant to become the
+# authoritative copy, not to race with the dashboard.
+
+name = "portal-submit-proxy"
+main = "index.js"
+
+# Serves the Worker at <name>.<subdomain>.workers.dev, which is the URL the
+# portal posts to (PROXY in form-utils.js). Changing the name changes that URL.
+workers_dev = true
+
+# Pins the runtime's behaviour. Safe to bump; lower it if your wrangler is
+# older than this date and rejects it as being in the future. The Worker uses
+# only standard Web APIs (fetch, crypto, AbortController), so it needs no
+# compatibility_flags — in particular, not nodejs_compat.
+compatibility_date = "2026-07-30"

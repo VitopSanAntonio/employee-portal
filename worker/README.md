@@ -66,6 +66,11 @@ cd worker
 wrangler deploy
 ```
 
-There is deliberately no `wrangler.toml` here — add one matching your account
-and Worker name (`portal-submit-proxy`) if you want to deploy from source
-rather than the dashboard.
+`wrangler.toml` pins the Worker name (`portal-submit-proxy`) and the entry
+point. The name determines the `*.workers.dev` URL the portal posts to, so
+changing it means changing `PROXY` in `form-utils.js` to match.
+
+Deploying from source overwrites what is live, including any edit made in the
+Cloudflare dashboard. If the two have drifted, reconcile before the first
+`wrangler deploy` — the intent is for this directory to be the authoritative
+copy.
