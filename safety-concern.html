@@ -142,6 +142,7 @@
                 <div class="file-name" id="file-name-display"></div>
               </div>
               <img id="preview-img" class="preview-img" alt="Preview" />
+              <span class="field-error" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
           </div>
 
@@ -215,14 +216,31 @@
   const refDisplay  = document.getElementById('ref-display');
   const urgencyErr  = document.getElementById('urgency-error');
   const submitError = document.getElementById('submit-error');
+  const photoError  = document.getElementById('photo-error');
 
   // ── Photo handling ──────────────────────────────────────────
+  const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
   let photoBase64 = '';
   let photoName   = '';
+
+  function clearPhoto() {
+    photoInput.value = '';
+    photoBase64 = ''; photoName = '';
+    fileNameEl.textContent = '';
+    previewImg.style.display = 'none';
+    previewImg.src = '';
+    photoZone.classList.remove('has-photo');
+  }
 
   photoInput.addEventListener('change', () => {
     const file = photoInput.files[0];
     if (!file) return;
+    if (!file.type.startsWith('image/') || file.size > MAX_PHOTO_BYTES) {
+      clearPhoto();
+      photoError.classList.add('show');
+      return;
+    }
+    photoError.classList.remove('show');
     photoName = file.name;
     fileNameEl.textContent = '✓ ' + file.name;
     photoZone.classList.add('has-photo');
@@ -241,12 +259,11 @@
     e.preventDefault();
     photoZone.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      photoInput.files = dt.files;
-      photoInput.dispatchEvent(new Event('change'));
-    }
+    if (!file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    photoInput.files = dt.files;
+    photoInput.dispatchEvent(new Event('change'));
   });
 
   // ── Validation ──────────────────────────────────────────────
@@ -285,7 +302,9 @@
     e.preventDefault();
     if (!validateForm()) return;
 
-    const refId = 'SAF-' + Math.floor(100000 + Math.random() * 900000);
+    // Fallback only — the flow should assign the real ID and return
+    // { "referenceId": "SAF-000123" } so IDs are unique server-side.
+    const refId = 'SAF-' + (100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
 
     const payload = {
       referenceId: refId,
@@ -305,6 +324,7 @@
     submitError.classList.remove('show');
 
     let sent = false;
+    let serverRefId = '';
     try {
       const res = await fetch(WEBHOOK_URL, {
         method:  'POST',
@@ -312,6 +332,10 @@
         body:    JSON.stringify(payload)
       });
       sent = res.ok;
+      if (sent) {
+        const data = await res.json().catch(() => null);
+        if (data && data.referenceId) serverRefId = data.referenceId;
+      }
     } catch (err) {
       console.error('Webhook error:', err);
     }
@@ -323,7 +347,7 @@
       return;
     }
 
-    refDisplay.textContent   = refId;
+    refDisplay.textContent   = serverRefId || refId;
     formCard.style.display   = 'none';
     successScr.style.display = 'block';
     window.scrollTo(0, 0);
@@ -349,11 +373,8 @@
 
   function resetForm() {
     form.reset();
-    photoBase64 = ''; photoName = '';
-    fileNameEl.textContent     = '';
-    previewImg.style.display   = 'none';
-    previewImg.src             = '';
-    photoZone.classList.remove('has-photo');
+    clearPhoto();
+    photoError.classList.remove('show');
     document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
     urgencyErr.classList.remove('show');
     submitError.classList.remove('show');

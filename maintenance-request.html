@@ -236,6 +236,7 @@
                 <div class="file-name" id="file-name-display"></div>
               </div>
               <img id="preview-img" class="preview-img" alt="Preview" />
+              <span class="field-error" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
           </div>
 
@@ -318,12 +319,28 @@
   const submitError = document.getElementById('submit-error');
 
   // ── Photo handling ───────────────────────────────────────────
+  const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+  const photoError = document.getElementById('photo-error');
   let photoBase64 = '';
   let photoName   = '';
+
+  function clearPhoto() {
+    photoInput.value = '';
+    photoBase64 = ''; photoName = '';
+    fileNameDisplay.textContent = '';
+    previewImg.style.display = 'none';
+    previewImg.src = '';
+  }
 
   photoInput.addEventListener('change', () => {
     const file = photoInput.files[0];
     if (!file) return;
+    if (!file.type.startsWith('image/') || file.size > MAX_PHOTO_BYTES) {
+      clearPhoto();
+      photoError.classList.add('show');
+      return;
+    }
+    photoError.classList.remove('show');
     photoName = file.name;
     fileNameDisplay.textContent = '✓ ' + file.name;
 
@@ -343,12 +360,11 @@
     e.preventDefault();
     photoZone.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      photoInput.files = dt.files;
-      photoInput.dispatchEvent(new Event('change'));
-    }
+    if (!file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    photoInput.files = dt.files;
+    photoInput.dispatchEvent(new Event('change'));
   });
 
   // ── Validation ───────────────────────────────────────────────

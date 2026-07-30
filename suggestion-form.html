@@ -137,6 +137,7 @@
                 <div class="file-name" id="file-name-display"></div>
               </div>
               <img id="preview-img" class="preview-img" alt="Preview" />
+              <span class="field-error" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
           </div>
 
@@ -247,14 +248,31 @@
   const photoZone   = document.getElementById('photo-zone');
   const previewImg  = document.getElementById('preview-img');
   const fileNameEl  = document.getElementById('file-name-display');
+  const photoError  = document.getElementById('photo-error');
 
   // ── Photo handling ────────────────────────────────────────────
+  const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
   let photoBase64 = '';
   let photoName   = '';
+
+  function clearPhoto() {
+    photoInput.value = '';
+    photoBase64 = ''; photoName = '';
+    fileNameEl.textContent = '';
+    previewImg.style.display = 'none';
+    previewImg.src = '';
+    photoZone.classList.remove('has-photo');
+  }
 
   photoInput.addEventListener('change', () => {
     const file = photoInput.files[0];
     if (!file) return;
+    if (!file.type.startsWith('image/') || file.size > MAX_PHOTO_BYTES) {
+      clearPhoto();
+      photoError.classList.add('show');
+      return;
+    }
+    photoError.classList.remove('show');
     photoName = file.name;
     fileNameEl.textContent = '✓ ' + file.name;
     photoZone.classList.add('has-photo');
@@ -273,12 +291,11 @@
     e.preventDefault();
     photoZone.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      photoInput.files = dt.files;
-      photoInput.dispatchEvent(new Event('change'));
-    }
+    if (!file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    photoInput.files = dt.files;
+    photoInput.dispatchEvent(new Event('change'));
   });
 
   // ── Character counter ────────────────────────────────────────
@@ -348,7 +365,9 @@
     e.preventDefault();
     if (!validateForm()) return;
 
-    const refId     = 'SUG-' + Math.floor(100000 + Math.random() * 900000);
+    // Fallback only — the flow should assign the real ID and return
+    // { "referenceId": "SUG-000123" } so IDs are unique server-side.
+    const refId     = 'SUG-' + (100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
     const isAnon    = document.querySelector('input[name="anonymous"]:checked').value;
     const emailVal  = isAnon === 'No' ? document.getElementById('email').value.trim() : '';
 
@@ -371,6 +390,7 @@
     submitError.classList.remove('show');
 
     let sent = false;
+    let serverRefId = '';
     try {
       const res = await fetch(WEBHOOK_URL, {
         method:  'POST',
@@ -378,6 +398,10 @@
         body:    JSON.stringify(payload)
       });
       sent = res.ok;
+      if (sent) {
+        const data = await res.json().catch(() => null);
+        if (data && data.referenceId) serverRefId = data.referenceId;
+      }
     } catch (err) {
       console.error('Webhook error:', err);
     }
@@ -391,7 +415,7 @@
 
     // Build success screen
     const lang = localStorage.getItem('portalLang') || 'en';
-    refDisplay.textContent = refId;
+    refDisplay.textContent = serverRefId || refId;
     if (isAnon === 'Yes') {
       successAnon.textContent = lang === 'es'
         ? 'Tu identidad está completamente protegida — este envío es totalmente anónimo.'
@@ -428,11 +452,8 @@
     charCount.classList.remove('warn', 'ready');
     emailWrap.classList.remove('visible');
     document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
-    photoBase64 = ''; photoName = '';
-    fileNameEl.textContent = '';
-    previewImg.style.display = 'none';
-    previewImg.src = '';
-    photoZone.classList.remove('has-photo');
+    clearPhoto();
+    photoError.classList.remove('show');
     submitError.classList.remove('show');
     restoreSubmitButton();
     formCard.style.display  = 'block';
