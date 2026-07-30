@@ -15,6 +15,7 @@
 
   function setLang(lang) {
     localStorage.setItem(STORAGE_KEY, lang);
+    document.documentElement.lang = lang;
 
     // Translate all tagged elements
     document.querySelectorAll('[data-en]').forEach(el => {
@@ -89,4 +90,10 @@
   // Apply saved language on load
   const saved = localStorage.getItem(STORAGE_KEY) || 'en';
   setLang(saved);
+
+  // Register the service worker (lang.js is loaded by every page).
+  // Relative path keeps the scope correct under a sub-path deployment.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+  }
 })();

@@ -4,12 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Employee Suggestion — Smurfit Westrock</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="portal-icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Portal">
+  <link rel="apple-touch-icon" href="portal-icon-192.png">
+  <meta name="theme-color" content="#00205B">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="theme.css" />
   <style>
-    .page-main { padding: var(--space-6) 0 var(--space-8); }
     .char-counter { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); font-size: var(--text-body-sm); color: var(--text-secondary); margin-top: var(--space-2); }
     .char-counter .count { font-weight: var(--weight-semibold); transition: color 0.2s; }
     .char-counter .count.warn { color: #B76E00; }
@@ -29,7 +36,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           <span data-en="Back to portal" data-es="Volver al portal">Back to portal</span>
         </a>
-        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
+        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button" aria-label="Change language"></button>
       </div>
       <div class="page-title-row">
         <span class="icon-tile icon-tile--green">
@@ -58,22 +65,22 @@
               <select id="department" name="department">
                 <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
                 <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
-                <option>Injection</option>
-                <option>Mold</option>
-                <option>Assembly</option>
+                <option value="Injection" data-en="Injection" data-es="Inyección">Injection</option>
+                <option value="Mold" data-en="Mold" data-es="Moldes">Mold</option>
+                <option value="Assembly" data-en="Assembly" data-es="Ensamble">Assembly</option>
                 <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
-                <option>Facility</option>
+                <option value="Facility" data-en="Facility" data-es="Instalaciones">Facility</option>
                 <option value="Common Areas" data-en="Common Areas" data-es="Áreas Comunes">Common Areas</option>
                 <option value="Maintenance" data-en="Maintenance" data-es="Mantenimiento">Maintenance</option>
                 <option value="Safety &amp; Environment" data-en="Safety &amp; Environment" data-es="Seguridad y Medio Ambiente">Safety &amp; Environment</option>
                 <option value="Logistics" data-en="Logistics" data-es="Logística">Logistics</option>
                 <option value="Finance" data-en="Finance" data-es="Finanzas">Finance</option>
                 <option value="Human Resources" data-en="Human Resources" data-es="Recursos Humanos">Human Resources</option>
-                <option>IT</option>
+                <option value="IT" data-en="IT" data-es="TI">IT</option>
                 <option value="Management" data-en="Management" data-es="Gerencia">Management</option>
                 <option value="Other" data-en="Other" data-es="Otro">Other</option>
               </select>
-              <span class="field-error" data-en="Please select your department." data-es="Por favor selecciona tu departamento.">Please select your department.</span>
+              <span class="field-error" role="alert" data-en="Please select your department." data-es="Por favor selecciona tu departamento.">Please select your department.</span>
             </div>
 
             <div class="field" id="f-category">
@@ -88,7 +95,7 @@
                 <option value="Technology" data-en="Technology" data-es="Tecnología">Technology</option>
                 <option value="Other" data-en="Other" data-es="Otro">Other</option>
               </select>
-              <span class="field-error" data-en="Please select a category." data-es="Por favor selecciona una categoría.">Please select a category.</span>
+              <span class="field-error" role="alert" data-en="Please select a category." data-es="Por favor selecciona una categoría.">Please select a category.</span>
             </div>
           </div>
 
@@ -97,7 +104,7 @@
           <div class="form-row full">
             <div class="field" id="f-suggestion">
               <label for="suggestion" data-en="Suggestion" data-es="Sugerencia">Suggestion</label>
-              <textarea id="suggestion" name="suggestion" rows="5"
+              <textarea id="suggestion" name="suggestion" rows="5" maxlength="4000"
                 data-en-placeholder="Describe your idea in detail — what problem does it solve, how would it work, and what would the benefit be?"
                 data-es-placeholder="Describe tu idea en detalle — ¿qué problema resuelve, cómo funcionaría y cuál sería el beneficio?"
                 placeholder="Describe your idea in detail — what problem does it solve, how would it work, and what would the benefit be?"></textarea>
@@ -106,7 +113,7 @@
                 <span class="count" id="char-count">0</span>
                 <span data-en="· minimum 20" data-es="· mínimo 20">· minimum 20</span>
               </div>
-              <span class="field-error" id="suggestion-error" data-en="Please enter at least 20 characters." data-es="Por favor ingresa al menos 20 caracteres.">Please enter at least 20 characters.</span>
+              <span class="field-error" role="alert" id="suggestion-error" data-en="Please enter at least 20 characters." data-es="Por favor ingresa al menos 20 caracteres.">Please enter at least 20 characters.</span>
             </div>
           </div>
 
@@ -114,7 +121,7 @@
           <div class="form-row full section-gap">
             <div class="field" id="f-benefit">
               <label for="benefit"><span data-en="Estimated benefit" data-es="Beneficio estimado">Estimated benefit</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
-              <textarea id="benefit" name="benefit" rows="3"
+              <textarea id="benefit" name="benefit" rows="3" maxlength="4000"
                 data-en-placeholder="What improvement, saving, or impact do you expect? e.g. reduce downtime by 20%, save ~$5k/year, improve team morale…"
                 data-es-placeholder="¿Qué mejora, ahorro o impacto esperas? ej. reducir tiempo muerto 20%, ahorrar ~$5k/año, mejorar el ambiente…"
                 placeholder="What improvement, saving, or impact do you expect? e.g. reduce downtime by 20%, save ~$5k/year, improve team morale…"></textarea>
@@ -122,21 +129,23 @@
           </div>
 
           <!-- Section: Photo -->
-          <div class="section-label section-gap">
+          <div class="section-label section-gap" id="photo-label">
             <span data-en="Photo" data-es="Foto">Photo</span>
             <span class="opt" style="margin-left:4px" data-en="(optional)" data-es="(opcional)">(optional)</span>
           </div>
           <div class="form-row full">
             <div class="field">
               <div class="photo-zone" id="photo-zone">
-                <input type="file" id="photo-input" accept="image/*" capture="environment" />
+                <input type="file" id="photo-input" accept="image/*" capture="environment" aria-labelledby="photo-label" />
                 <div class="upload-icon">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--blue-02)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>
                 </div>
                 <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br/><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
                 <div class="file-name" id="file-name-display"></div>
               </div>
+              <!-- [html-validate-disable-next element-required-attributes: src is set at runtime when a photo is attached] -->
               <img id="preview-img" class="preview-img" alt="Preview" />
+              <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
           </div>
 
@@ -144,8 +153,8 @@
           <div class="section-label section-gap" data-en="Identity" data-es="Identidad">Identity</div>
 
           <div class="field" id="f-anon">
-            <label data-en="Submit anonymously?" data-es="¿Enviar anónimamente?">Submit anonymously?</label>
-            <div class="pill-grid pill-grid--2" id="anon-grid" style="margin-top:6px">
+            <label id="anon-label" data-en="Submit anonymously?" data-es="¿Enviar anónimamente?">Submit anonymously?</label>
+            <div class="pill-grid pill-grid--2" id="anon-grid" role="radiogroup" aria-labelledby="anon-label" style="margin-top:6px">
               <div>
                 <input type="radio" name="anonymous" id="anon-yes" value="Yes" class="pill-input" />
                 <label class="choice-card" for="anon-yes">
@@ -163,7 +172,7 @@
                 </label>
               </div>
             </div>
-            <div class="field-error" id="anon-error" style="margin-top:6px" data-en="Please select an option." data-es="Por favor selecciona una opción.">Please select an option.</div>
+            <div class="field-error" role="alert" id="anon-error" style="margin-top:6px" data-en="Please select an option." data-es="Por favor selecciona una opción.">Please select an option.</div>
           </div>
 
           <!-- Email (hidden until "No" selected) -->
@@ -174,7 +183,7 @@
                 data-en-placeholder="your.name@smurfitwestrock.com"
                 data-es-placeholder="tu.nombre@smurfitwestrock.com"
                 placeholder="your.name@smurfitwestrock.com" />
-              <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
+              <span class="field-error" role="alert" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
             </div>
           </div>
 
@@ -196,7 +205,7 @@
               <svg id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
-              <div class="spinner" id="spinner"></div>
+              <span class="spinner" id="spinner"></span>
               <span id="btn-text" data-en="Submit suggestion" data-es="Enviar sugerencia">Submit suggestion</span>
             </button>
           </div>
@@ -216,7 +225,7 @@
           <p class="success-note" data-en="We'll respond within 5 business days. Keep this reference number for any follow-up queries." data-es="Responderemos dentro de 5 días hábiles. Guarda este número de referencia para cualquier consulta.">We'll respond within 5 business days. Keep this reference number for any follow-up queries.</p>
           <div class="success-extra" id="success-anon-note"></div>
           <div class="btn-row">
-            <button class="btn btn-outline" data-en="Submit another idea" data-es="Enviar otra idea" onclick="resetForm()">Submit another idea</button>
+            <button type="button" class="btn btn-outline" data-en="Submit another idea" data-es="Enviar otra idea" onclick="resetForm()">Submit another idea</button>
             <a href="index.html" class="btn btn-outline" data-en="Back to portal" data-es="Volver al portal">Back to portal</a>
           </div>
         </div>
@@ -227,59 +236,20 @@
 
 </div>
 
+<script src="form-utils.js"></script>
+<script src="photo-upload.js"></script>
 <script>
   const WEBHOOK_URL = 'https://default67d2558fa4af4478bc72d7585f436b.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6b654df33fca41bdaf7c628ed9085f7d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dumPuIrO3IddXINz2939pOEBOvszwSitSMOZcWz7_bo';
 
   const form          = document.getElementById('suggestion-form');
   const formCard      = document.getElementById('form-card');
   const successScr    = document.getElementById('success-screen');
-  const submitBtn     = document.getElementById('submit-btn');
-  const spinner       = document.getElementById('spinner');
-  const btnIcon       = document.getElementById('btn-icon');
-  const btnText       = document.getElementById('btn-text');
   const refDisplay    = document.getElementById('ref-display');
   const emailWrap     = document.getElementById('email-field-wrap');
   const charCount     = document.getElementById('char-count');
   const successAnon   = document.getElementById('success-anon-note');
-  const submitError   = document.getElementById('submit-error');
 
-  const photoInput  = document.getElementById('photo-input');
-  const photoZone   = document.getElementById('photo-zone');
-  const previewImg  = document.getElementById('preview-img');
-  const fileNameEl  = document.getElementById('file-name-display');
-
-  // ── Photo handling ────────────────────────────────────────────
-  let photoBase64 = '';
-  let photoName   = '';
-
-  photoInput.addEventListener('change', () => {
-    const file = photoInput.files[0];
-    if (!file) return;
-    photoName = file.name;
-    fileNameEl.textContent = '✓ ' + file.name;
-    photoZone.classList.add('has-photo');
-    const reader = new FileReader();
-    reader.onload = e => {
-      photoBase64 = e.target.result.split(',')[1];
-      previewImg.src = e.target.result;
-      previewImg.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  });
-
-  photoZone.addEventListener('dragover', e => { e.preventDefault(); photoZone.classList.add('drag-over'); });
-  photoZone.addEventListener('dragleave', () => photoZone.classList.remove('drag-over'));
-  photoZone.addEventListener('drop', e => {
-    e.preventDefault();
-    photoZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      photoInput.files = dt.files;
-      photoInput.dispatchEvent(new Event('change'));
-    }
-  });
+  const photo = PortalPhoto.init();
 
   // ── Character counter ────────────────────────────────────────
   const suggestionEl = document.getElementById('suggestion');
@@ -308,14 +278,6 @@
   });
 
   // ── Validation ───────────────────────────────────────────────
-  function validateField(id, test) {
-    const field = document.getElementById('f-' + id);
-    if (!field) return test;
-    if (!test) { field.classList.add('invalid'); return false; }
-    field.classList.remove('invalid');
-    return true;
-  }
-
   function validateForm() {
     const dept       = document.getElementById('department').value;
     const cat        = document.getElementById('category').value;
@@ -324,9 +286,9 @@
     const emailVal   = document.getElementById('email').value.trim();
 
     let ok = true;
-    ok = validateField('department', dept) && ok;
-    ok = validateField('category',   cat)  && ok;
-    ok = validateField('suggestion', sug.length >= 20) && ok;
+    ok = PortalForm.validateField('department', dept) && ok;
+    ok = PortalForm.validateField('category',   cat)  && ok;
+    ok = PortalForm.validateField('suggestion', sug.length >= 20) && ok;
 
     if (!anonPicked) {
       document.getElementById('f-anon').classList.add('invalid');
@@ -336,8 +298,8 @@
     }
 
     if (anonPicked && anonPicked.value === 'No') {
-      const emailOk = emailVal && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal);
-      ok = validateField('email', emailOk) && ok;
+      const emailOk = emailVal && PortalForm.isValidEmail(emailVal);
+      ok = PortalForm.validateField('email', emailOk) && ok;
     }
 
     return ok;
@@ -348,7 +310,9 @@
     e.preventDefault();
     if (!validateForm()) return;
 
-    const refId     = 'SUG-' + Math.floor(100000 + Math.random() * 900000);
+    // Fallback only — the flow should assign the real ID and return
+    // { "referenceId": "SUG-000123" } so IDs are unique server-side.
+    const refId     = PortalForm.fallbackRefId('SUG');
     const isAnon    = document.querySelector('input[name="anonymous"]:checked').value;
     const emailVal  = isAnon === 'No' ? document.getElementById('email').value.trim() : '';
 
@@ -360,38 +324,21 @@
       benefit:     document.getElementById('benefit').value.trim(),
       anonymous:   isAnon,
       email:       emailVal,
-      photo:       photoBase64,
-      photoName:   photoName
+      photo:       photo.base64,
+      photoName:   photo.name
     };
 
-    submitBtn.disabled        = true;
-    btnIcon.style.display     = 'none';
-    spinner.style.display     = 'block';
-    btnText.textContent       = 'Submitting…';
-    submitError.classList.remove('show');
+    PortalForm.setSubmitting();
+    const { ok, referenceId } = await PortalForm.submitJSON(WEBHOOK_URL, payload);
 
-    let sent = false;
-    try {
-      const res = await fetch(WEBHOOK_URL, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload)
-      });
-      sent = res.ok;
-    } catch (err) {
-      console.error('Webhook error:', err);
-    }
-
-    if (!sent) {
-      restoreSubmitButton();
-      submitError.classList.add('show');
-      submitError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!ok) {
+      PortalForm.showSubmitError();
       return;
     }
 
     // Build success screen
     const lang = localStorage.getItem('portalLang') || 'en';
-    refDisplay.textContent = refId;
+    refDisplay.textContent = referenceId || refId;
     if (isAnon === 'Yes') {
       successAnon.textContent = lang === 'es'
         ? 'Tu identidad está completamente protegida — este envío es totalmente anónimo.'
@@ -407,34 +354,18 @@
     window.scrollTo(0, 0);
   });
 
-  // ── Clear invalid on input ───────────────────────────────────
-  document.querySelectorAll('input, select, textarea').forEach(el => {
-    el.addEventListener('input',  () => { const f = el.closest('.field'); if (f) f.classList.remove('invalid'); });
-    el.addEventListener('change', () => { const f = el.closest('.field'); if (f) f.classList.remove('invalid'); });
-  });
+  PortalForm.clearInvalidOnInput();
 
   // ── Reset ────────────────────────────────────────────────────
-  function restoreSubmitButton() {
-    submitBtn.disabled    = false;
-    btnIcon.style.display = 'block';
-    spinner.style.display = 'none';
-    const lang = localStorage.getItem('portalLang') || 'en';
-    btnText.textContent = btnText.getAttribute('data-' + lang) || btnText.getAttribute('data-en');
-  }
-
   function resetForm() {
     form.reset();
     charCount.textContent = '0';
     charCount.classList.remove('warn', 'ready');
     emailWrap.classList.remove('visible');
     document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
-    photoBase64 = ''; photoName = '';
-    fileNameEl.textContent = '';
-    previewImg.style.display = 'none';
-    previewImg.src = '';
-    photoZone.classList.remove('has-photo');
-    submitError.classList.remove('show');
-    restoreSubmitButton();
+    photo.clear();
+    document.getElementById('submit-error').classList.remove('show');
+    PortalForm.restoreSubmitButton();
     formCard.style.display  = 'block';
     successScr.style.display = 'none';
     window.scrollTo(0, 0);

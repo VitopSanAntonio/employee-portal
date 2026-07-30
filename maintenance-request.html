@@ -4,12 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Maintenance Request — Smurfit Westrock</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="portal-icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Portal">
+  <link rel="apple-touch-icon" href="portal-icon-192.png">
+  <meta name="theme-color" content="#00205B">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="theme.css" />
   <style>
-    .page-main { padding: var(--space-6) 0 var(--space-8); }
     .sms-note {
       display: flex; gap: var(--space-3); align-items: flex-start;
       margin: var(--space-4) auto 0; padding: var(--space-3) var(--space-4);
@@ -31,7 +38,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           <span data-en="Back to portal" data-es="Volver al portal">Back to portal</span>
         </a>
-        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button"></button>
+        <button id="lang-toggle" class="btn-lang btn-lang--light" type="button" aria-label="Change language"></button>
       </div>
       <div class="page-title-row">
         <span class="icon-tile">
@@ -60,17 +67,17 @@
               <select id="department" name="department">
                 <option value="" disabled selected data-en="Select department…" data-es="Selecciona departamento…">Select department…</option>
                 <option value="Quality" data-en="Quality" data-es="Calidad">Quality</option>
-                <option>Injection</option>
-                <option>Assembly</option>
+                <option value="Injection" data-en="Injection" data-es="Inyección">Injection</option>
+                <option value="Assembly" data-en="Assembly" data-es="Ensamble">Assembly</option>
                 <option value="Shipping &amp; Receiving" data-en="Shipping &amp; Receiving" data-es="Envíos y Recepción">Shipping &amp; Receiving</option>
                 <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
                 <option value="BreakRoom" data-en="BreakRoom" data-es="Sala de Descanso">BreakRoom</option>
                 <option value="Office / Admin" data-en="Office / Admin" data-es="Oficina / Administración">Office / Admin</option>
                 <option value="Restroom / Locker" data-en="Restroom / Locker" data-es="Baño / Casillero">Restroom / Locker</option>
-                <option>Facility</option>
+                <option value="Facility" data-en="Facility" data-es="Instalaciones">Facility</option>
                 <option value="Other" data-en="Other" data-es="Otro">Other</option>
               </select>
-              <span class="field-error" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
+              <span class="field-error" role="alert" data-en="Please select a department." data-es="Por favor selecciona un departamento.">Please select a department.</span>
             </div>
 
             <div class="field" id="f-location">
@@ -79,7 +86,7 @@
                 data-en-placeholder="e.g. Line 3, Room 201…"
                 data-es-placeholder="ej. Línea 3, Sala 201…"
                 placeholder="e.g. Line 3, Room 201…" />
-              <span class="field-error" data-en="Please enter the location." data-es="Por favor ingresa la ubicación.">Please enter the location.</span>
+              <span class="field-error" role="alert" data-en="Please enter the location." data-es="Por favor ingresa la ubicación.">Please enter the location.</span>
             </div>
           </div>
 
@@ -159,13 +166,13 @@
 
                 <option value="Other" data-en="Other" data-es="Otro">Other</option>
               </select>
-              <span class="field-error" data-en="Please select an equipment." data-es="Por favor selecciona un equipo.">Please select an equipment.</span>
+              <span class="field-error" role="alert" data-en="Please select an equipment." data-es="Por favor selecciona un equipo.">Please select an equipment.</span>
             </div>
           </div>
 
           <!-- Section 2: Priority -->
-          <div class="section-label section-gap" data-en="Priority level" data-es="Nivel de prioridad">Priority level</div>
-          <div class="pill-grid pill-grid--row" id="priority-grid" role="radiogroup" aria-label="Priority">
+          <div class="section-label section-gap" id="priority-label" data-en="Priority level" data-es="Nivel de prioridad">Priority level</div>
+          <div class="pill-grid pill-grid--row" id="priority-grid" role="radiogroup" aria-labelledby="priority-label">
             <div>
               <input type="radio" name="priority" id="p-low" value="Low" class="pill-input" />
               <label class="pill-label pill-label--row" for="p-low">
@@ -207,18 +214,18 @@
               </label>
             </div>
           </div>
-          <span class="field-error" id="priority-error" style="margin-top:6px" data-en="Please select a priority level." data-es="Por favor selecciona un nivel de prioridad.">Please select a priority level.</span>
+          <span class="field-error" role="alert" id="priority-error" style="margin-top:6px" data-en="Please select a priority level." data-es="Por favor selecciona un nivel de prioridad.">Please select a priority level.</span>
 
           <!-- Section 3: Description -->
           <div class="section-label section-gap" data-en="Details" data-es="Detalles">Details</div>
           <div class="form-row full">
             <div class="field" id="f-description">
               <label for="description" data-en="Description" data-es="Descripción">Description</label>
-              <textarea id="description" name="description" rows="4"
+              <textarea id="description" name="description" rows="4" maxlength="4000"
                 data-en-placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"
                 data-es-placeholder="Describe el problema claramente — qué observaste, cuándo comenzó, impacto en las operaciones…"
                 placeholder="Describe the issue clearly — what you observed, when it started, any impact on operations…"></textarea>
-              <span class="field-error" data-en="Please describe the issue." data-es="Por favor describe el problema.">Please describe the issue.</span>
+              <span class="field-error" role="alert" data-en="Please describe the issue." data-es="Por favor describe el problema.">Please describe the issue.</span>
             </div>
           </div>
 
@@ -226,7 +233,7 @@
           <div class="section-label section-gap" data-en="Photo &amp; contact" data-es="Foto y contacto">Photo &amp; contact</div>
           <div class="form-row full">
             <div class="field">
-              <label><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <label for="photo-input"><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
               <div class="photo-zone" id="photo-zone">
                 <input type="file" id="photo-input" accept="image/*" capture="environment" />
                 <div class="upload-icon">
@@ -235,7 +242,9 @@
                 <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br /><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
                 <div class="file-name" id="file-name-display"></div>
               </div>
+              <!-- [html-validate-disable-next element-required-attributes: src is set at runtime when a photo is attached] -->
               <img id="preview-img" class="preview-img" alt="Preview" />
+              <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
             </div>
           </div>
 
@@ -243,10 +252,10 @@
             <div class="field" id="f-email">
               <label for="email"><span data-en="Your email" data-es="Tu correo electrónico">Your email</span> <span class="opt" data-en="(for confirmation)" data-es="(para confirmación)">(for confirmation)</span></label>
               <input type="email" id="email" name="email"
-                data-en-placeholder="your.name@smurfitwrk.com"
-                data-es-placeholder="tu.nombre@smurfitwrk.com"
-                placeholder="your.name@smurfitwrk.com" />
-              <span class="field-error" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
+                data-en-placeholder="your.name@smurfitwestrock.com"
+                data-es-placeholder="tu.nombre@smurfitwestrock.com"
+                placeholder="your.name@smurfitwestrock.com" />
+              <span class="field-error" role="alert" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
             </div>
           </div>
 
@@ -262,7 +271,7 @@
               <svg id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
-              <div class="spinner" id="spinner"></div>
+              <span class="spinner" id="spinner"></span>
               <span id="btn-text" data-en="Submit maintenance request" data-es="Enviar solicitud de mantenimiento">Submit maintenance request</span>
             </button>
           </div>
@@ -297,6 +306,8 @@
 
 </div>
 
+<script src="form-utils.js"></script>
+<script src="photo-upload.js"></script>
 <script>
   // ── Config ──────────────────────────────────────────────────
   const WEBHOOK_URL = 'https://default67d2558fa4af4478bc72d7585f436b.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/0cbec84ea0884c978d3a12ed7af1022d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uMjxXkrSWoa1eC4_0s6gcywvyg6viiDWPm1kndeMOY8';
@@ -305,64 +316,12 @@
   const form       = document.getElementById('maint-form');
   const formCard   = document.getElementById('form-card');
   const successScr = document.getElementById('success-screen');
-  const submitBtn  = document.getElementById('submit-btn');
-  const spinner    = document.getElementById('spinner');
-  const btnIcon    = document.getElementById('btn-icon');
-  const btnText    = document.getElementById('btn-text');
-  const photoInput = document.getElementById('photo-input');
-  const photoZone  = document.getElementById('photo-zone');
-  const previewImg = document.getElementById('preview-img');
-  const fileNameDisplay = document.getElementById('file-name-display');
   const refDisplay = document.getElementById('ref-display');
   const priorityError = document.getElementById('priority-error');
-  const submitError = document.getElementById('submit-error');
 
-  // ── Photo handling ───────────────────────────────────────────
-  let photoBase64 = '';
-  let photoName   = '';
-
-  photoInput.addEventListener('change', () => {
-    const file = photoInput.files[0];
-    if (!file) return;
-    photoName = file.name;
-    fileNameDisplay.textContent = '✓ ' + file.name;
-
-    const reader = new FileReader();
-    reader.onload = e => {
-      photoBase64 = e.target.result.split(',')[1]; // strip data: prefix
-      previewImg.src = e.target.result;
-      previewImg.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  });
-
-  // drag & drop
-  photoZone.addEventListener('dragover', e => { e.preventDefault(); photoZone.classList.add('drag-over'); });
-  photoZone.addEventListener('dragleave', () => photoZone.classList.remove('drag-over'));
-  photoZone.addEventListener('drop', e => {
-    e.preventDefault();
-    photoZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      photoInput.files = dt.files;
-      photoInput.dispatchEvent(new Event('change'));
-    }
-  });
+  const photo = PortalPhoto.init();
 
   // ── Validation ───────────────────────────────────────────────
-  function validateField(id, test) {
-    const field = document.getElementById('f-' + id);
-    if (!field) return test;
-    if (!test) {
-      field.classList.add('invalid');
-      return false;
-    }
-    field.classList.remove('invalid');
-    return true;
-  }
-
   function validateForm() {
     const dept     = document.getElementById('department').value;
     const loc      = document.getElementById('location').value.trim();
@@ -372,10 +331,10 @@
     const priority = document.querySelector('input[name="priority"]:checked');
 
     let ok = true;
-    ok = validateField('department', dept)    && ok;
-    ok = validateField('location',   loc)     && ok;
-    ok = validateField('issueType',  issType) && ok;
-    ok = validateField('description', desc.length >= 10) && ok;
+    ok = PortalForm.validateField('department', dept)    && ok;
+    ok = PortalForm.validateField('location',   loc)     && ok;
+    ok = PortalForm.validateField('issueType',  issType) && ok;
+    ok = PortalForm.validateField('description', desc.length >= 10) && ok;
 
     if (!priority) {
       priorityError.classList.add('show');
@@ -385,7 +344,7 @@
     }
 
     // email optional but must be valid if provided
-    if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+    if (emailVal && !PortalForm.isValidEmail(emailVal)) {
       document.getElementById('f-email').classList.add('invalid');
       ok = false;
     } else {
@@ -408,70 +367,29 @@
       description: document.getElementById('description').value.trim(),
       priority:    document.querySelector('input[name="priority"]:checked').value,
       email:       document.getElementById('email').value.trim(),
-      photo:       photoBase64,
-      photoName:   photoName
+      photo:       photo.base64,
+      photoName:   photo.name
     };
 
-    // loading state
-    submitBtn.disabled = true;
-    btnIcon.style.display = 'none';
-    spinner.style.display = 'block';
-    btnText.textContent = 'Submitting…';
-    submitError.classList.remove('show');
+    PortalForm.setSubmitting();
+    // Power Automate should return: { "referenceId": "MNT-0042" }
+    const { ok, referenceId } = await PortalForm.submitJSON(WEBHOOK_URL, payload);
 
-    let sent = false;
-    let referenceId = 'MNT-????'; // fallback if the flow doesn't echo one back
-    try {
-      const res  = await fetch(WEBHOOK_URL, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload)
-      });
-      sent = res.ok;
-      if (sent) {
-        // Power Automate should return: { "referenceId": "MNT-0042" }
-        const data = await res.json().catch(() => null);
-        if (data && data.referenceId) referenceId = data.referenceId;
-      }
-    } catch (err) {
-      console.error('Webhook error:', err);
-    }
-
-    if (!sent) {
-      restoreSubmitButton();
-      submitError.classList.add('show');
-      submitError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!ok) {
+      PortalForm.showSubmitError();
       return;
     }
 
-    refDisplay.textContent   = referenceId;
+    refDisplay.textContent   = referenceId || 'MNT-????'; // fallback if the flow doesn't echo one back
     formCard.style.display   = 'none';
     successScr.style.display = 'block';
     window.scrollTo(0, 0);
   });
 
-  // ── Clear invalid on input ────────────────────────────────────
-  document.querySelectorAll('input, select, textarea').forEach(el => {
-    el.addEventListener('input', () => {
-      const field = el.closest('.field');
-      if (field) field.classList.remove('invalid');
-    });
-    el.addEventListener('change', () => {
-      const field = el.closest('.field');
-      if (field) field.classList.remove('invalid');
-    });
-  });
+  PortalForm.clearInvalidOnInput();
   document.querySelectorAll('input[name="priority"]').forEach(r => {
     r.addEventListener('change', () => priorityError.classList.remove('show'));
   });
-
-  function restoreSubmitButton() {
-    submitBtn.disabled    = false;
-    btnIcon.style.display = 'block';
-    spinner.style.display = 'none';
-    const lang = localStorage.getItem('portalLang') || 'en';
-    btnText.textContent = btnText.getAttribute('data-' + lang) || btnText.getAttribute('data-en');
-  }
 </script>
 <script src="lang.js"></script>
 </body>

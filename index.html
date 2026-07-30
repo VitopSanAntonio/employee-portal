@@ -7,6 +7,7 @@
 
 <!-- ═══════════ PWA: Web App Manifest ═══════════ -->
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="portal-icon-192.png">
 
 <!-- ═══════════ PWA: iOS Home Screen Support ═══════════ -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -78,32 +79,6 @@
   .banner-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--text-secondary); font-size: 16px; cursor: pointer; padding: 4px; line-height: 1; }
   .banner-close:hover { color: var(--text-primary); }
 
-  /* ═══════════ Success overlay ═══════════ */
-  #success-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 32, 91, 0.55);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 99999;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    padding: var(--space-4);
-  }
-  #success-overlay.success-visible { display: flex; }
-  #success-overlay .success-card { max-width: 380px; width: 100%; position: relative; overflow: hidden; animation: successCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-  @keyframes successCardIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-  .success-check-wrap { width: 76px; height: 76px; margin: 0 auto; position: relative; }
-  .check-circle { fill: none; stroke: var(--green-02); stroke-width: 3; stroke-dasharray: 166; stroke-dashoffset: 166; stroke-linecap: round; animation: strokeCircle 0.6s 0.15s ease forwards; }
-  .check-tick { fill: none; stroke: var(--green-02); stroke-width: 3; stroke-dasharray: 48; stroke-dashoffset: 48; stroke-linecap: round; stroke-linejoin: round; animation: strokeTick 0.4s 0.6s ease forwards; }
-  @keyframes strokeCircle { to { stroke-dashoffset: 0; } }
-  @keyframes strokeTick { to { stroke-dashoffset: 0; } }
-  .confetti-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: var(--radius-lg); }
-  .confetti-dot { position: absolute; border-radius: 50%; animation: confettiFall linear both; }
-  .success-timer-bar { position: absolute; bottom: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--green-02), var(--blue-03)); animation: timerDrain 4s 1s linear forwards; width: 100%; transform-origin: left; }
-  @keyframes timerDrain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 </style>
 </head>
 <body>
@@ -113,14 +88,14 @@
     <div class="wrap hero-inner">
       <div class="hero-top">
         <span class="hero-logo-chip">
-          <img src="smurfit-logo.png" alt="Smurfit Westrock" class="hero-logo">
+          <img src="smurfit-logo.png" alt="Smurfit Westrock" class="hero-logo" width="384" height="128">
         </span>
         <div class="hero-top-right">
           <span class="eyebrow">
             <span class="dot"></span>
             <span data-en="Employee portal" data-es="Portal del empleado">Employee portal</span>
           </span>
-          <button id="lang-toggle" class="btn-lang" type="button"></button>
+          <button id="lang-toggle" class="btn-lang" type="button" aria-label="Change language"></button>
         </div>
       </div>
 
@@ -160,7 +135,7 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
         </span>
         <div style="flex:1">
-          <div class="card-tag" style="color:var(--green-02)" data-en="Share an idea" data-es="Comparte una idea">Share an idea</div>
+          <div class="card-tag card-tag--green" data-en="Share an idea" data-es="Comparte una idea">Share an idea</div>
           <h2 style="margin-top:6px" data-en="Employee suggestion" data-es="Sugerencia de empleado">Employee suggestion</h2>
           <p style="margin-top:6px" data-en="Have an idea to improve our workplace, processes, or culture? We want to hear it — anonymous or not." data-es="¿Tienes una idea para mejorar nuestro lugar de trabajo, procesos o cultura? Queremos escucharla — anónima o no.">Have an idea to improve our workplace, processes, or culture? We want to hear it — anonymous or not.</p>
         </div>
@@ -234,7 +209,7 @@
 
   <footer class="site-footer">
     <div class="wrap site-footer-inner">
-      <img src="smurfit-logo.png" alt="Smurfit Westrock">
+      <img src="smurfit-logo.png" alt="Smurfit Westrock" width="384" height="128">
       <span data-en="Creating the future together" data-es="Creando el futuro juntos">Creating the future together</span>
     </div>
   </footer>
@@ -244,8 +219,8 @@
 <!-- ═══════════════════════════════════════════════════════
      PWA: iOS Install Banner
 ═══════════════════════════════════════════════════════ -->
-<div id="pwa-install-banner" role="complementary" aria-label="Install app">
-  <button class="banner-close" id="banner-close-x" aria-label="Close">
+<aside id="pwa-install-banner" aria-label="Install app">
+  <button type="button" class="banner-close" id="banner-close-x" aria-label="Close">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
   </button>
   <div class="banner-icon">
@@ -255,38 +230,14 @@
     <strong>Install employee portal</strong>
     <span>Tap <span class="banner-share-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</span> then <strong style="color:var(--text-primary)">Add to home screen</strong> for faster access.</span>
   </div>
-  <button class="banner-got-it" id="banner-got-it">Got it</button>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════
-     SUCCESS ANIMATION OVERLAY
-     Usage from form pages: call window.showSuccessOverlay(refCode)
-     Or link back with ?submitted=true&ref=REF123
-═══════════════════════════════════════════════════════ -->
-<div id="success-overlay" role="dialog" aria-modal="true" aria-label="Submission successful">
-  <div class="success-card">
-    <div class="confetti-container" id="confetti-container"></div>
-    <div class="success-timer-bar" id="success-timer"></div>
-
-    <div class="success-check-wrap">
-      <svg class="success-checkmark-svg" width="76" height="76" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
-        <circle class="check-circle" cx="26" cy="26" r="22"/>
-        <path class="check-tick" d="M14 26 l9 9 l15 -15"/>
-      </svg>
-    </div>
-
-    <h2>Submitted!</h2>
-    <p>Thank you — your submission has been received and the right team has been notified.</p>
-    <div class="ref-badge" id="success-ref-code">REF #—</div>
-    <button class="btn btn-primary" id="success-close-btn">Back to portal</button>
-  </div>
-</div>
+  <button type="button" class="banner-got-it" id="banner-got-it">Got it</button>
+</aside>
 
 <!-- Existing language script (unchanged) -->
 <script src="lang.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════
-     PWA SCRIPTS: Banner + Success Animation
+     PWA SCRIPTS: iOS Install Banner
 ═══════════════════════════════════════════════════════ -->
 <script>
 (function () {
@@ -335,117 +286,6 @@
 
   // Show banner after page settles
   setTimeout(tryShowBanner, 2000);
-
-
-  /* ── 2. Success Animation ──────────────────────────── */
-  const overlay    = document.getElementById('success-overlay');
-  const refEl      = document.getElementById('success-ref-code');
-  const closeBtnEl = document.getElementById('success-close-btn');
-  const confettiC  = document.getElementById('confetti-container');
-
-  // Confetti colours matching portal palette
-  const CONFETTI_COLORS = ['#00A944','#0070D4','#5FCDF5','#753BBD','#FCE300','#008198'];
-
-  function spawnConfetti() {
-    if (!confettiC) return;
-    confettiC.innerHTML = '';
-    for (let i = 0; i < 28; i++) {
-      const dot = document.createElement('div');
-      dot.className = 'confetti-dot';
-      const size   = Math.random() * 8 + 4;
-      const left   = Math.random() * 100;
-      const delay  = Math.random() * 0.6;
-      const dur    = Math.random() * 1.2 + 0.8;
-      const color  = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
-      dot.style.cssText = `
-        width:${size}px; height:${size}px;
-        left:${left}%;
-        top:-${size}px;
-        background:${color};
-        opacity:0.9;
-        animation-name:confettiFall;
-        animation-duration:${dur}s;
-        animation-delay:${delay}s;
-        animation-fill-mode:both;
-      `;
-      confettiC.appendChild(dot);
-    }
-    // Inject keyframe if not present
-    if (!document.getElementById('confetti-kf')) {
-      const style = document.createElement('style');
-      style.id = 'confetti-kf';
-      style.textContent = `
-        @keyframes confettiFall {
-          0%   { transform: translateY(0) rotate(0deg); opacity: 0.9; }
-          100% { transform: translateY(340px) rotate(360deg); opacity: 0; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }
-
-  /**
-   * showSuccessOverlay(refCode)
-   * Call this from your form pages after a successful submission.
-   * Example: window.showSuccessOverlay('SKW-20240312-A1B2')
-   */
-  window.showSuccessOverlay = function(refCode) {
-    if (!overlay) return;
-    if (refEl) refEl.textContent = 'REF # ' + (refCode || '—');
-    spawnConfetti();
-
-    // Reset animations by cloning the check SVG paths
-    const card = overlay.querySelector('.success-card');
-    if (card) {
-      card.querySelectorAll('.check-circle, .check-tick').forEach(el => {
-        el.style.animation = 'none';
-        el.offsetHeight;   // reflow
-        el.style.animation = '';
-      });
-    }
-
-    overlay.classList.add('success-visible');
-    document.body.style.overflow = 'hidden';
-
-    // Auto-dismiss after 5 seconds
-    const autoDismiss = setTimeout(closeOverlay, 5000);
-    if (closeBtnEl) {
-      closeBtnEl._autoDismiss = autoDismiss;
-    }
-  };
-
-  function closeOverlay() {
-    if (!overlay) return;
-    overlay.classList.remove('success-visible');
-    document.body.style.overflow = '';
-    if (closeBtnEl && closeBtnEl._autoDismiss) {
-      clearTimeout(closeBtnEl._autoDismiss);
-    }
-  }
-
-  if (closeBtnEl) closeBtnEl.addEventListener('click', closeOverlay);
-
-  // Close on backdrop click (outside card)
-  if (overlay) {
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) closeOverlay();
-    });
-  }
-
-  /* ── 3. Auto-trigger if redirected back with ?submitted=true ── */
-  (function checkRedirectSuccess() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('submitted') === 'true') {
-      const ref = params.get('ref') || ('SKW-' + Date.now().toString(36).toUpperCase());
-      // Small delay so page paints first
-      setTimeout(function() {
-        window.showSuccessOverlay(ref);
-      }, 600);
-      // Clean URL without reloading
-      const cleanUrl = window.location.pathname;
-      history.replaceState(null, '', cleanUrl);
-    }
-  })();
 
 })();
 </script>
