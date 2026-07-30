@@ -239,7 +239,6 @@
 <script src="form-utils.js"></script>
 <script src="photo-upload.js"></script>
 <script>
-  const WEBHOOK_URL = 'https://default67d2558fa4af4478bc72d7585f436b.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6b654df33fca41bdaf7c628ed9085f7d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dumPuIrO3IddXINz2939pOEBOvszwSitSMOZcWz7_bo';
 
   const form          = document.getElementById('suggestion-form');
   const formCard      = document.getElementById('form-card');
@@ -329,10 +328,13 @@
     };
 
     PortalForm.setSubmitting();
-    const { ok, referenceId } = await PortalForm.submitJSON(WEBHOOK_URL, payload);
+    const { ok, referenceId, message, cancelled } = await PortalForm.submitJSON('suggestion', payload);
 
     if (!ok) {
-      PortalForm.showSubmitError();
+      // Only a dismissed access-code prompt leaves the form untouched;
+      // every real failure has to show the banner.
+      if (cancelled) { PortalForm.restoreSubmitButton(); return; }
+      PortalForm.showSubmitError(message);
       return;
     }
 

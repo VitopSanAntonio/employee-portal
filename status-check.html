@@ -203,9 +203,8 @@
 
 </div>
 
+<script src="form-utils.js"></script>
 <script>
-  // ── Config — replace with your Power Automate lookup webhook URL ──
-  const LOOKUP_WEBHOOK_URL = 'https://default67d2558fa4af4478bc72d7585f436b.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/12d0b600125c496e813d8348418f985e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xmrldm3Kgsoqm-iX9AMFgqNZ6oFN_SO8IuzoT_GAoVk';
 
   const refInput    = document.getElementById('ref-input');
   const errorMsg    = document.getElementById('error-msg');
@@ -245,13 +244,7 @@
     lookupBtn.disabled = true;
 
     try {
-      const response = await fetch(LOOKUP_WEBHOOK_URL, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ referenceId: ref })
-      });
-
-      const data = await response.json();
+      const data = await PortalForm.lookupJSON('status', { referenceId: ref });
 
       if (data && data.found) {
         showResult(ref, data);
