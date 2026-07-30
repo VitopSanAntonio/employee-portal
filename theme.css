@@ -462,6 +462,23 @@ button { font-family: inherit; }
 }
 .notice svg { flex-shrink: 0; width: 18px; height: 18px; }
 
+/* ── Submission failure banner — hidden until a submit attempt fails ── */
+.submit-error {
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--status-danger);
+  border-radius: var(--radius-md);
+  background: #FBEAE6;
+  color: var(--status-danger);
+  font-size: var(--text-t3);
+  line-height: var(--lh-t3);
+  margin-top: var(--space-5);
+}
+.submit-error.show { display: flex; }
+.submit-error svg { flex-shrink: 0; width: 18px; height: 18px; }
+
 /* ── Footer ── */
 .site-footer {
   border-top: 1px solid var(--border-default);
