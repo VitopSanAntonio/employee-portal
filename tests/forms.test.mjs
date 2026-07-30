@@ -3,8 +3,10 @@
 //  - proxy failure → error banner, form stays, submit button re-enabled
 //  - proxy success → success screen; server-returned referenceId preferred,
 //    client fallback ID when the flow returns an empty body
-//  - access code: 401 clears the stored code, 429 shows the rate-limit copy,
-//    a dismissed prompt leaves the form untouched with no banner
+//  - access code: nothing prompts while the proxy accepts codeless posts; a
+//    401 triggers one prompt and one retry; a second 401 shows the bad-code
+//    copy and forgets it; a dismissed prompt leaves the form untouched
+//  - rate limit (429) shows its own copy and keeps the stored code
 //  - photo uploads: non-image or >5MB rejected with a visible error
 //  - Spanish mode: failure copy and restored button label are localized
 import { startServer, launchBrowser, report } from './helpers.mjs';
@@ -17,10 +19,8 @@ const results = [];
 // Every request the pages make to the submit proxy, whatever the form key.
 const isProxy = u => u.href.includes('portal-submit-proxy') || u.href.includes('/submit/');
 
-// The pages prompt for an employee access code on first submit and remember it.
-// Seeding it keeps the submit-path tests focused on the response handling; the
-// prompt itself is covered by the dedicated cases below. Seed via an init
-// script rather than evaluate+reload so each case still costs one navigation.
+// Seed via an init script rather than evaluate+reload so each case still
+// costs one navigation (page loads dominate this suite's runtime).
 function seedStorage(page, entries) {
   return page.addInitScript(items => {
     for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
@@ -28,6 +28,17 @@ function seedStorage(page, entries) {
 }
 
 const seedAccessCode = page => seedStorage(page, { portalAccessCode: 'TEST-CODE' });
+
+// Records every prompt the page raises. The access code is off by default —
+// the proxy decides — so most cases must not raise one at all.
+function watchPrompts(page, { answer = null } = {}) {
+  const seen = [];
+  page.on('dialog', d => {
+    seen.push(d.type());
+    return answer === null ? d.dismiss() : d.accept(answer);
+  });
+  return seen;
+}
 
 async function fillForm(page, name) {
   if (name === 'safety-concern') {
@@ -63,7 +74,9 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
       if (mode === 'success-empty') return route.fulfill({ status: 202, body: '' });
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referenceId: 'SRV-0042' }) });
     });
-    await seedAccessCode(page);
+    // No access code seeded and the proxy never 401s here, so a prompt would
+    // be a regression: the code is paused until the Worker asks for it.
+    const prompts = watchPrompts(page);
     await page.goto(`http://localhost:${PORT}/${name}.html`);
     await fillForm(page, name);
     await page.click('#submit-btn');
@@ -78,7 +91,8 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
     if (mode === 'success')            pass = successShown && !errorShown && refText === 'SRV-0042';
     else if (mode === 'success-empty') pass = successShown && !errorShown && FALLBACK_REF[name].test(refText);
     else                               pass = errorShown && !successShown && btnEnabled;
-    results.push({ page: name, mode, pass, errorShown, successShown, btnEnabled, refText });
+    pass = pass && prompts.length === 0;
+    results.push({ page: name, mode, pass, errorShown, successShown, btnEnabled, refText, detail: prompts.length ? `prompted x${prompts.length}` : '' });
     await page.close();
   }
 }
@@ -110,7 +124,7 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
 {
   const page = await browser.newPage();
   await page.route(isProxy, route => route.abort('failed'));
-  await seedStorage(page, { portalLang: 'es', portalAccessCode: 'TEST-CODE' });
+  await seedStorage(page, { portalLang: 'es' });
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
   await page.click('#submit-btn');
@@ -126,10 +140,10 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.close();
 }
 
-// Access-code handling on the submit path.
-for (const [mode, status] of [['bad-code', 401], ['rate-limited', 429]]) {
+// A rate limit is not the code's fault, so a stored code survives it.
+{
   const page = await browser.newPage();
-  await page.route(isProxy, route => route.fulfill({ status, body: '' }));
+  await page.route(isProxy, route => route.fulfill({ status: 429, body: '' }));
   await seedAccessCode(page);
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
@@ -138,32 +152,85 @@ for (const [mode, status] of [['bad-code', 401], ['rate-limited', 429]]) {
   const shown  = await page.locator('#submit-error.show').isVisible();
   const banner = (await page.locator('#submit-error span[data-en]').textContent()).trim();
   const stored = await page.evaluate(() => localStorage.getItem('portalAccessCode'));
-  // A rejected code is forgotten so the next attempt re-prompts; a rate limit
-  // is not the code's fault, so the stored code survives.
-  const pass = mode === 'bad-code'
-    ? shown && banner.startsWith('That access code') && stored === null
-    : shown && banner.startsWith('Too many submissions') && stored === 'TEST-CODE';
-  results.push({ page: 'safety-concern', mode, pass, detail: banner.slice(0, 30) });
+  results.push({
+    page: 'safety-concern', mode: 'rate-limited',
+    pass: shown && banner.startsWith('Too many submissions') && stored === 'TEST-CODE',
+    detail: banner.slice(0, 30)
+  });
   await page.close();
 }
 
-// Dismissing the access-code prompt is the one failure that stays silent:
-// no banner, no success screen, form still usable, nothing sent.
+// Turning the code on is a Worker-side change: the page finds out because the
+// proxy starts answering 401. First attempt carries no code, the prompt
+// follows, and the retry carries it. Nothing reaches the flow until it passes.
 {
   const page = await browser.newPage();
-  let requested = false;
-  await page.route(isProxy, route => { requested = true; return route.fulfill({ status: 200, body: '{}' }); });
-  page.on('dialog', d => d.dismiss());
+  const sent = [];
+  await page.route(isProxy, route => {
+    const code = JSON.parse(route.request().postData() || '{}').accessCode ?? null;
+    sent.push(code);
+    return code === 'GIVEN-CODE'
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referenceId: 'SRV-0042' }) })
+      : route.fulfill({ status: 401, body: '' });
+  });
+  const prompts = watchPrompts(page, { answer: 'GIVEN-CODE' });
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
   await page.click('#submit-btn');
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(900);
+  const success = await page.locator('#success-screen').isVisible();
+  const refText = success ? (await page.locator('#ref-display').textContent()).trim() : '';
+  const stored  = await page.evaluate(() => localStorage.getItem('portalAccessCode'));
+  results.push({
+    page: 'safety-concern', mode: 'code-required-then-given',
+    pass: success && refText === 'SRV-0042' && prompts.length === 1
+          && sent.length === 2 && sent[0] === null && sent[1] === 'GIVEN-CODE'
+          && stored === 'GIVEN-CODE',
+    detail: JSON.stringify(sent)
+  });
+  await page.close();
+}
+
+// A code that is wrong twice stops at one retry, shows the bad-code copy, and
+// is forgotten so the next attempt starts clean.
+{
+  const page = await browser.newPage();
+  let requests = 0;
+  await page.route(isProxy, route => { requests += 1; return route.fulfill({ status: 401, body: '' }); });
+  const prompts = watchPrompts(page, { answer: 'WRONG-CODE' });
+  await page.goto(`http://localhost:${PORT}/safety-concern.html`);
+  await fillForm(page, 'safety-concern');
+  await page.click('#submit-btn');
+  await page.waitForTimeout(900);
+  const shown  = await page.locator('#submit-error.show').isVisible();
+  const banner = (await page.locator('#submit-error span[data-en]').textContent()).trim();
+  const stored = await page.evaluate(() => localStorage.getItem('portalAccessCode'));
+  results.push({
+    page: 'safety-concern', mode: 'code-wrong-twice',
+    pass: shown && banner.startsWith('That access code') && stored === null
+          && requests === 2 && prompts.length === 1,
+    detail: `${requests} posts, ${prompts.length} prompts`
+  });
+  await page.close();
+}
+
+// Dismissing the prompt is the one failure that stays silent: no banner, no
+// success screen, form still usable, and nothing sent after the 401.
+{
+  const page = await browser.newPage();
+  let requests = 0;
+  await page.route(isProxy, route => { requests += 1; return route.fulfill({ status: 401, body: '' }); });
+  const prompts = watchPrompts(page);
+  await page.goto(`http://localhost:${PORT}/safety-concern.html`);
+  await fillForm(page, 'safety-concern');
+  await page.click('#submit-btn');
+  await page.waitForTimeout(900);
   const shown      = await page.locator('#submit-error.show').isVisible().catch(() => false);
   const success    = await page.locator('#success-screen').isVisible();
   const btnEnabled = await page.locator('#submit-btn').isEnabled();
   results.push({
     page: 'safety-concern', mode: 'prompt-cancelled',
-    pass: !shown && !success && btnEnabled && !requested
+    pass: !shown && !success && btnEnabled && requests === 1 && prompts.length === 1
   });
   await page.close();
 }

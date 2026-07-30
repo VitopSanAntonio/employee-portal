@@ -41,21 +41,29 @@ window.PortalForm = (function () {
     return (MSG[lang] && MSG[lang][key]) || MSG.en[key];
   }
 
-  // Asked once per device, then remembered. Cleared automatically if
-  // the proxy rejects it, so a typo doesn't lock someone out for good.
-  function getAccessCode() {
-    let code = null;
-    try { code = localStorage.getItem(CODE_KEY); } catch (e) {}
-    if (!code) {
-      code = window.prompt(t('prompt'));
-      if (!code) return null;
-      try { localStorage.setItem(CODE_KEY, code); } catch (e) {}
-    }
-    return code;
+  // The access code is remembered per device once entered. Whether one is
+  // needed at all is decided by the proxy, not here — see submitJSON.
+  function storedAccessCode() {
+    try { return localStorage.getItem(CODE_KEY); } catch (e) { return null; }
+  }
+
+  function rememberAccessCode(code) {
+    try { localStorage.setItem(CODE_KEY, code); } catch (e) {}
   }
 
   function forgetAccessCode() {
     try { localStorage.removeItem(CODE_KEY); } catch (e) {}
+  }
+
+  // Ask once, then remember. Cleared automatically if the proxy rejects it,
+  // so a typo doesn't lock someone out for good.
+  function getAccessCode() {
+    const stored = storedAccessCode();
+    if (stored) return stored;
+    const code = window.prompt(t('prompt'));
+    if (!code) return null;
+    rememberAccessCode(code);
+    return code;
   }
 
   // ── Validation helpers ──────────────────────────────────────
@@ -101,42 +109,60 @@ window.PortalForm = (function () {
    *   ok=false, no message-> show the page's own default error wording
    * Anything that is not a cancellation must surface an error: a silent
    * reset would read as "sent" to someone filing a safety report.
+   *
+   * Whether an access code is required is the proxy's call, not this file's.
+   * We send whatever code the device already has (none, while the code is
+   * paused) and only prompt if the proxy answers 401. That keeps the switch in
+   * one place — REQUIRE_ACCESS_CODE in the Worker — so turning it on at
+   * go-live needs no matching change here and can't leave the two out of sync.
+   * The proxy checks the code before forwarding anything to Power Automate, so
+   * a 401 never creates a record and the retry can't duplicate a submission.
    */
   async function submitJSON(formKey, payload) {
-    let ok = false;
-    let referenceId = '';
-    let message = '';
+    let code = storedAccessCode();
 
-    const code = getAccessCode();
-    if (!code) return { ok: false, referenceId: '', message: '', cancelled: true };
+    for (let attempt = 0; ; attempt++) {
+      const body = Object.assign({}, payload);
+      if (code) body.accessCode = code;
 
-    try {
-      const res = await fetch(PROXY + '/submit/' + formKey, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(Object.assign({}, payload, { accessCode: code }))
-      });
+      let res;
+      try {
+        res = await fetch(PROXY + '/submit/' + formKey, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(body)
+        });
+      } catch (err) {
+        console.error('Proxy error:', err);
+        return { ok: false, referenceId: '', message: t('offline'), cancelled: false };
+      }
 
       if (res.status === 401) {
         forgetAccessCode();                       // so the next try re-prompts
-        return { ok: false, referenceId: '', message: t('badCode'), cancelled: false };
+        // One retry: the first 401 asks for a code, a second means the code
+        // typed in response to it was wrong too.
+        if (attempt > 0) {
+          return { ok: false, referenceId: '', message: t('badCode'), cancelled: false };
+        }
+        code = window.prompt(t('prompt'));
+        if (!code) return { ok: false, referenceId: '', message: '', cancelled: true };
+        rememberAccessCode(code);
+        continue;
       }
+
       if (res.status === 429) {
         return { ok: false, referenceId: '', message: t('rate'), cancelled: false };
       }
 
-      ok = res.ok;
+      let ok = res.ok;
+      let referenceId = '';
       if (ok) {
         const data = await res.json().catch(() => null);
         if (data && data.ok === false) ok = false;
         if (data && data.referenceId) referenceId = data.referenceId;
       }
-    } catch (err) {
-      console.error('Proxy error:', err);
-      message = t('offline');
+      return { ok, referenceId, message: '', cancelled: false };
     }
-
-    return { ok, referenceId, message, cancelled: false };
   }
 
   /**
