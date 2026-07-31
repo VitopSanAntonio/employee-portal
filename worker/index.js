@@ -113,6 +113,41 @@ function normaliseCode(v) {
 }
 
 /**
+ * Excel/SharePoint formula injection guard. Submissions land in a workbook
+ * or list (status-check.html's date parsing confirms the backend reads
+ * Excel serial numbers), and a cell that starts with =, +, -, or @ is
+ * live-evaluated when someone opens it there — e.g. a "description" of
+ * =HYPERLINK("http://evil","click") becomes a clickable formula for the
+ * safety manager, not inert text. A leading tab or CR reaches the same
+ * cell-start position after Excel trims whitespace, so both are guarded
+ * too. Prefixing with a single quote forces it back to text; Excel/Sheets
+ * both strip a leading quote from what they display, so this doesn't
+ * change what the reader sees.
+ */
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+function sanitizeForSpreadsheet(value) {
+  return FORMULA_LEAD.test(value) ? "'" + value : value;
+}
+
+/**
+ * Applies the guard to every string field in a submission payload except
+ * `photo` — that's base64 image bytes, not spreadsheet text, and
+ * prefixing it would corrupt the image. Client-side validation (the forms'
+ * own JS) can't be trusted here: this Worker is reachable directly by
+ * anyone who has its URL, bypassing whatever the page would have checked.
+ */
+function sanitizePayload(payload) {
+  const clean = {};
+  for (const [key, value] of Object.entries(payload)) {
+    clean[key] = (key !== 'photo' && typeof value === 'string')
+      ? sanitizeForSpreadsheet(value)
+      : value;
+  }
+  return clean;
+}
+
+/**
  * Fallback reference, used only when the flow doesn't return one of its own.
  * The format has to match what status-check.html accepts — /^(MNT|SAF|SUG)-\d{4,6}$/
  * with a 10-character input cap — or the number we hand the employee is one
@@ -232,12 +267,14 @@ export default {
     }
 
     // Add server-side context the browser can't be trusted to supply. A lookup
-    // is a read, so it forwards the reference number and nothing else.
+    // is a read, so it forwards the reference number and nothing else — and
+    // isn't sanitized for spreadsheet formulas, since a read doesn't write
+    // anything back into the workbook.
     const ref = makeRef(form.refPrefix);
     const body = form.passthrough
       ? { ...payload }
       : {
-          ...payload,
+          ...sanitizePayload(payload),
           _ref: ref,
           _submittedAt: new Date().toISOString(),
           _form: formKey,
