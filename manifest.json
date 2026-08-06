@@ -1,7 +1,8 @@
 {
+  "id": "/employee-portal/",
   "name": "Smurfit Westrock Employee Portal",
   "short_name": "Portal",
-  "description": "Internal employee portal for suggestions, safety reports, and maintenance requests.",
+  "description": "Internal employee portal for suggestions, safety reports, maintenance requests, and time off.",
   "start_url": ".",
   "display": "standalone",
   "orientation": "portrait",
@@ -14,23 +15,28 @@
       "src": "portal-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "portal-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "portal-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "portal-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
-    {
-      "name": "Suggestion",
-      "short_name": "Suggest",
-      "description": "Submit an employee suggestion",
-      "url": "suggestion-form.html",
-      "icons": [{ "src": "portal-icon-192.png", "sizes": "192x192" }]
-    },
     {
       "name": "Safety Concern",
       "short_name": "Safety",
@@ -39,10 +45,31 @@
       "icons": [{ "src": "portal-icon-192.png", "sizes": "192x192" }]
     },
     {
+      "name": "Suggestion",
+      "short_name": "Suggest",
+      "description": "Submit an employee suggestion",
+      "url": "suggestion-form.html",
+      "icons": [{ "src": "portal-icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "Maintenance",
       "short_name": "Maintenance",
       "description": "Submit a maintenance request",
       "url": "maintenance-request.html",
+      "icons": [{ "src": "portal-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Time Off",
+      "short_name": "Time off",
+      "description": "Request or cancel time off",
+      "url": "time-off.html",
+      "icons": [{ "src": "portal-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Check Request Status",
+      "short_name": "Status",
+      "description": "Look up a request by reference number",
+      "url": "status-check.html",
       "icons": [{ "src": "portal-icon-192.png", "sizes": "192x192" }]
     }
   ]

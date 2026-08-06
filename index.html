@@ -154,7 +154,7 @@
         <div style="flex:1">
           <div class="card-tag" data-en="Request or cancel" data-es="Solicitar o cancelar">Request or cancel</div>
           <h2 style="margin-top:6px" data-en="Time off" data-es="Tiempo libre">Time off</h2>
-          <p style="margin-top:6px" data-en="Request vacation, a floating holiday, or carryover — or cancel time off you already asked for. Your supervisor is notified right away." data-es="Solicita vacaciones, un día flotante o días acumulados — o cancela tiempo libre que ya pediste. Tu supervisor será notificado de inmediato.">Request vacation, a floating holiday, or carryover — or cancel time off you already asked for. Your supervisor is notified right away.</p>
+          <p style="margin-top:6px" data-en="Request vacation, a floating holiday, FMLA, or another type of leave — or cancel time off you already asked for. Your supervisor is notified right away." data-es="Solicita vacaciones, un día flotante, FMLA u otro tipo de permiso — o cancela tiempo libre que ya pediste. Tu supervisor será notificado de inmediato.">Request vacation, a floating holiday, FMLA, or another type of leave — or cancel time off you already asked for. Your supervisor is notified right away.</p>
         </div>
         <div class="card-footer">
           <span class="time" data-en="2 min" data-es="2 min">2 min</span>
@@ -227,10 +227,19 @@
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
   </div>
   <div class="banner-text">
-    <strong>Install employee portal</strong>
-    <span>Tap <span class="banner-share-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</span> then <strong style="color:var(--text-primary)">Add to home screen</strong> for faster access.</span>
+    <strong data-en="Install employee portal" data-es="Instalar el portal del empleado">Install employee portal</strong>
+    <!-- Translated piece by piece rather than as one string: the share glyph is
+         an inline SVG, and markup embedded in a data-* attribute would have to
+         be re-encoded and re-parsed to survive the swap. -->
+    <span>
+      <span data-en="Tap" data-es="Toca">Tap</span>
+      <span class="banner-share-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> <span data-en="Share" data-es="Compartir">Share</span></span>
+      <span data-en="then" data-es="y luego">then</span>
+      <strong style="color:var(--text-primary)" data-en="Add to home screen" data-es="Añadir a pantalla de inicio">Add to home screen</strong>
+      <span data-en="for faster access." data-es="para acceder más rápido.">for faster access.</span>
+    </span>
   </div>
-  <button type="button" class="banner-got-it" id="banner-got-it">Got it</button>
+  <button type="button" class="banner-got-it" id="banner-got-it" data-en="Got it" data-es="Entendido">Got it</button>
 </aside>
 
 <!-- Existing language script (unchanged) -->
@@ -250,7 +259,12 @@
   const closeXBtn  = document.getElementById('banner-close-x');
 
   function isIOS() {
-    return /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const ua = navigator.userAgent;
+    // iPadOS 13+ requests desktop sites by default and reports itself as
+    // "Macintosh", so a plain /ipad/ test never matches an iPad. Touch points
+    // are what actually separate an iPad from a Mac.
+    return /iphone|ipad|ipod/i.test(ua) ||
+           (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   }
   function isInStandaloneMode() {
     return ('standalone' in navigator && navigator.standalone) ||
@@ -263,12 +277,14 @@
       banner.classList.remove('banner-visible', 'banner-animate-out');
       banner.style.display = 'none';
     }, 500);
-    try { localStorage.setItem(BANNER_KEY, '1'); } catch(e) {}
+    window.PortalStorage.set(BANNER_KEY, '1');
   }
 
   function tryShowBanner() {
-    const dismissed = localStorage.getItem(BANNER_KEY);
-    if (dismissed) return;
+    // Via PortalStorage: a bare getItem throws (not returns null) when site
+    // data is blocked, and this runs inside a setTimeout where that would be
+    // an unhandled error rather than a missing banner.
+    if (window.PortalStorage.get(BANNER_KEY)) return;
     if (!isIOS()) return;
     if (isInStandaloneMode()) return;
 

@@ -91,7 +91,10 @@
 
     .divider { height: 1px; background: var(--border-default); margin: var(--space-5) 0; }
 
-    #not-found { display: none; margin-top: var(--space-5); text-align: center; padding: var(--space-6) var(--space-4); }
+    #not-found, #lookup-failed { display: none; margin-top: var(--space-5); text-align: center; padding: var(--space-6) var(--space-4); }
+    #lookup-failed .nf-icon { color: var(--status-danger); border-color: var(--status-danger); }
+    #lookup-failed h3 { font-size: var(--text-t1); margin-bottom: var(--space-2); }
+    #lookup-failed p { font-size: var(--text-t3); color: var(--text-secondary); line-height: 1.6; }
     #not-found .nf-icon {
       width: 56px; height: 56px; margin: 0 auto var(--space-3);
       border-radius: var(--radius-circle);
@@ -132,7 +135,9 @@
     <div class="wrap-narrow">
 
       <div class="form-card">
-        <div class="section-label" data-en="Enter your reference number" data-es="Ingresa tu número de referencia">Enter your reference number</div>
+        <!-- A real label, not just the placeholder: the placeholder vanishes as
+             soon as the employee starts typing, leaving the field unnamed. -->
+        <label class="section-label" for="ref-input" data-en="Enter your reference number" data-es="Ingresa tu número de referencia">Enter your reference number</label>
 
         <div class="search-row">
           <input
@@ -163,6 +168,17 @@
           </div>
           <h3 data-en="Reference not found" data-es="Referencia no encontrada">Reference not found</h3>
           <p data-en="We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email." data-es="No encontramos una solicitud con ese número de referencia.<br/>Verifica el número en tu correo de confirmación.">We couldn't find a request matching that reference number.<br/>Double-check the number from your confirmation email.</p>
+        </div>
+
+        <!-- Lookup failed — distinct from "not found". Telling someone with a
+             valid reference that it doesn't exist sends them to re-check a
+             number that was right all along. -->
+        <div id="lookup-failed">
+          <div class="nf-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          </div>
+          <h3 data-en="Couldn't check right now" data-es="No se pudo verificar ahora">Couldn't check right now</h3>
+          <p data-en="We couldn't reach the request system — this doesn't mean your reference is wrong.<br/>Check your connection and try again in a moment." data-es="No pudimos conectar con el sistema de solicitudes — esto no significa que tu referencia sea incorrecta.<br/>Verifica tu conexión e inténtalo de nuevo en un momento.">We couldn't reach the request system — this doesn't mean your reference is wrong.<br/>Check your connection and try again in a moment.</p>
         </div>
 
         <!-- Result -->
@@ -206,12 +222,24 @@
 <script src="form-utils.js"></script>
 <script>
 
-  const refInput    = document.getElementById('ref-input');
-  const errorMsg    = document.getElementById('error-msg');
-  const spinner     = document.getElementById('lookup-spinner');
-  const resultArea  = document.getElementById('result-area');
-  const notFound    = document.getElementById('not-found');
-  const lookupBtn   = document.getElementById('lookup-btn');
+  const refInput     = document.getElementById('ref-input');
+  const errorMsg     = document.getElementById('error-msg');
+  const spinner      = document.getElementById('lookup-spinner');
+  const resultArea   = document.getElementById('result-area');
+  const notFound     = document.getElementById('not-found');
+  const lookupFailed = document.getElementById('lookup-failed');
+  const lookupBtn    = document.getElementById('lookup-btn');
+
+  // Whatever is currently on screen, so it can be redrawn when the language
+  // changes without asking the flow again.
+  let lastResult = null;
+
+  // Guarded rather than assuming PortalStorage: lang.js defines it but loads
+  // after this script, so the dependency holds only because these callers all
+  // run on user interaction. Not worth leaving as an implicit ordering rule.
+  function currentLang() {
+    return (window.PortalStorage && window.PortalStorage.get('portalLang')) || 'en';
+  }
 
   // Auto-format input as uppercase
   refInput.addEventListener('input', () => {
@@ -223,8 +251,15 @@
   });
 
   refInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') lookupStatus();
+    // The disabled check matters: without it, holding Enter fired a lookup per
+    // keypress and results rendered in completion order, so the reference shown
+    // could belong to a different request than the status beside it.
+    if (e.key === 'Enter' && !lookupBtn.disabled) lookupStatus();
   });
+
+  // Only the newest lookup is allowed to paint. Belt and braces alongside the
+  // disabled button — a stale response must never overwrite a newer one.
+  let lookupToken = 0;
 
   async function lookupStatus() {
     const ref = refInput.value.trim().toUpperCase();
@@ -237,97 +272,130 @@
     }
 
     // Reset UI
-    resultArea.style.display = 'none';
-    notFound.style.display   = 'none';
+    const token = ++lookupToken;
+    resultArea.style.display   = 'none';
+    notFound.style.display     = 'none';
+    lookupFailed.style.display = 'none';
+    lastResult = null;
     errorMsg.classList.remove('show');
     spinner.classList.add('show');
     lookupBtn.disabled = true;
 
     try {
-      const data = await PortalForm.lookupJSON('status', { referenceId: ref });
+      const { ok, data } = await PortalForm.lookupJSON('status', { referenceId: ref });
+      if (token !== lookupToken) return;       // superseded — drop it
 
-      if (data && data.found) {
+      if (!ok) {
+        // Reached nothing: an outage, not a bad reference number.
+        lookupFailed.style.display = 'block';
+      } else if (data && data.found) {
+        lastResult = { ref, data };
         showResult(ref, data);
       } else {
         notFound.style.display = 'block';
       }
     } catch (err) {
       console.error(err);
-      notFound.style.display = 'block';
+      if (token === lookupToken) lookupFailed.style.display = 'block';
     } finally {
-      spinner.classList.remove('show');
-      lookupBtn.disabled = false;
+      if (token === lookupToken) {
+        spinner.classList.remove('show');
+        lookupBtn.disabled = false;
+      }
     }
   }
 
+  const TYPE_LABELS = {
+    MNT: { en: 'Maintenance', es: 'Mantenimiento' },
+    SAF: { en: 'Safety',      es: 'Seguridad' },
+    SUG: { en: 'Suggestion',  es: 'Sugerencia' }
+  };
+
+  // The flow returns English status values. Everything else on the page is
+  // bilingual, so translate for display rather than showing "In Progress" in
+  // Spanish mode. Unknown values fall through and are shown verbatim.
+  const STATUS_LABELS = {
+    pending:     { en: 'Pending',     es: 'Pendiente' },
+    open:        { en: 'Open',        es: 'Abierto' },
+    'in progress': { en: 'In Progress', es: 'En progreso' },
+    done:        { en: 'Done',        es: 'Completado' },
+    resolved:    { en: 'Resolved',    es: 'Resuelto' },
+    closed:      { en: 'Closed',      es: 'Cerrado' }
+  };
+
   function showResult(ref, data) {
+    const lang = currentLang();
+
     // Reference ID
     document.getElementById('result-ref').textContent = ref;
 
-    // Status badge
+    // Status badge. The class is derived from the raw English value, so the
+    // colour stays correct regardless of the display language.
     const badge    = document.getElementById('result-status-badge');
     const statusTx = document.getElementById('result-status-text');
     const status   = (data.status || 'Unknown').trim();
-    statusTx.textContent = status;
+    const known    = STATUS_LABELS[status.toLowerCase()];
+    statusTx.textContent = known ? known[lang] || known.en : status;
     badge.className = 'status-pill ' + getStatusClass(status);
 
     // Type
-    const typeEl = document.getElementById('result-type');
-    const lang = localStorage.getItem('portalLang') || 'en';
-    if (ref.startsWith('MNT')) {
-      typeEl.textContent = lang === 'es' ? 'Mantenimiento' : 'Maintenance';
-    } else if (ref.startsWith('SAF')) {
-      typeEl.textContent = lang === 'es' ? 'Seguridad' : 'Safety';
-    } else {
-      typeEl.textContent = lang === 'es' ? 'Sugerencia' : 'Suggestion';
-    }
+    const label = TYPE_LABELS[ref.slice(0, 3)] || TYPE_LABELS.SUG;
+    document.getElementById('result-type').textContent = label[lang] || label.en;
 
     // Date
     const dateEl = document.getElementById('result-date');
-if (data.timestamp) {
-  const raw = String(data.timestamp).trim();
-  let d;
+    if (data.timestamp) {
+      const raw = String(data.timestamp).trim();
+      let d;
 
-  if (!isNaN(parseFloat(raw)) && isFinite(raw)) {
-    // Excel serial number → UTC date (avoids timezone off-by-one shifts)
-    const excelSerial = parseFloat(raw);
-    const excelEpochUtc = Date.UTC(1899, 11, 30);
-    d = new Date(excelEpochUtc + excelSerial * 86400 * 1000);
-  } else {
-    d = new Date(raw);
-  }
+      if (!isNaN(parseFloat(raw)) && isFinite(raw)) {
+        // Excel serial number → UTC date (avoids timezone off-by-one shifts)
+        const excelSerial = parseFloat(raw);
+        const excelEpochUtc = Date.UTC(1899, 11, 30);
+        d = new Date(excelEpochUtc + excelSerial * 86400 * 1000);
+      } else {
+        d = new Date(raw);
+      }
 
-  const lang = localStorage.getItem('portalLang') || 'en';
-
-  dateEl.textContent = isNaN(d)
-    ? raw
-    : d.toLocaleDateString(
-        lang === 'es' ? 'es-MX' : 'en-GB',
-        { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }
-      );
-} else {
-  dateEl.textContent = '—';
-}
-
-    // Comments
-    const commentsEl = document.getElementById('result-comments');
-    let commentKey;
-    if (ref.startsWith('MNT'))       commentKey = data.maintenanceComments;
-    else if (ref.startsWith('SAF'))  commentKey = data.safetyManagerComments;
-    else                             commentKey = data.managerComments;
-
-    const noCommentsText = lang === 'es'
-      ? 'Sin comentarios aún — el equipo actualizará esto conforme avance.'
-      : 'No comments yet — the team will update this as work progresses.';
-
-    if (commentKey && commentKey.trim()) {
-      commentsEl.innerHTML = `<span>${escapeHtml(commentKey.trim())}</span>`;
+      dateEl.textContent = isNaN(d)
+        ? raw
+        : d.toLocaleDateString(
+            lang === 'es' ? 'es-MX' : 'en-GB',
+            { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }
+          );
     } else {
-      commentsEl.innerHTML = `<span class="no-comments">${noCommentsText}</span>`;
+      dateEl.textContent = '—';
     }
+
+    // Comments. textContent rather than building markup — the value is free
+    // text typed by a manager, and there is no reason for it to be parsed
+    // as HTML at all.
+    const commentsEl = document.getElementById('result-comments');
+    let comment;
+    if (ref.startsWith('MNT'))       comment = data.maintenanceComments;
+    else if (ref.startsWith('SAF'))  comment = data.safetyManagerComments;
+    else                             comment = data.managerComments;
+
+    commentsEl.textContent = '';
+    const span = document.createElement('span');
+    if (comment && comment.trim()) {
+      span.textContent = comment.trim();
+    } else {
+      span.className = 'no-comments';
+      span.textContent = lang === 'es'
+        ? 'Sin comentarios aún — el equipo actualizará esto conforme avance.'
+        : 'No comments yet — the team will update this as work progresses.';
+    }
+    commentsEl.appendChild(span);
 
     resultArea.style.display = 'block';
   }
+
+  // Redraw a visible result when the language changes — lang.js only swaps
+  // static markup, and these fields are rendered from flow data.
+  document.addEventListener('portal:langchange', () => {
+    if (lastResult) showResult(lastResult.ref, lastResult.data);
+  });
 
   function getStatusClass(status) {
     const s = status.toLowerCase();
@@ -339,14 +407,16 @@ if (data.timestamp) {
   }
 
   function resetSearch() {
-    refInput.value         = '';
-    resultArea.style.display = 'none';
-    notFound.style.display   = 'none';
+    refInput.value             = '';
+    resultArea.style.display   = 'none';
+    notFound.style.display     = 'none';
+    lookupFailed.style.display = 'none';
+    lastResult                 = null;
+    // The previous attempt may have left the input flagged and the format
+    // error showing; a fresh search should start clean.
+    refInput.classList.remove('error-state');
+    errorMsg.classList.remove('show');
     refInput.focus();
-  }
-
-  function escapeHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 </script>
 <script src="lang.js"></script>

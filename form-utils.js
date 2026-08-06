@@ -6,6 +6,9 @@
    Expects the shared form DOM ids: submit-btn, btn-icon, spinner,
    btn-text, submit-error.
 
+   Loads before lang.js on every page, so anything from lang.js
+   (window.PortalStorage) must be resolved when called, not at load.
+
    Submissions go through the Cloudflare Worker proxy — no Power
    Automate URLs or tokens live in this repository.
 ──────────────────────────────────────────────────────────────── */
@@ -19,7 +22,17 @@ window.PortalForm = (function () {
 
   function el(id) { return document.getElementById(id); }
 
-  function currentLang() { return localStorage.getItem('portalLang') || 'en'; }
+  // PortalStorage (lang.js) swallows the exceptions that private-browsing and
+  // locked-down browsers raise on storage access.
+  //
+  // Resolved per call, never captured: every page loads form-utils.js *before*
+  // lang.js, so at this point window.PortalStorage does not exist yet. Binding
+  // it once here would permanently freeze in the no-op fallback and silently
+  // lose both the saved language and the access code.
+  const NO_STORE = { get() { return null; }, set() { return false; }, remove() {} };
+  function store() { return window.PortalStorage || NO_STORE; }
+
+  function currentLang() { return store().get('portalLang') || 'en'; }
 
   const MSG = {
     en: {
@@ -43,28 +56,9 @@ window.PortalForm = (function () {
 
   // The access code is remembered per device once entered. Whether one is
   // needed at all is decided by the proxy, not here — see submitJSON.
-  function storedAccessCode() {
-    try { return localStorage.getItem(CODE_KEY); } catch (e) { return null; }
-  }
-
-  function rememberAccessCode(code) {
-    try { localStorage.setItem(CODE_KEY, code); } catch (e) {}
-  }
-
-  function forgetAccessCode() {
-    try { localStorage.removeItem(CODE_KEY); } catch (e) {}
-  }
-
-  // Ask once, then remember. Cleared automatically if the proxy rejects it,
-  // so a typo doesn't lock someone out for good.
-  function getAccessCode() {
-    const stored = storedAccessCode();
-    if (stored) return stored;
-    const code = window.prompt(t('prompt'));
-    if (!code) return null;
-    rememberAccessCode(code);
-    return code;
-  }
+  function storedAccessCode() { return store().get(CODE_KEY); }
+  function rememberAccessCode(code) { store().set(CODE_KEY, code); }
+  function forgetAccessCode() { store().remove(CODE_KEY); }
 
   // ── Validation helpers ──────────────────────────────────────
 
@@ -167,7 +161,15 @@ window.PortalForm = (function () {
 
   /**
    * Read-only lookup (status check). No access code required.
-   * Returns the flow's own JSON body, or null on failure.
+   * Returns { ok, data }:
+   *   ok=true          -> the lookup completed; `data` is the flow's own body,
+   *                       and data.found says whether a record exists
+   *   ok=false         -> the lookup never completed (offline, proxy down,
+   *                       flow error, unparseable body)
+   *
+   * The distinction matters: collapsing both into null told an employee whose
+   * reference is perfectly valid that it "could not be found" during an
+   * outage, and sent them off to re-check a number that was already correct.
    */
   async function lookupJSON(formKey, payload) {
     try {
@@ -176,11 +178,12 @@ window.PortalForm = (function () {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload)
       });
-      if (!res.ok) return null;
-      return await res.json().catch(() => null);
+      if (!res.ok) return { ok: false, data: null };
+      const data = await res.json().catch(() => null);
+      return data === null ? { ok: false, data: null } : { ok: true, data };
     } catch (err) {
       console.error('Lookup error:', err);
-      return null;
+      return { ok: false, data: null };
     }
   }
 
@@ -213,13 +216,32 @@ window.PortalForm = (function () {
   }
 
   // Client-side fallback reference ID; the flow should return the real one.
-  function fallbackRefId(prefix) {
+  // Format must satisfy status-check.html's /^(MNT|SAF|SUG)-\d{4,6}$/.
+  function newRefId(prefix) {
     return prefix + '-' + (100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
   }
+
+  /**
+   * The reference for the attempt *in progress*, stable across retries.
+   *
+   * A flow that takes longer than the proxy's timeout still creates the
+   * record; the employee sees an error and submits again. Minting a fresh ID
+   * on that second attempt made the two indistinguishable and left two rows
+   * for one report. Reusing the ID gives the flow a key to upsert on.
+   * Cleared by clearRefId() once a submission actually succeeds.
+   */
+  const pendingRefs = {};
+
+  function fallbackRefId(prefix) {
+    if (!pendingRefs[prefix]) pendingRefs[prefix] = newRefId(prefix);
+    return pendingRefs[prefix];
+  }
+
+  function clearRefId(prefix) { delete pendingRefs[prefix]; }
 
   return {
     validateField, isValidEmail, restoreSubmitButton, setSubmitting,
     submitJSON, lookupJSON, showSubmitError, clearInvalidOnInput,
-    fallbackRefId, getAccessCode, forgetAccessCode
+    fallbackRefId, clearRefId, forgetAccessCode
   };
 })();

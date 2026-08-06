@@ -9,7 +9,7 @@
 //  - rate limit (429) shows its own copy and keeps the stored code
 //  - photo uploads: non-image or >5MB rejected with a visible error
 //  - Spanish mode: failure copy and restored button label are localized
-import { startServer, launchBrowser, report } from './helpers.mjs';
+import { startServer, launchBrowser, report, waitFor } from './helpers.mjs';
 
 const PORT = 4173;
 const server = await startServer(PORT);
@@ -62,7 +62,7 @@ async function fillForm(page, name) {
 const FALLBACK_REF = {
   'safety-concern': /^SAF-\d{6}$/,
   'suggestion-form': /^SUG-\d{6}$/,
-  'maintenance-request': /^MNT-\?\?\?\?$/
+  'maintenance-request': /^MNT-\d{6}$/
 };
 
 for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request']) {
@@ -80,7 +80,9 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
     await page.goto(`http://localhost:${PORT}/${name}.html`);
     await fillForm(page, name);
     await page.click('#submit-btn');
-    await page.waitForTimeout(700);
+    await waitFor(async () =>
+      (await page.locator('#success-screen').isVisible()) ||
+      (await page.locator('#submit-error.show').isVisible().catch(() => false)));
 
     const errorShown   = await page.locator('#submit-error.show').isVisible().catch(() => false);
     const successShown = await page.locator('#success-screen').isVisible();
@@ -111,7 +113,7 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   const errTxt = await page.locator('#photo-error.show').isVisible();
 
   await page.setInputFiles('#photo-input', { name: 'ok.png', mimeType: 'image/png', buffer: tinyPng });
-  await page.waitForTimeout(300);
+  await waitFor(async () => (await page.locator('#file-name-display').textContent()).includes('ok.png'));
   const errOk  = await page.locator('#photo-error.show').isVisible();
   const nameOk = (await page.locator('#file-name-display').textContent()).trim();
 
@@ -128,7 +130,7 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
   await page.click('#submit-btn');
-  await page.waitForTimeout(700);
+  await waitFor(() => page.locator('#submit-error.show').isVisible());
   const shown    = await page.locator('#submit-error.show').isVisible();
   const esBanner = (await page.locator('#submit-error span[data-en]').textContent()).trim();
   const esBtn    = (await page.locator('#btn-text').textContent()).trim();
@@ -148,7 +150,7 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
   await page.click('#submit-btn');
-  await page.waitForTimeout(700);
+  await waitFor(() => page.locator('#submit-error.show').isVisible());
   const shown  = await page.locator('#submit-error.show').isVisible();
   const banner = (await page.locator('#submit-error span[data-en]').textContent()).trim();
   const stored = await page.evaluate(() => localStorage.getItem('portalAccessCode'));
@@ -177,7 +179,7 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
   await page.click('#submit-btn');
-  await page.waitForTimeout(900);
+  await waitFor(() => page.locator('#success-screen').isVisible());
   const success = await page.locator('#success-screen').isVisible();
   const refText = success ? (await page.locator('#ref-display').textContent()).trim() : '';
   const stored  = await page.evaluate(() => localStorage.getItem('portalAccessCode'));
@@ -201,7 +203,7 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
   await page.click('#submit-btn');
-  await page.waitForTimeout(900);
+  await waitFor(() => page.locator('#submit-error.show').isVisible());
   const shown  = await page.locator('#submit-error.show').isVisible();
   const banner = (await page.locator('#submit-error span[data-en]').textContent()).trim();
   const stored = await page.evaluate(() => localStorage.getItem('portalAccessCode'));
@@ -224,7 +226,8 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.goto(`http://localhost:${PORT}/safety-concern.html`);
   await fillForm(page, 'safety-concern');
   await page.click('#submit-btn');
-  await page.waitForTimeout(900);
+  await waitFor(() => requests >= 1);
+  await waitFor(() => page.locator('#submit-btn').isEnabled());
   const shown      = await page.locator('#submit-error.show').isVisible().catch(() => false);
   const success    = await page.locator('#success-screen').isVisible();
   const btnEnabled = await page.locator('#submit-btn').isEnabled();
@@ -232,6 +235,42 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
     page: 'safety-concern', mode: 'prompt-cancelled',
     pass: !shown && !success && btnEnabled && requests === 1 && prompts.length === 1
   });
+  await page.close();
+}
+
+// A lookup that never completes must NOT be reported as "reference not found":
+// telling someone with a valid number that it doesn't exist sends them off to
+// re-check a number that was right all along.
+for (const [mode, fail] of [['lookup-offline', r => r.abort('failed')], ['lookup-5xx', r => r.fulfill({ status: 502, body: 'boom' })]]) {
+  const page = await browser.newPage();
+  await page.route(isProxy, fail);
+  await page.goto(`http://localhost:${PORT}/status-check.html`);
+  await page.fill('#ref-input', 'MNT-0001');
+  await page.click('#lookup-btn');
+  await waitFor(() => page.locator('#lookup-failed').isVisible());
+  const failShown = await page.locator('#lookup-failed').isVisible();
+  const nfShown   = await page.locator('#not-found').isVisible();
+  const btnBack   = await page.locator('#lookup-btn').isEnabled();
+  results.push({ page: 'status-check', mode, pass: failShown && !nfShown && btnBack });
+  await page.close();
+}
+
+// Holding Enter used to fire one lookup per keypress, so results could paint
+// out of order and show one reference's number beside another's status.
+{
+  const page = await browser.newPage();
+  let inflight = 0, peak = 0;
+  await page.route(isProxy, async route => {
+    inflight++; peak = Math.max(peak, inflight);
+    await new Promise(r => setTimeout(r, 300));
+    inflight--;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ found: true, status: 'Open' }) });
+  });
+  await page.goto(`http://localhost:${PORT}/status-check.html`);
+  await page.fill('#ref-input', 'MNT-0001');
+  for (let i = 0; i < 4; i++) await page.press('#ref-input', 'Enter');
+  await waitFor(() => page.locator('#result-area').isVisible());
+  results.push({ page: 'status-check', mode: 'no-concurrent-lookups', pass: peak === 1, detail: `peak ${peak}` });
   await page.close();
 }
 
@@ -247,7 +286,10 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await page.goto(`http://localhost:${PORT}/status-check.html`);
   await page.fill('#ref-input', 'MNT-0001');
   await page.click('#lookup-btn');
-  await page.waitForTimeout(700);
+  await waitFor(async () =>
+    (await page.locator('#result-area').isVisible()) ||
+    (await page.locator('#not-found').isVisible()) ||
+    (await page.locator('#lookup-failed').isVisible()));
   const resultShown = await page.locator('#result-area').isVisible();
   const nfShown     = await page.locator('#not-found').isVisible();
   const statusText  = resultShown ? (await page.locator('#result-status-text').textContent()).trim() : '';
@@ -256,6 +298,65 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
     : nfShown && !resultShown;
   results.push({ page: 'status-check', mode, pass, detail: statusText });
   await page.close();
+}
+
+// An anonymous suggestion must not leave a focusable "Your email" box behind:
+// height alone hid it visually while keyboard and screen-reader users still
+// tabbed straight into it.
+{
+  const page = await browser.newPage();
+  await page.goto(`http://localhost:${PORT}/suggestion-form.html`);
+  await page.click('label[for="anon-yes"]');
+  await page.waitForTimeout(450);   // the collapse transition owns visibility
+  const focusable = await page.evaluate(() => {
+    const input = document.getElementById('email');
+    input.focus();
+    return document.activeElement === input;
+  });
+  results.push({ page: 'suggestion-form', mode: 'anon-hides-email-from-tab-order', pass: !focusable });
+  await page.close();
+}
+
+// Blocked site data must not take out translation *and* the service worker.
+{
+  const page = await browser.newPage();
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {
+      get() { throw new DOMException('denied', 'SecurityError'); }
+    });
+  });
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(`http://localhost:${PORT}/time-off.html`);
+  // Raced against a timer: if registration is broken again, this must fail the
+  // assertion rather than hang the whole suite on a promise that never settles.
+  const swOk = await page.evaluate(() => Promise.race([
+    navigator.serviceWorker.ready.then(() => true).catch(() => false),
+    new Promise(res => setTimeout(() => res(false), 8000))
+  ]));
+  const translated = await page.locator('h1[data-en="Time off"]').isVisible();
+  results.push({
+    page: 'time-off', mode: 'storage-denied-still-works',
+    pass: swOk && translated && errors.length === 0,
+    detail: errors.slice(0, 1).join('') || 'no page errors'
+  });
+  await page.close();
+}
+
+// The URL employees actually open is the directory, not index.html — it has to
+// be in the cache or the installed PWA cannot start offline.
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(`http://localhost:${PORT}/index.html`);
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  const cached = await waitFor(async () => page.evaluate(async () => {
+    const c = await caches.open('portal-v3');
+    const paths = (await c.keys()).map(r => new URL(r.url).pathname);
+    return paths.includes('/') && paths.includes('/index.html');
+  }));
+  results.push({ page: 'sw', mode: 'caches-directory-root', pass: cached === true });
+  await ctx.close();
 }
 
 await browser.close();

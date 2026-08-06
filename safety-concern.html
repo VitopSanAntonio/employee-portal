@@ -249,7 +249,12 @@
 
     // Fallback only — the flow should assign the real ID and return
     // { "referenceId": "SAF-000123" } so IDs are unique server-side.
+    // Stable across retries so a resubmit after a timeout is not a second report.
     const refId = PortalForm.fallbackRefId('SAF');
+
+    // The photo is read asynchronously; without this a fast submit sends the
+    // filename with no image behind it.
+    await photo.ready();
 
     const payload = {
       referenceId: refId,
@@ -273,6 +278,7 @@
       return;
     }
 
+    PortalForm.clearRefId('SAF');   // this report is filed; the next one is new
     refDisplay.textContent   = referenceId || refId;
     formCard.style.display   = 'none';
     successScr.style.display = 'block';

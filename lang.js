@@ -10,11 +10,23 @@
    doesn't include one, a floating fallback button is created instead.
 ──────────────────────────────────────────────────────────────── */
 
+/* Storage can throw, not just return null: Safari private windows, blocked
+   site data, and locked-down managed browsers all raise on access. An
+   unguarded read here used to take down translation, the toggle, and — since
+   it shares this IIFE — service worker registration, leaving the portal
+   untranslated *and* with no offline support. Every touch goes through these
+   two helpers, which degrade to "language not remembered" instead. */
+window.PortalStorage = window.PortalStorage || {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } },
+  remove(key) { try { localStorage.removeItem(key); } catch { /* storage unavailable */ } }
+};
+
 (function () {
   const STORAGE_KEY = 'portalLang';
 
   function setLang(lang) {
-    localStorage.setItem(STORAGE_KEY, lang);
+    window.PortalStorage.set(STORAGE_KEY, lang);
     document.documentElement.lang = lang;
 
     // Translate all tagged elements
@@ -29,7 +41,15 @@
           n.nodeType === 3 || ['EM','STRONG','SMALL','BR','SPAN'].includes(n.nodeName)
         );
         if (hasOnlyTextOrInline) {
-          el.innerHTML = el.getAttribute('data-' + lang) || el.getAttribute('data-en');
+          const value = el.getAttribute('data-' + lang) || el.getAttribute('data-en');
+          // innerHTML only for the handful of strings that genuinely carry
+          // inline markup (<br>, <strong>, <span>); everything else goes
+          // through textContent. Both are fed from static attributes in this
+          // repo, so neither is exploitable today — but keeping the HTML sink
+          // to the few places that need it means a future dynamic data-* can
+          // only ever set text.
+          if (/[<&]/.test(value)) el.innerHTML = value;
+          else el.textContent = value;
         }
       }
     });
@@ -48,8 +68,11 @@
   }
 
   function toggleLang() {
-    const current = localStorage.getItem(STORAGE_KEY) || 'en';
+    const current = window.PortalStorage.get(STORAGE_KEY) || 'en';
     setLang(current === 'en' ? 'es' : 'en');
+    // Pages that render content from data (status-check) need to redraw it in
+    // the new language; static markup is already handled by setLang.
+    document.dispatchEvent(new CustomEvent('portal:langchange', { detail: { lang: document.documentElement.lang } }));
   }
 
   let btn = document.getElementById('lang-toggle');
@@ -87,13 +110,20 @@
     document.body.appendChild(btn);
   }
 
-  // Apply saved language on load
-  const saved = localStorage.getItem(STORAGE_KEY) || 'en';
-  setLang(saved);
-
-  // Register the service worker (lang.js is loaded by every page).
-  // Relative path keeps the scope correct under a sub-path deployment.
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+  // Apply saved language on load. Wrapped because a failure to translate must
+  // not stop the service worker below from registering — offline access does
+  // not depend on the language system working.
+  try {
+    setLang(window.PortalStorage.get(STORAGE_KEY) || 'en');
+  } catch (err) {
+    console.warn('Translation failed:', err);
   }
 })();
+
+// Register the service worker (lang.js is loaded by every page).
+// Relative path keeps the scope correct under a sub-path deployment.
+// Deliberately outside the IIFE above: this is the portal's offline support
+// and it must not share a failure path with translation.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+}
