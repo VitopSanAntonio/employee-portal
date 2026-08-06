@@ -6,9 +6,8 @@
 #
 # What remains is history. The commits below are the ones that carried the four
 # leaked trigger signatures, and they are allowlisted by SHA so CI stays green
-# on unrelated changes. This deliberately replaces the previous blanket
-# `powerplatform.com.*sig=` regex: that pattern also excused *new* Power
-# Automate URLs, which is exactly what should now fail the scan.
+# on unrelated changes. Allowlisting by commit rather than by pattern is what
+# lets a *new* Power Automate URL still fail the scan.
 #
 # ROTATION STILL REQUIRED: these URLs were served publicly from GitHub Pages
 # and remain readable in this repository's history. Removing them from HEAD
@@ -17,19 +16,38 @@
 [extend]
 useDefault = true
 
+# Gitleaks' default ruleset does NOT recognise a Power Automate / Logic Apps
+# trigger URL, so without this rule the one secret type this repository has
+# actually leaked would pass CI unnoticed — which matters most right after
+# rotation, when a fresh URL is the easiest thing to paste somewhere by
+# mistake. Verified both ways: a sample URL is undetected without this rule
+# and reported with it.
+[[rules]]
+id = "power-automate-trigger-url"
+description = "Power Automate / Logic Apps trigger URL with a live sig= token"
+regex = '''(?i)https://[^\s"'<>]*(?:logic\.azure\.com|powerplatform\.com)[^\s"'<>]*[?&]sig=[A-Za-z0-9_\-%]{16,}'''
+tags = ["power-automate", "webhook", "flow-url"]
+
 [allowlist]
 description = "Historical commits containing the pre-proxy Power Automate trigger URLs (pending rotation)."
+# Re-derived by scanning the full history with the rule above rather than by
+# hand. Two corrections to the previous list:
+#
+#   * b6832d73 was missing. It carries a flow URL in safety-concern.html and is
+#     reachable from main, so the leak footprint was one commit larger than
+#     this file claimed.
+#   * Seven entries were listed that contain no detectable secret at all. They
+#     have been dropped: an allowlisted commit is permanently excused from
+#     every future rule too, so listing commits "just in case" quietly widens
+#     the blind spot instead of narrowing it.
+#
+# Keep this list derived, not appended to. It should contain exactly the
+# commits that leak, and it should shrink to nothing once history is rewritten.
 commits = [
-  "c5b4eb4415111b9983c696b0250b07a9697a0ef0",
-  "7df5da8cfcd80249910be94d165e86affabe7f6c",
-  "bdcf9e4f695d45cf0b79dd4befbd743e76618011",
-  "44b7877189bacb7e047553bad703cf4a130f07ed",
-  "472d03151c5128db244e8c231b4af664e4d0e52d",
-  "fd2884359e832c3eae019ff832efc398cb51260d",
-  "7ac6bb5341a5cf4100431fa65ca9dac62f9da508",
-  "ff4bbf3a79ea42bb9c3f25cb499a35c97b42f2f6",
   "37044f6a327295acdeba23b68f01e494d11eb064",
-  "678478b98f646959e59078c91a6e4af62b5f95fa",
   "4702f3d30d14af448be16293641cdc2787cc5bf9",
-  "4375ef24ebef876dc96c949ea3eb464b5505d898"
+  "678478b98f646959e59078c91a6e4af62b5f95fa",
+  "7ac6bb5341a5cf4100431fa65ca9dac62f9da508",
+  "b6832d73970f69525c817e6ce7f92f45497bd540",
+  "fd2884359e832c3eae019ff832efc398cb51260d"
 ]
