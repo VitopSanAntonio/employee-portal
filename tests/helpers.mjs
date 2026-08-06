@@ -19,7 +19,15 @@ const MIME = {
 export function startServer(port) {
   const server = http.createServer((req, res) => {
     try {
-      const file = path.join(ROOT, req.url === '/' ? 'index.html' : req.url.split('?')[0]);
+      const rel = req.url === '/' ? 'index.html' : decodeURIComponent(req.url.split('?')[0]);
+      const file = path.resolve(ROOT, '.' + path.posix.normalize('/' + rel));
+      // Confine to ROOT: path.join alone let "/../../etc/passwd" escape and
+      // serve any file the test runner could read.
+      if (file !== ROOT && !file.startsWith(ROOT + path.sep)) {
+        res.writeHead(403);
+        res.end('forbidden');
+        return;
+      }
       const body = fs.readFileSync(file);
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
       res.end(body);
@@ -28,7 +36,30 @@ export function startServer(port) {
       res.end('not found');
     }
   });
-  return new Promise(resolve => server.listen(port, () => resolve(server)));
+  // Surface a busy port as a clear failure instead of a promise that never
+  // settles and a suite that appears to hang.
+  return new Promise((resolve, reject) => {
+    server.once('error', err => reject(
+      err.code === 'EADDRINUSE'
+        ? new Error(`port ${port} is already in use — another test run may still be going`)
+        : err
+    ));
+    server.listen(port, () => resolve(server));
+  });
+}
+
+/**
+ * Waits for `fn()` to return truthy, polling instead of sleeping a fixed
+ * interval. Fixed waits were both slower than needed and flaky under CI load.
+ */
+export async function waitFor(fn, { timeout = 5000, interval = 50 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const value = await fn();
+    if (value) return value;
+    if (Date.now() > deadline) return value;
+    await new Promise(r => setTimeout(r, interval));
+  }
 }
 
 export function launchBrowser() {

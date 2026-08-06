@@ -21,8 +21,16 @@
     .char-counter .count { font-weight: var(--weight-semibold); transition: color 0.2s; }
     .char-counter .count.warn { color: #B76E00; }
     .char-counter .count.ready { color: var(--status-success); }
-    #email-field-wrap { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.35s ease, opacity 0.3s ease, margin-top 0.3s ease; margin-top: 0; }
-    #email-field-wrap.visible { max-height: 120px; opacity: 1; margin-top: var(--space-4); }
+    /* visibility:hidden is what actually takes the collapsed email field out of
+       the tab order. Height alone left it focusable, so a keyboard or screen
+       reader user filing an *anonymous* suggestion would tab into an invisible
+       "Your email" box — on the one screen where that reads as a privacy
+       problem. visibility animates discretely, so it flips at the end of the
+       collapse and at the start of the expand.
+       max-height is generous: a wrapped validation error under the input has
+       to fit, or the message explaining the failed submit is clipped away. */
+    #email-field-wrap { overflow: hidden; max-height: 0; opacity: 0; visibility: hidden; transition: max-height 0.35s ease, opacity 0.3s ease, margin-top 0.3s ease, visibility 0s linear 0.35s; margin-top: 0; }
+    #email-field-wrap.visible { max-height: 400px; opacity: 1; visibility: visible; margin-top: var(--space-4); transition-delay: 0s; }
     .privacy-notice { margin-top: var(--space-5); }
   </style>
 </head>
@@ -311,9 +319,14 @@
 
     // Fallback only — the flow should assign the real ID and return
     // { "referenceId": "SUG-000123" } so IDs are unique server-side.
+    // Stable across retries so a resubmit after a timeout is not a second idea.
     const refId     = PortalForm.fallbackRefId('SUG');
     const isAnon    = document.querySelector('input[name="anonymous"]:checked').value;
     const emailVal  = isAnon === 'No' ? document.getElementById('email').value.trim() : '';
+
+    // The photo is read asynchronously; without this a fast submit sends the
+    // filename with no image behind it.
+    await photo.ready();
 
     const payload = {
       referenceId: refId,
@@ -339,7 +352,9 @@
     }
 
     // Build success screen
-    const lang = localStorage.getItem('portalLang') || 'en';
+    PortalForm.clearRefId('SUG');   // this idea is filed; the next one is new
+    // Guarded: lang.js defines PortalStorage but loads after this script.
+    const lang = (window.PortalStorage && window.PortalStorage.get('portalLang')) || 'en';
     refDisplay.textContent = referenceId || refId;
     if (isAnon === 'Yes') {
       successAnon.textContent = lang === 'es'

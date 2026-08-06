@@ -296,6 +296,7 @@
             <span data-en="Need to send additional information like videos? Text us at <a href='sms:+19409232744'>+1 (940) 923-2744</a>" data-es="¿Necesitas enviar información adicional como videos? Envía un mensaje a <a href='sms:+19409232744'>+1 (940) 923-2744</a>">Need to send additional information like videos? Text us at <a href="sms:+19409232744">+1 (940) 923-2744</a></span>
           </div>
           <div class="btn-row">
+            <button type="button" class="btn btn-outline" data-en="Submit another request" data-es="Enviar otra solicitud" onclick="resetForm()">Submit another request</button>
             <a href="index.html" class="btn btn-outline" data-en="Back to employee portal" data-es="Volver al portal">Back to employee portal</a>
           </div>
         </div>
@@ -359,7 +360,19 @@
 
     if (!validateForm()) return;
 
+    // Fallback only — the flow should assign the real ID and return
+    // { "referenceId": "MNT-0042" }. This has to be a number status-check.html
+    // will actually accept (/^(MNT|SAF|SUG)-\d{4,6}$/); the old 'MNT-????'
+    // placeholder was one the employee could be given but never look up.
+    // Stable across retries so a resubmit after a timeout is not a second request.
+    const refId = PortalForm.fallbackRefId('MNT');
+
+    // The photo is read asynchronously; without this a fast submit sends the
+    // filename with no image behind it.
+    await photo.ready();
+
     const payload = {
+      referenceId: refId,
       department:  document.getElementById('department').value,
       location:    document.getElementById('location').value.trim(),
       issueType:   document.getElementById('issueType').value,
@@ -382,7 +395,8 @@
       return;
     }
 
-    refDisplay.textContent   = referenceId || 'MNT-????'; // fallback if the flow doesn't echo one back
+    PortalForm.clearRefId('MNT');   // this request is filed; the next one is new
+    refDisplay.textContent   = referenceId || refId;
     formCard.style.display   = 'none';
     successScr.style.display = 'block';
     window.scrollTo(0, 0);
@@ -392,6 +406,21 @@
   document.querySelectorAll('input[name="priority"]').forEach(r => {
     r.addEventListener('change', () => priorityError.classList.remove('show'));
   });
+
+  // ── Reset ───────────────────────────────────────────────────
+  // Reporting a second broken thing shouldn't need a page reload — the safety
+  // and suggestion forms both offer this.
+  function resetForm() {
+    form.reset();
+    photo.clear();
+    document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
+    priorityError.classList.remove('show');
+    document.getElementById('submit-error').classList.remove('show');
+    PortalForm.restoreSubmitButton();
+    formCard.style.display   = 'block';
+    successScr.style.display = 'none';
+    window.scrollTo(0, 0);
+  }
 </script>
 <script src="lang.js"></script>
 </body>

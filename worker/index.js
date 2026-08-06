@@ -15,7 +15,7 @@
 
 /** Your portal's exact origin(s). No trailing slash. */
 const ALLOWED_ORIGINS = [
-  'https://thibautleclercq98-stack.github.io',
+  'https://vitopsanantonio.github.io',
   // 'http://localhost:8000',  // uncomment while testing locally
 ];
 
@@ -30,17 +30,69 @@ const ALLOWED_ORIGINS = [
 const REQUIRE_ACCESS_CODE = false;
 
 /**
- * formKey -> { secret: <Worker secret name>, requiresCode: bool }
+ * formKey -> { secret, requiresCode, refPrefix?, passthrough?, fields }
  * The secret name must match what you set with `wrangler secret put`.
+ *
+ * `fields` is the authoritative shape of a submission. This Worker is
+ * reachable directly by anyone who has its URL, so the forms' own JavaScript
+ * validation is advisory only — whatever is enforced here is the *only* thing
+ * standing between a stranger with curl and a row in SharePoint. Keys not
+ * listed are dropped rather than forwarded, so a direct POST cannot invent
+ * columns; `required`/`min`/`max` are enforced server-side.
+ *
+ * `max` is a character count, except on `photo` where it caps the base64 text.
  */
+const TEXT = max => ({ max });
+
+const CONTACT_FIELDS = {
+  email:     TEXT(254),          // RFC 5321 practical maximum
+  photo:     { max: 7 * 1024 * 1024 },   // base64 of the 5 MB image cap (~4/3 inflation)
+  photoName: TEXT(255),
+};
+
 const FORMS = {
-  suggestion:  { secret: 'FLOW_SUGGESTION',  requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SUG' },
-  safety:      { secret: 'FLOW_SAFETY',      requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SAF' },
-  maintenance: { secret: 'FLOW_MAINTENANCE', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'MNT' },
+  suggestion: {
+    secret: 'FLOW_SUGGESTION', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SUG',
+    fields: {
+      referenceId: TEXT(20),
+      department:  { max: 100,  required: true },
+      category:    { max: 100,  required: true },
+      suggestion:  { max: 4000, required: true, min: 20 },
+      benefit:     TEXT(4000),
+      anonymous:   { max: 10,   required: true },
+      ...CONTACT_FIELDS,
+    },
+  },
+  safety: {
+    secret: 'FLOW_SAFETY', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SAF',
+    fields: {
+      referenceId: TEXT(20),
+      location:    { max: 100,  required: true },
+      urgency:     { max: 60,   required: true },
+      description: { max: 4000, required: true, min: 10 },
+      solution:    TEXT(4000),
+      ...CONTACT_FIELDS,
+    },
+  },
+  maintenance: {
+    secret: 'FLOW_MAINTENANCE', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'MNT',
+    fields: {
+      referenceId: TEXT(20),
+      department:  { max: 100,  required: true },
+      location:    { max: 200,  required: true },
+      issueType:   { max: 120,  required: true },
+      description: { max: 4000, required: true, min: 10 },
+      priority:    { max: 20,   required: true },
+      ...CONTACT_FIELDS,
+    },
+  },
   // Status check is a read-only lookup by reference number, so no code needed.
   // passthrough: return the flow's own JSON body unchanged (the page reads
   // data.found and the record fields directly).
-  status:      { secret: 'FLOW_STATUS',      requiresCode: false, passthrough: true },
+  status: {
+    secret: 'FLOW_STATUS', requiresCode: false, passthrough: true,
+    fields: { referenceId: { max: 20, required: true } },
+  },
 };
 
 const LIMITS = {
@@ -131,20 +183,61 @@ function sanitizeForSpreadsheet(value) {
 }
 
 /**
- * Applies the guard to every string field in a submission payload except
- * `photo` — that's base64 image bytes, not spreadsheet text, and
- * prefixing it would corrupt the image. Client-side validation (the forms'
- * own JS) can't be trusted here: this Worker is reachable directly by
- * anyone who has its URL, bypassing whatever the page would have checked.
+ * Applies the guard to every string in a submission payload except `photo` —
+ * that's base64 image bytes, not spreadsheet text, and prefixing it would
+ * corrupt the image. Client-side validation (the forms' own JS) can't be
+ * trusted here: this Worker is reachable directly by anyone who has its URL,
+ * bypassing whatever the page would have checked.
+ *
+ * Recurses into nested objects and arrays. A flat payload is all the portal
+ * ever sends, but a direct POST is under no such obligation, and a string
+ * nested one level down lands in the same workbook as a top-level one.
  */
-function sanitizePayload(payload) {
-  const clean = {};
-  for (const [key, value] of Object.entries(payload)) {
-    clean[key] = (key !== 'photo' && typeof value === 'string')
-      ? sanitizeForSpreadsheet(value)
-      : value;
+function sanitizePayload(value, key) {
+  if (typeof value === 'string') {
+    return key === 'photo' ? value : sanitizeForSpreadsheet(value);
   }
-  return clean;
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizePayload(item, key));
+  }
+  if (value && typeof value === 'object') {
+    const clean = {};
+    for (const [k, v] of Object.entries(value)) clean[k] = sanitizePayload(v, k);
+    return clean;
+  }
+  return value;
+}
+
+/**
+ * Enforces a form's declared `fields` shape, returning either the accepted
+ * subset or the first problem found.
+ *
+ * Unknown keys are dropped rather than rejected: the portal and the flows are
+ * deployed independently, and a page that starts sending a new field should
+ * degrade to "that column is missing" rather than break every submission until
+ * the Worker catches up. Anything declared, though, is enforced strictly.
+ */
+function validatePayload(payload, fields) {
+  const clean = {};
+
+  for (const [key, rule] of Object.entries(fields)) {
+    const raw = payload[key];
+
+    if (raw === undefined || raw === null || raw === '') {
+      if (rule.required) return { error: `missing_${key}` };
+      continue;
+    }
+    if (typeof raw !== 'string') return { error: `invalid_${key}` };
+    if (raw.length > rule.max) return { error: `too_long_${key}` };
+
+    // `min` is a floor on meaningful content, so it ignores surrounding space —
+    // otherwise "          " passes a 10-character minimum.
+    if (rule.min && raw.trim().length < rule.min) return { error: `too_short_${key}` };
+
+    clean[key] = raw;
+  }
+
+  return { clean };
 }
 
 /**
@@ -221,7 +314,10 @@ export default {
       );
     }
 
-    // Size guard
+    // Size guard. Content-Length is a hint, not a promise — it is absent on a
+    // chunked request — so it only lets us bail early. The real check is the
+    // buffered body's true byte length (String#length counts UTF-16 units, so
+    // it would under-count any multi-byte text by up to 3x).
     const declared = Number(request.headers.get('Content-Length') || 0);
     if (declared > LIMITS.maxBodyBytes) {
       return json({ ok: false, error: 'payload_too_large' }, 413, origin);
@@ -230,11 +326,11 @@ export default {
     // Parse body
     let payload;
     try {
-      const raw = await request.text();
-      if (raw.length > LIMITS.maxBodyBytes) {
+      const buf = await request.arrayBuffer();
+      if (buf.byteLength > LIMITS.maxBodyBytes) {
         return json({ ok: false, error: 'payload_too_large' }, 413, origin);
       }
-      payload = JSON.parse(raw || '{}');
+      payload = JSON.parse(new TextDecoder().decode(buf) || '{}');
     } catch {
       return json({ ok: false, error: 'invalid_json' }, 400, origin);
     }
@@ -258,7 +354,15 @@ export default {
     }
 
     // Never forward the code onward — it must not end up stored in SharePoint.
+    // Removed before validation so it can't be mistaken for a payload field.
     delete payload.accessCode;
+
+    // Shape check. Whether the browser bothered to validate is not knowable
+    // here, so this is where required/length rules are actually enforced.
+    const { clean, error } = validatePayload(payload, form.fields);
+    if (error) {
+      return json({ ok: false, error }, 400, origin);
+    }
 
     // Resolve the real flow URL from secrets
     const flowUrl = env[form.secret];
@@ -270,15 +374,21 @@ export default {
     // is a read, so it forwards the reference number and nothing else — and
     // isn't sanitized for spreadsheet formulas, since a read doesn't write
     // anything back into the workbook.
-    const ref = makeRef(form.refPrefix);
+    //
+    // The page's own reference wins when it sends one, so a submission retried
+    // after a timeout carries the same _ref as the attempt that timed out. That
+    // gives the flow a stable key to upsert on instead of writing a second row
+    // for what the employee experienced as one report. (The flow has to
+    // actually upsert on it — see worker/README.md.)
+    const ref = clean.referenceId || makeRef(form.refPrefix);
     const body = form.passthrough
-      ? { ...payload }
+      ? { ...clean }
       : {
-          ...sanitizePayload(payload),
+          ...sanitizePayload(clean),
           _ref: ref,
           _submittedAt: new Date().toISOString(),
           _form: formKey,
-          ...(tracksSourceIp(formKey, payload) ? { _sourceIp: ip } : {}),
+          ...(tracksSourceIp(formKey, clean) ? { _sourceIp: ip } : {}),
         };
 
     // Forward to Power Automate
@@ -324,9 +434,9 @@ export default {
         }
       } catch { /* flow returned no body or non-JSON — fine */ }
 
-      // Flow's own ID wins; then the one the page already generated and may
-      // have shown the employee; ours is the last resort.
-      const finalRef = flowRef || payload.referenceId || ref;
+      // Flow's own ID wins; otherwise `ref`, which is already the page's own
+      // reference when it sent one and our generated fallback when it didn't.
+      const finalRef = flowRef || ref;
       // Return both key names so existing page code keeps working.
       return json({ ok: true, ref: finalRef, referenceId: finalRef }, 200, origin);
 

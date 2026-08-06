@@ -44,11 +44,40 @@ proxy demands a code the portal never asks for, which would show every employee
 While it is `false`, anyone who learns the Worker URL can post to the flows.
 That is acceptable for a pre-launch window and not much longer.
 
+## Request validation
+
+`FORMS[key].fields` is the authoritative shape of a submission: which fields
+exist, which are required, and how long each may be. Unknown keys are dropped
+rather than forwarded, so a direct POST cannot invent columns in SharePoint.
+
+This is not belt-and-braces on top of the forms' own JavaScript — it is the
+only validation that actually runs. The Worker is reachable by anyone who has
+its URL, so whatever the page checked can simply be skipped.
+
+Adding a field to a form means adding it here too, or it is silently dropped.
+
+## Duplicate submissions
+
+When a flow takes longer than `flowTimeoutMs`, the Worker gives up and answers
+504 — but the flow keeps running and still creates the record. The employee
+sees an error and submits again.
+
+The pages therefore keep one reference number for the whole attempt
+(`PortalForm.fallbackRefId`, cleared only on success) and the Worker forwards
+it as `_ref` when present. **The flows must upsert on `_ref` rather than always
+inserting**, or that retry still produces a second row for what the employee
+experienced as one report.
+
 ## Things that have bitten us
 
 - **`ALLOWED_ORIGINS` must list the real portal origin.** A wrong value fails
   *only* in a browser: `curl` sends no `Origin` header and skips the check
-  entirely, so a curl smoke test passes while every employee sees an error.
+  entirely, so a curl smoke test passes while every employee sees an error —
+  and because the rejection carries a mismatched `Access-Control-Allow-Origin`,
+  the browser blocks the response and the page reports "No connection" rather
+  than anything diagnosable. The portal is served from
+  `https://vitopsanantonio.github.io`; verify this against Settings → Pages
+  after any repository move.
 - **`maxBodyBytes` has to clear the photo size.** Photos travel as base64 in
   the JSON body, and base64 inflates by ~4/3, so the portal's 5 MB image cap
   needs roughly 7 MB of headroom. Too low a ceiling rejects the submission with
@@ -58,6 +87,17 @@ That is acceptable for a pre-launch window and not much longer.
   number the employee can be given but can never look up.
 - **Anonymous suggestions must not carry `_sourceIp`.** The form promises on
   screen that they cannot be traced.
+- **Rate limiting is per-isolate.** `hits` is an in-memory Map, and Cloudflare
+  runs many isolates, so the real ceiling is `maxPerWindow × isolates` per
+  minute. It is a speed bump against a stuck retry loop, not a defence against
+  a determined flood — that needs a Durable Object or KV.
+
+## Tests
+
+`npm run test:worker` runs `tests/worker.test.mjs`, which imports this Worker
+directly and exercises it against Node's own `Request`/`Response` with the
+upstream `fetch` stubbed. It never touches a real flow, so it is safe to run
+anywhere.
 
 ## Deploying
 
