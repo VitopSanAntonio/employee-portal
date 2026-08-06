@@ -6,17 +6,31 @@ on:
     branches: [main]
 
 jobs:
-  html-validate:
-    name: HTML validation
+  lint:
+    name: Lint (HTML + JS)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run lint:html
+      - run: npm run lint:js
+
+  worker-tests:
+    name: Worker tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # No browser needed: the Worker suite runs against Node's own fetch API.
+      - run: npm run test:worker
 
   secret-scan:
     name: Secret scan (gitleaks)
@@ -24,10 +38,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+          fetch-depth: 0        # full history — the scan covers every commit
+
+      # gitleaks/gitleaks-action@v2 refuses to run on organisation-owned repos
+      # without a paid licence key. The gitleaks tool itself is MIT-licensed
+      # and free, so we run the binary directly: same scan, same
+      # .gitleaks.toml, no licence and no secret to manage.
+      - name: Install gitleaks
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: 8.21.2
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # Exits non-zero on any finding, which fails the job.
+      - name: Scan commit history
+        run: gitleaks git --config .gitleaks.toml --redact --no-banner .
+
+      # Catches anything staged in the working tree that history does not yet
+      # show (and would be missed if a commit were ever allowlisted by mistake).
+      - name: Scan working tree
+        run: gitleaks dir --config .gitleaks.toml --redact --no-banner .
 
   browser-tests:
     name: Browser tests (forms, pages, axe)
@@ -36,8 +68,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
+      # Cache the browser download; it dominates this job's runtime otherwise.
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: npx playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
       - run: npm test
