@@ -6,7 +6,9 @@ const BROWSER_GLOBALS = {
   window: 'readonly', document: 'readonly', localStorage: 'readonly',
   fetch: 'readonly', console: 'readonly', navigator: 'readonly',
   crypto: 'readonly', FileReader: 'readonly', DataTransfer: 'readonly',
+  URL: 'readonly', Image: 'readonly',
   Event: 'readonly', CustomEvent: 'readonly', DOMException: 'readonly',
+  AbortController: 'readonly',
   setTimeout: 'readonly', clearTimeout: 'readonly',
   requestAnimationFrame: 'readonly', matchMedia: 'readonly',
 };
