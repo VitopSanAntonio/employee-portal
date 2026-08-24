@@ -56,6 +56,26 @@ its URL, so whatever the page checked can simply be skipped.
 
 Adding a field to a form means adding it here too, or it is silently dropped.
 
+## Photos
+
+The maintenance form sends up to three:
+
+```json
+"photos": [ { "name": "pump-leak.jpg", "base64": "…" } ]
+```
+
+`PHOTOS_FIELD` enforces the count (3), the per-photo base64 cap (7 MB), the
+combined cap (12 MB), and that each `base64` value really is base64 — Power
+Automate's `base64ToBinary()` does not reject malformed input, it just produces
+an attachment that won't open.
+
+Before forwarding, `withLegacyPhotoFields()` also sets `photoCount` and copies
+the first photo into the old `photo` / `photoName` fields. That is a migration
+shim: the portal deploys with a git push and the flow is edited by hand, so
+until a flow reads `photos` it keeps receiving photo #1 exactly as before.
+**Delete the shim once every flow reads `photos`** — it doubles photo #1 in the
+body sent upstream.
+
 ## Duplicate submissions
 
 When a flow takes longer than `flowTimeoutMs`, the Worker gives up and answers
@@ -79,9 +99,15 @@ experienced as one report.
   `https://vitopsanantonio.github.io`; verify this against Settings → Pages
   after any repository move.
 - **`maxBodyBytes` has to clear the photo size.** Photos travel as base64 in
-  the JSON body, and base64 inflates by ~4/3, so the portal's 5 MB image cap
-  needs roughly 7 MB of headroom. Too low a ceiling rejects the submission with
-  a 413 before it is even parsed.
+  the JSON body, and the maintenance form sends up to three. `PHOTOS_FIELD`
+  caps their combined base64 at 12 MB, so `maxBodyBytes` has to clear that plus
+  the rest of the JSON. Too low a ceiling rejects the submission with a 413
+  before it is even parsed.
+- **The photo caps are duplicated in `photo-upload.js`.** `MAX_PHOTO_B64` and
+  `PHOTOS_FIELD.maxTotalBytes` here must match `maxEncodedBytes` and
+  `maxTotalEncodedBytes` there. If the page's caps are the looser pair, an
+  employee attaches three photos, watches them upload, and only then gets a
+  400 with no way to tell which one was the problem.
 - **Fallback reference IDs have to match `status-check.html`.** It accepts
   `/^(MNT|SAF|SUG)-\d{4,6}$/` in a 10-character input; anything else is a
   number the employee can be given but can never look up.
