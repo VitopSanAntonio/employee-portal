@@ -229,22 +229,37 @@
             </div>
           </div>
 
-          <!-- Section 4: Photo & Contact -->
-          <div class="section-label section-gap" data-en="Photo &amp; contact" data-es="Foto y contacto">Photo &amp; contact</div>
+          <!-- Section 4: Photos & Contact -->
+          <div class="section-label section-gap" data-en="Photos &amp; contact" data-es="Fotos y contacto">Photos &amp; contact</div>
           <div class="form-row full">
             <div class="field">
-              <label for="photo-input"><span data-en="Photo" data-es="Foto">Photo</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <label for="photo-input"><span data-en="Photos" data-es="Fotos">Photos</span> <span class="opt" data-en="(optional — up to 3)" data-es="(opcional — hasta 3)">(optional — up to 3)</span></label>
               <div class="photo-zone" id="photo-zone">
-                <input type="file" id="photo-input" accept="image/*" capture="environment" />
+                <input type="file" id="photo-input" accept="image/*" capture="environment" multiple />
                 <div class="upload-icon">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--blue-02)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>
                 </div>
-                <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br /><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
+                <p class="zone-prompt"><strong data-en="Tap to attach up to 3 photos" data-es="Toca para adjuntar hasta 3 fotos">Tap to attach up to 3 photos</strong><br /><span data-en="or drag &amp; drop here · JPG, PNG, HEIC · 10 MB each" data-es="o arrastra aquí · JPG, PNG, HEIC · 10 MB cada una">or drag &amp; drop here · JPG, PNG, HEIC · 10 MB each</span></p>
+                <p class="zone-full" data-en="All 3 photos attached — remove one to swap it." data-es="Las 3 fotos están adjuntas — quita una para cambiarla.">All 3 photos attached — remove one to swap it.</p>
                 <div class="file-name" id="file-name-display"></div>
               </div>
-              <!-- [html-validate-disable-next element-required-attributes: src is set at runtime when a photo is attached] -->
-              <img id="preview-img" class="preview-img" alt="Preview" />
-              <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
+              <div class="photo-gallery" id="photo-previews" style="display:none"></div>
+              <p class="field-hint" data-en="Photos are resized automatically before they are sent, so they arrive quickly even on a weak signal." data-es="Las fotos se redimensionan automáticamente antes de enviarse, para que lleguen rápido incluso con poca señal.">Photos are resized automatically before they are sent, so they arrive quickly even on a weak signal.</p>
+              <span class="field-error" role="alert" id="photo-error"
+                data-en="Please attach image files smaller than 10 MB each."
+                data-es="Por favor adjunta imágenes de menos de 10 MB cada una."
+                data-en-toomany="You can attach up to 3 photos. Remove one before adding another."
+                data-es-toomany="Puedes adjuntar hasta 3 fotos. Quita una antes de agregar otra."
+                data-en-notimage="That file is not an image. Please attach a JPG, PNG or HEIC photo."
+                data-es-notimage="Ese archivo no es una imagen. Por favor adjunta una foto JPG, PNG o HEIC."
+                data-en-toolarge="That photo is too large. Please attach an image smaller than 10 MB."
+                data-es-toolarge="Esa foto es demasiado grande. Por favor adjunta una imagen de menos de 10 MB."
+                data-en-unsupported="That photo could not be resized for sending. Please attach a JPG or PNG under 5 MB."
+                data-es-unsupported="No se pudo redimensionar esa foto para enviarla. Por favor adjunta un JPG o PNG de menos de 5 MB."
+                data-en-tooheavy="Those photos are too large to send together. Remove one and try again."
+                data-es-tooheavy="Esas fotos son demasiado grandes para enviarlas juntas. Quita una e inténtalo de nuevo."
+                data-en-readfailed="That photo could not be read. Please try taking it again."
+                data-es-readfailed="No se pudo leer esa foto. Por favor intenta tomarla de nuevo.">Please attach image files smaller than 10 MB each.</span>
             </div>
           </div>
 
@@ -319,7 +334,10 @@
   const refDisplay = document.getElementById('ref-display');
   const priorityError = document.getElementById('priority-error');
 
-  const photo = PortalPhoto.init();
+  // Three photos: a wide shot, a close-up and the nameplate is what the
+  // facility team actually asks for on the phone afterwards.
+  const MAX_PHOTOS = 3;
+  const photo = PortalPhoto.init({ max: MAX_PHOTOS });
 
   // ── Validation ───────────────────────────────────────────────
   function validateForm() {
@@ -367,8 +385,14 @@
     // Stable across retries so a resubmit after a timeout is not a second request.
     const refId = PortalForm.fallbackRefId('MNT');
 
-    // The photo is read asynchronously; without this a fast submit sends the
-    // filename with no image behind it.
+    // Disable the button *before* the await below, not after. Resizing three
+    // phone photos takes a second or two on a plant handset, and while it ran
+    // the button stayed live — a second tap started a second submission of the
+    // same request.
+    PortalForm.setSubmitting();
+
+    // Photos are read and resized asynchronously; without this a fast submit
+    // sends the filenames with no images behind them.
     await photo.ready();
 
     const payload = {
@@ -379,11 +403,12 @@
       description: document.getElementById('description').value.trim(),
       priority:    document.querySelector('input[name="priority"]:checked').value,
       email:       document.getElementById('email').value.trim(),
-      photo:       photo.base64,
-      photoName:   photo.name
+      // 0–3 items: [{ name, base64 }]. The Worker also derives the legacy
+      // photo/photoName fields from the first one, so a flow that has not been
+      // migrated to the array yet keeps receiving photo #1 as before.
+      photos:      photo.photos
     };
 
-    PortalForm.setSubmitting();
     // Power Automate should return: { "referenceId": "MNT-0042" }
     const { ok, referenceId, message, cancelled } = await PortalForm.submitJSON('maintenance', payload);
 

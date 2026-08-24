@@ -148,12 +148,12 @@
                 <div class="upload-icon">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--blue-02)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>
                 </div>
-                <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br/><span data-en="or drag &amp; drop here · JPG, PNG, HEIC" data-es="o arrastra aquí · JPG, PNG, HEIC">or drag &amp; drop here · JPG, PNG, HEIC</span></p>
+                <p><strong data-en="Tap to attach a photo" data-es="Toca para adjuntar una foto">Tap to attach a photo</strong><br/><span data-en="or drag &amp; drop here · JPG, PNG, HEIC · 10 MB" data-es="o arrastra aquí · JPG, PNG, HEIC · 10 MB">or drag &amp; drop here · JPG, PNG, HEIC · 10 MB</span></p>
                 <div class="file-name" id="file-name-display"></div>
               </div>
               <!-- [html-validate-disable-next element-required-attributes: src is set at runtime when a photo is attached] -->
               <img id="preview-img" class="preview-img" alt="Preview" />
-              <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 5 MB." data-es="Por favor adjunta una imagen de menos de 5 MB.">Please attach an image file smaller than 5 MB.</span>
+              <span class="field-error" role="alert" id="photo-error" data-en="Please attach an image file smaller than 10 MB." data-es="Por favor adjunta una imagen de menos de 10 MB." data-en-unsupported="That photo could not be resized for sending. Please attach a JPG or PNG under 5 MB." data-es-unsupported="No se pudo redimensionar esa foto para enviarla. Por favor adjunta un JPG o PNG de menos de 5 MB.">Please attach an image file smaller than 10 MB.</span>
             </div>
           </div>
 
@@ -324,6 +324,11 @@
     const isAnon    = document.querySelector('input[name="anonymous"]:checked').value;
     const emailVal  = isAnon === 'No' ? document.getElementById('email').value.trim() : '';
 
+    // Disable the button *before* the await below, not after: while the photo
+    // was being read the button stayed live, and a second tap started a second
+    // submission of the same report.
+    PortalForm.setSubmitting();
+
     // The photo is read asynchronously; without this a fast submit sends the
     // filename with no image behind it.
     await photo.ready();
@@ -340,7 +345,6 @@
       photoName:   photo.name
     };
 
-    PortalForm.setSubmitting();
     const { ok, referenceId, message, cancelled } = await PortalForm.submitJSON('suggestion', payload);
 
     if (!ok) {

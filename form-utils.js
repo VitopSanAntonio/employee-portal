@@ -20,6 +20,28 @@ window.PortalForm = (function () {
   const PROXY    = 'https://portal-submit-proxy.thibautleclercq98.workers.dev';
   const CODE_KEY = 'portalAccessCode';
 
+  /**
+   * A stalled connection is not a failed one. fetch() does not reject when a
+   * weak signal drops mid-request — it simply never settles, so the lookup
+   * spinner turned forever and the submit button never came back. Plant-floor
+   * dead zones are exactly this case; sw.js already guards page loads the same
+   * way.
+   *
+   * 30s is deliberately longer than the Worker's own flowTimeoutMs (20s), so
+   * this only ever fires when the Worker never answered at all. A shorter
+   * timeout would abort requests the Worker was about to answer with a real,
+   * more useful error — and, on a submission, abort one the flow had already
+   * acted on.
+   */
+  const FETCH_TIMEOUT_MS = 30_000;
+
+  function fetchWithTimeout(url, options) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+      .finally(() => clearTimeout(timer));
+  }
+
   function el(id) { return document.getElementById(id); }
 
   // PortalStorage (lang.js) swallows the exceptions that private-browsing and
@@ -121,7 +143,7 @@ window.PortalForm = (function () {
 
       let res;
       try {
-        res = await fetch(PROXY + '/submit/' + formKey, {
+        res = await fetchWithTimeout(PROXY + '/submit/' + formKey, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify(body)
@@ -173,7 +195,7 @@ window.PortalForm = (function () {
    */
   async function lookupJSON(formKey, payload) {
     try {
-      const res = await fetch(PROXY + '/submit/' + formKey, {
+      const res = await fetchWithTimeout(PROXY + '/submit/' + formKey, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload)
