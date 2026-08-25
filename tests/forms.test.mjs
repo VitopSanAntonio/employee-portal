@@ -99,25 +99,105 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   }
 }
 
-// Photo validation on all three forms
+// Photo validation on all three forms.
+//
+// Every rejection is asynchronous now: an accepted photo is decoded into a
+// canvas and re-encoded before it counts as attached, so these poll rather than
+// reading straight after setInputFiles.
 const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const png = n => ({ name: n, mimeType: 'image/png', buffer: tinyPng });
+
 for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request']) {
   const page = await browser.newPage();
   await page.goto(`http://localhost:${PORT}/${name}.html`);
 
+  // Not an image at all.
+  await page.setInputFiles('#photo-input', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  await waitFor(() => page.locator('#photo-error.show').isVisible());
+  const errTxt  = await page.locator('#photo-error.show').isVisible();
+  const nameTxt = (await page.locator('#file-name-display').textContent()).trim();
+
+  // 6 MB of bytes no decoder accepts: compression can't run, so the original
+  // base64 is what would be sent and it clears the per-photo cap.
   await page.setInputFiles('#photo-input', { name: 'big.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(6 * 1024 * 1024, 1) });
+  await waitFor(() => page.locator('#photo-error.show').isVisible());
   const errBig  = await page.locator('#photo-error.show').isVisible();
   const nameBig = (await page.locator('#file-name-display').textContent()).trim();
 
-  await page.setInputFiles('#photo-input', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
-  const errTxt = await page.locator('#photo-error.show').isVisible();
-
-  await page.setInputFiles('#photo-input', { name: 'ok.png', mimeType: 'image/png', buffer: tinyPng });
+  // A real image is accepted, and accepting one clears the error.
+  await page.setInputFiles('#photo-input', png('ok.png'));
   await waitFor(async () => (await page.locator('#file-name-display').textContent()).includes('ok.png'));
   const errOk  = await page.locator('#photo-error.show').isVisible();
   const nameOk = (await page.locator('#file-name-display').textContent()).trim();
 
-  results.push({ page: name, mode: 'photo-validation', pass: errBig && nameBig === '' && errTxt && !errOk && nameOk.includes('ok.png') });
+  results.push({
+    page: name, mode: 'photo-validation',
+    pass: errTxt && nameTxt === '' && errBig && nameBig === '' && !errOk && nameOk.includes('ok.png')
+  });
+  await page.close();
+}
+
+// Maintenance takes three photos. Four at once must attach three and say why,
+// removing one must free a slot, and the payload must carry exactly what is on
+// screen — the flow builds its email attachments straight off this array.
+{
+  const page = await browser.newPage();
+  let sent = null;
+  await page.route(isProxy, route => {
+    sent = JSON.parse(route.request().postData() || '{}');
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referenceId: 'MNT-0042' }) });
+  });
+  await page.goto(`http://localhost:${PORT}/maintenance-request.html`);
+
+  await page.setInputFiles('#photo-input', ['a', 'b', 'c', 'd'].map(n => png(`${n}.png`)));
+  await waitFor(async () => (await page.locator('#photo-previews figure').count()) === 3);
+  const capped   = await page.locator('#photo-previews figure').count();
+  const overErr  = (await page.locator('#photo-error').textContent()).trim();
+  // The fourth is refused, not silently swapped in for one of the first three.
+  const kept     = (await page.locator('#file-name-display').textContent()).trim();
+
+  // Every thumbnail carries its own remove control, and using one frees a slot.
+  await page.locator('#photo-previews .photo-remove').first().click();
+  await waitFor(async () => (await page.locator('#photo-previews figure').count()) === 2);
+  const afterRemove = await page.locator('#photo-previews figure').count();
+  const errCleared  = !(await page.locator('#photo-error.show').isVisible());
+
+  await fillForm(page, 'maintenance-request');
+  await page.click('#submit-btn');
+  await waitFor(() => page.locator('#success-screen').isVisible());
+
+  const photos = (sent && sent.photos) || [];
+  results.push({
+    page: 'maintenance-request', mode: 'three-photos',
+    pass: capped === 3 && overErr.includes('up to 3') && kept.startsWith('✓ 3/3')
+          && afterRemove === 2 && errCleared
+          && photos.length === 2
+          && photos.every(p => typeof p.name === 'string' && typeof p.base64 === 'string' && p.base64.length > 0),
+    detail: `${capped} kept, ${photos.length} sent`
+  });
+  await page.close();
+}
+
+// Resizing three phone photos takes long enough that a second tap used to
+// start a second submission of the same request.
+{
+  const page = await browser.newPage();
+  let posts = 0;
+  await page.route(isProxy, async route => {
+    posts += 1;
+    await new Promise(r => setTimeout(r, 400));
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referenceId: 'MNT-0042' }) });
+  });
+  await page.goto(`http://localhost:${PORT}/maintenance-request.html`);
+  await fillForm(page, 'maintenance-request');
+  await page.setInputFiles('#photo-input', png('a.png'));
+  await waitFor(async () => (await page.locator('#photo-previews figure').count()) === 1);
+  // force: the button is expected to be disabled by the first click — that is
+  // the whole point — and a normal click would wait for it to come back.
+  await page.click('#submit-btn');
+  await page.click('#submit-btn', { force: true }).catch(() => {});
+  await waitFor(() => page.locator('#success-screen').isVisible());
+  results.push({ page: 'maintenance-request', mode: 'no-double-submit', pass: posts === 1, detail: `${posts} posts` });
   await page.close();
 }
 
@@ -351,7 +431,7 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await page.goto(`http://localhost:${PORT}/index.html`);
   await page.evaluate(() => navigator.serviceWorker.ready);
   const cached = await waitFor(async () => page.evaluate(async () => {
-    const c = await caches.open('portal-v3');
+    const c = await caches.open('portal-v4');
     const paths = (await c.keys()).map(r => new URL(r.url).pathname);
     return paths.includes('/') && paths.includes('/index.html');
   }));

@@ -109,6 +109,65 @@ const VALID_SAFETY = {
   check('photo-not-prefixed', forwarded.body.photo === '+abc123', forwarded.body.photo);
 }
 
+// ── Photos ───────────────────────────────────────────────────
+{
+  const VALID_MAINT = {
+    department: 'Facility', location: 'Press 4', issueType: 'Air compressor 1 (AC-01)',
+    description: 'Hydraulic leak under the main ram.', priority: 'Low',
+  };
+  const photo = (name, b64 = 'aGVsbG8=') => ({ name, base64: b64 });
+
+  await post('maintenance', { ...VALID_MAINT, photos: [photo('a.jpg'), photo('b.jpg'), photo('c.jpg')] });
+  check('three-photos-forwarded', forwarded.body.photos.length === 3 &&
+    forwarded.body.photos[2].name === 'c.jpg', `${forwarded.body.photos.length}`);
+  check('photo-count-forwarded', forwarded.body.photoCount === 3, `${forwarded.body.photoCount}`);
+
+  // The migration shim: a flow still reading the old single-photo fields keeps
+  // receiving photo #1 unchanged.
+  check('legacy-photo-fields-derived',
+    forwarded.body.photo === 'aGVsbG8=' && forwarded.body.photoName === 'a.jpg',
+    forwarded.body.photoName);
+
+  const four = await post('maintenance', { ...VALID_MAINT, photos: [photo('a.jpg'), photo('b.jpg'), photo('c.jpg'), photo('d.jpg')] });
+  check('fourth-photo-rejected', four.status === 400 &&
+    (await four.clone().json()).error === 'too_many_photos', `${four.status}`);
+
+  // Power Automate's base64ToBinary() does not reject malformed input — it
+  // produces an attachment that will not open. Catch it here instead.
+  const junk = await post('maintenance', { ...VALID_MAINT, photos: [photo('a.jpg', 'not valid base64!!')] });
+  check('non-base64-rejected', junk.status === 400 &&
+    (await junk.clone().json()).error === 'invalid_photos_base64', `${junk.status}`);
+
+  const nameless = await post('maintenance', { ...VALID_MAINT, photos: [{ base64: 'aGVsbG8=' }] });
+  check('photo-without-name-rejected', nameless.status === 400 &&
+    (await nameless.clone().json()).error === 'missing_photos_name', `${nameless.status}`);
+
+  const notArray = await post('maintenance', { ...VALID_MAINT, photos: 'aGVsbG8=' });
+  check('photos-must-be-an-array', notArray.status === 400 &&
+    (await notArray.clone().json()).error === 'invalid_photos', `${notArray.status}`);
+
+  // Three photos that each clear the per-photo cap can still be too much
+  // together for the notification email.
+  // Each is under the 7 MB per-photo cap but the three together clear the
+  // 12 MB combined cap — while the whole body stays under maxBodyBytes, so this
+  // is a validation failure and not a 413.
+  const heavy = 'A'.repeat(4_200_000);
+  const tooBig = await post('maintenance', { ...VALID_MAINT, photos: [photo('a.jpg', heavy), photo('b.jpg', heavy), photo('c.jpg', heavy)] });
+  check('combined-photo-size-capped', tooBig.status === 400 &&
+    (await tooBig.clone().json()).error === 'too_large_photos', `${tooBig.status}`);
+
+  // Filenames land in a cell like any other text, so they get the formula
+  // guard; the image bytes beside them must not be touched.
+  await post('maintenance', { ...VALID_MAINT, photos: [photo('=cmd|calc.jpg', '+bm90ZQ=')] });
+  check('photo-name-sanitized-bytes-not',
+    forwarded.body.photos[0].name.startsWith("'=") && forwarded.body.photos[0].base64 === '+bm90ZQ=',
+    forwarded.body.photos[0].name);
+
+  // No photos at all is the common case and must stay valid.
+  const none = await post('maintenance', VALID_MAINT);
+  check('photos-optional', none.status === 200 && !('photos' in forwarded.body), `${none.status}`);
+}
+
 // ── Anonymity ────────────────────────────────────────────────
 {
   const base = { department: 'Quality', category: 'Safety', suggestion: 'x'.repeat(30) };

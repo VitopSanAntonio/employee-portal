@@ -44,10 +44,35 @@ const REQUIRE_ACCESS_CODE = false;
  */
 const TEXT = max => ({ max });
 
+/** Cap on one photo's base64 text. Must match maxEncodedBytes in
+ *  photo-upload.js, or the page accepts a photo the Worker then rejects. */
+const MAX_PHOTO_B64 = 7 * 1024 * 1024;
+
 const CONTACT_FIELDS = {
   email:     TEXT(254),          // RFC 5321 practical maximum
-  photo:     { max: 7 * 1024 * 1024 },   // base64 of the 5 MB image cap (~4/3 inflation)
+  photo:     { max: MAX_PHOTO_B64 },
   photoName: TEXT(255),
+};
+
+/**
+ * Up to three photos as [{ name, base64 }].
+ *
+ * An array rather than photo1/photo2/photo3: it is the shape Power Automate
+ * wants. A Select action maps it straight onto the Attachments collection of
+ * "Send an email (V2)", so zero, one, two or three photos all take the same
+ * path with no conditional branching in the flow — and raising the limit later
+ * is a number here, not three more fields and three more branches there.
+ */
+const PHOTOS_FIELD = {
+  array:    true,
+  maxItems: 3,
+  item: {
+    name:   { max: 255, required: true },
+    base64: { max: MAX_PHOTO_B64, required: true, base64: true },
+  },
+  // Across all items. Kept under LIMITS.maxBodyBytes with room for the rest of
+  // the JSON, and matched by maxTotalEncodedBytes in photo-upload.js.
+  maxTotalBytes: 12 * 1024 * 1024,
 };
 
 const FORMS = {
@@ -84,6 +109,7 @@ const FORMS = {
       description: { max: 4000, required: true, min: 10 },
       priority:    { max: 20,   required: true },
       ...CONTACT_FIELDS,
+      photos:      PHOTOS_FIELD,
     },
   },
   // Status check is a read-only lookup by reference number, so no code needed.
@@ -98,10 +124,11 @@ const FORMS = {
 const LIMITS = {
   maxPerWindow: 6,             // submissions per IP per window
   windowMs:     60_000,        // 1 minute
-  // Photos ride along as base64 in the JSON body. The portal accepts images up
-  // to 5 MB, and base64 inflates by ~4/3, so the ceiling has to clear ~7 MB or
-  // every submission with a real phone photo is rejected before it is parsed.
-  maxBodyBytes: 8 * 1024 * 1024,
+  // Photos ride along as base64 in the JSON body, and the maintenance form
+  // sends up to three. PHOTOS_FIELD caps their combined base64 at 12 MB, so
+  // the ceiling has to clear that plus the rest of the JSON — anything lower
+  // rejects the submission with a 413 before it is even parsed.
+  maxBodyBytes: 14 * 1024 * 1024,
   flowTimeoutMs: 20_000,       // give up on a hanging flow
 };
 
@@ -183,19 +210,26 @@ function sanitizeForSpreadsheet(value) {
 }
 
 /**
- * Applies the guard to every string in a submission payload except `photo` —
- * that's base64 image bytes, not spreadsheet text, and prefixing it would
- * corrupt the image. Client-side validation (the forms' own JS) can't be
+ * Keys whose string value is base64 image bytes rather than spreadsheet text.
+ * Prefixing one with a quote would corrupt the image: `photo` is the legacy
+ * single-photo field, `base64` the per-item key inside `photos`. Filenames are
+ * NOT on this list — a photo called `=cmd|…` lands in a cell like any other
+ * text and is guarded like any other text.
+ */
+const RAW_BYTE_KEYS = new Set(['photo', 'base64']);
+
+/**
+ * Applies the guard to every string in a submission payload except the raw
+ * image bytes above. Client-side validation (the forms' own JS) can't be
  * trusted here: this Worker is reachable directly by anyone who has its URL,
  * bypassing whatever the page would have checked.
  *
- * Recurses into nested objects and arrays. A flat payload is all the portal
- * ever sends, but a direct POST is under no such obligation, and a string
- * nested one level down lands in the same workbook as a top-level one.
+ * Recurses into nested objects and arrays, so the `name` inside each entry of
+ * `photos` is guarded exactly as a top-level string would be.
  */
 function sanitizePayload(value, key) {
   if (typeof value === 'string') {
-    return key === 'photo' ? value : sanitizeForSpreadsheet(value);
+    return RAW_BYTE_KEYS.has(key) ? value : sanitizeForSpreadsheet(value);
   }
   if (Array.isArray(value)) {
     return value.map(item => sanitizePayload(item, key));
@@ -223,10 +257,19 @@ function validatePayload(payload, fields) {
   for (const [key, rule] of Object.entries(fields)) {
     const raw = payload[key];
 
-    if (raw === undefined || raw === null || raw === '') {
+    if (raw === undefined || raw === null || raw === '' ||
+        (rule.array && Array.isArray(raw) && raw.length === 0)) {
       if (rule.required) return { error: `missing_${key}` };
       continue;
     }
+
+    if (rule.array) {
+      const { list, error } = validateArrayField(key, raw, rule);
+      if (error) return { error };
+      clean[key] = list;
+      continue;
+    }
+
     if (typeof raw !== 'string') return { error: `invalid_${key}` };
     if (raw.length > rule.max) return { error: `too_long_${key}` };
 
@@ -241,6 +284,62 @@ function validatePayload(payload, fields) {
 }
 
 /**
+ * Base64 as the browser's FileReader produces it: standard alphabet, no line
+ * breaks, padded to a multiple of four.
+ *
+ * Worth checking rather than passing through, because the failure is silent and
+ * downstream: Power Automate's base64ToBinary() does not reject malformed input,
+ * it produces a corrupt attachment. The maintenance tech opens an email with a
+ * photo that won't render and has no way to tell whether the photo was bad or
+ * the employee never took one.
+ */
+const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+
+function isBase64(value) {
+  return value.length % 4 === 0 && BASE64_RE.test(value);
+}
+
+/**
+ * Enforces an `array: true` rule: item count, per-item shape, and the combined
+ * size across items. Unknown item keys are dropped, matching how unknown
+ * top-level keys are treated.
+ */
+function validateArrayField(key, raw, rule) {
+  if (!Array.isArray(raw)) return { error: `invalid_${key}` };
+  if (raw.length > rule.maxItems) return { error: `too_many_${key}` };
+
+  const list = [];
+  let total = 0;
+
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { error: `invalid_${key}` };
+    }
+
+    const item = {};
+    for (const [itemKey, itemRule] of Object.entries(rule.item)) {
+      const value = entry[itemKey];
+
+      if (value === undefined || value === null || value === '') {
+        if (itemRule.required) return { error: `missing_${key}_${itemKey}` };
+        continue;
+      }
+      if (typeof value !== 'string') return { error: `invalid_${key}_${itemKey}` };
+      if (value.length > itemRule.max) return { error: `too_long_${key}_${itemKey}` };
+      if (itemRule.base64 && !isBase64(value)) return { error: `invalid_${key}_${itemKey}` };
+
+      total += value.length;
+      item[itemKey] = value;
+    }
+    list.push(item);
+  }
+
+  if (rule.maxTotalBytes && total > rule.maxTotalBytes) return { error: `too_large_${key}` };
+
+  return { list };
+}
+
+/**
  * Fallback reference, used only when the flow doesn't return one of its own.
  * The format has to match what status-check.html accepts — /^(MNT|SAF|SUG)-\d{4,6}$/
  * with a 10-character input cap — or the number we hand the employee is one
@@ -250,6 +349,32 @@ function makeRef(prefix) {
   if (!prefix) return null;
   const n = 100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
   return `${prefix}-${n}`;
+}
+
+/**
+ * Fills in `photo` / `photoName` from the first entry of `photos`, and always
+ * sets `photoCount`.
+ *
+ * The portal and the flows deploy independently — the portal is a git push, the
+ * flow is a hand edit in Power Automate — so for the window between them a
+ * maintenance flow that still reads `photo` keeps receiving photo #1 exactly as
+ * before, while a migrated flow reads `photos` and gets all three. The
+ * duplication costs nothing on the employee's connection: it is added here,
+ * after the upload, on the datacentre-to-datacentre hop.
+ *
+ * Delete this once every flow reads `photos` (see worker/README.md).
+ */
+function withLegacyPhotoFields(body) {
+  if (!Array.isArray(body.photos)) return body;
+
+  const first = body.photos[0];
+  return {
+    ...body,
+    photoCount: body.photos.length,
+    // An explicitly sent `photo` wins — the other forms still send one.
+    photo:     body.photo     || (first ? first.base64 : ''),
+    photoName: body.photoName || (first ? first.name   : ''),
+  };
 }
 
 /**
@@ -384,7 +509,7 @@ export default {
     const body = form.passthrough
       ? { ...clean }
       : {
-          ...sanitizePayload(clean),
+          ...withLegacyPhotoFields(sanitizePayload(clean)),
           _ref: ref,
           _submittedAt: new Date().toISOString(),
           _form: formKey,
