@@ -248,7 +248,6 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
 
   await page.click('label[for="ct-food"]');
   await page.selectOption('#foodCategory', 'Cleanliness / housekeeping');
-  await page.fill('#reporterName', 'A. Operator');
   await page.selectOption('#location', 'Break room / Common Area');
   await page.click('label[for="urgLow"]');
   await page.fill('#description', 'Table in the break room was left dirty after break.');
@@ -263,8 +262,7 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
           && foodHintEs === '¿Cómo podríamos evitar que vuelva a ocurrir?'
           && safetyHint.startsWith('Was anyone nearly hurt')
           && sent.concernType === 'Food safety'
-          && sent.foodCategory === 'Cleanliness / housekeeping'
-          && sent.reporterName === 'A. Operator',
+          && sent.foodCategory === 'Cleanliness / housekeeping',
     detail: `${sent && sent.concernType}/${sent && sent.foodCategory}`
   });
   await page.close();

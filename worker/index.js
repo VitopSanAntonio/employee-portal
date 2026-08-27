@@ -98,7 +98,6 @@ const FORMS = {
       // flow treats an absent value as 'Safety'.
       concernType:  TEXT(40),
       foodCategory: TEXT(80),   // only set when concernType is 'Food safety'
-      reporterName: TEXT(120),  // for reporting-KPI credit; optional by design
       location:    { max: 100,  required: true },
       urgency:     { max: 60,   required: true },
       description: { max: 4000, required: true, min: 10 },
