@@ -43,7 +43,7 @@ export default [
       sourceType: 'script',
       globals: {
         self: 'readonly', caches: 'readonly', fetch: 'readonly',
-        console: 'readonly', Response: 'readonly', URL: 'readonly',
+        console: 'readonly', Response: 'readonly', Request: 'readonly', URL: 'readonly',
         setTimeout: 'readonly', clearTimeout: 'readonly',
       },
     },
