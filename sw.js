@@ -5,6 +5,7 @@
    Bump CACHE_VERSION when shell assets change to evict old caches.
 ──────────────────────────────────────────────────────────────── */
 
+const CACHE_VERSION = 'portal-v5';
 const CACHE_VERSION = 'portal-v4';
 
 // How long to wait for the network before serving the cached copy. Without a
@@ -38,8 +39,16 @@ self.addEventListener('install', event => {
     caches.open(CACHE_VERSION)
       // Individually, so one unreachable asset cannot fail the whole install
       // and leave the portal with no offline support at all.
+      //
+      // cache:'reload' bypasses the browser's own HTTP cache. GitHub Pages
+      // serves HTML with a ten-minute max-age, so a plain cache.add() can
+      // precache the copy the browser already had rather than the one that
+      // was just deployed — and then serve that stale page for as long as
+      // this CACHE_VERSION lives. That is exactly how a shipped change can
+      // appear not to have shipped.
       .then(cache => Promise.all(
-        SHELL.map(url => cache.add(url).catch(err => console.warn('SW precache miss:', url, err)))
+        SHELL.map(url => cache.add(new Request(url, { cache: 'reload' }))
+          .catch(err => console.warn('SW precache miss:', url, err)))
       ))
       .then(() => self.skipWaiting())
   );
