@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Safety Concern — Smurfit Westrock</title>
+  <title>Safety &amp; Food Safety — Smurfit Westrock</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="portal-icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,8 +43,8 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
         </span>
         <div class="page-title-text">
-          <h1 data-en="Safety concern" data-es="Reporte de seguridad">Safety concern</h1>
-          <p data-en="Smurfit Westrock — safety manager" data-es="Smurfit Westrock — responsable de seguridad">Smurfit Westrock — safety manager</p>
+          <h1 data-en="Safety &amp; food safety" data-es="Seguridad e inocuidad">Safety &amp; food safety</h1>
+          <p data-en="Smurfit Westrock — safety &amp; quality" data-es="Smurfit Westrock — seguridad y calidad">Smurfit Westrock — safety &amp; quality</p>
           <div class="urgent-pill">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             <span data-en="Urgent routing" data-es="Envío urgente">Urgent routing</span>
@@ -174,6 +174,8 @@
               <label for="description" data-en="Description" data-es="Descripción">Description</label>
               <textarea id="description" name="description" rows="4" maxlength="4000"
                 data-en-placeholder="Describe the safety concern — what you observed, where exactly, and when it happened…"
+                data-en-placeholder-food="Describe what you observed — what it was, where exactly, and when you saw it…"
+                data-es-placeholder-food="Describe lo que observaste — qué era, dónde exactamente y cuándo lo viste…"
                 data-es-placeholder="Describe el reporte de seguridad — qué observaste, dónde exactamente y cuándo ocurrió…"
                 placeholder="Describe the safety concern — what you observed, where exactly, and when it happened…"></textarea>
               <span class="field-error" role="alert" data-en="Please describe the concern." data-es="Por favor describe el problema.">Please describe the concern.</span>
@@ -185,6 +187,8 @@
               <label for="solution"><span class="when-safety" data-en="Near miss / suggested solution" data-es="Casi accidente / solución sugerida">Near miss / suggested solution</span><span class="when-food" data-en="Suggested improvement" data-es="Mejora sugerida">Suggested improvement</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
               <textarea id="solution" name="solution" rows="3" maxlength="4000"
                 data-en-placeholder="Was anyone nearly hurt? Do you have an idea to fix this?"
+                data-en-placeholder-food="How could we stop this happening again?"
+                data-es-placeholder-food="¿Cómo podríamos evitar que vuelva a ocurrir?"
                 data-es-placeholder="¿Alguien estuvo a punto de lesionarse? ¿Tienes alguna idea para solucionarlo?"
                 placeholder="Was anyone nearly hurt? Do you have an idea to fix this?"></textarea>
             </div>
@@ -300,10 +304,34 @@
     return picked ? picked.value : '';
   }
 
+  function currentLang() {
+    return (window.PortalStorage && window.PortalStorage.get('portalLang')) === 'es' ? 'es' : 'en';
+  }
+
+  /**
+   * Placeholders can't use the CSS variant trick the labels use — there is only
+   * one textarea, not one per wording. So they are swapped here instead, from
+   * data-<lang>-placeholder (safety) and data-<lang>-placeholder-food.
+   *
+   * lang.js rewrites every placeholder from data-<lang>-placeholder whenever the
+   * language changes, which would silently undo this — hence the re-apply on
+   * portal:langchange below, which lang.js fires after it has finished.
+   */
+  function applyPlaceholders(type) {
+    const lang = currentLang();
+    const suffix = type === 'Food safety' ? '-placeholder-food' : '-placeholder';
+    document.querySelectorAll('[data-en-placeholder-food]').forEach(el => {
+      el.placeholder = el.getAttribute('data-' + lang + suffix)
+                    || el.getAttribute('data-en' + suffix)
+                    || el.placeholder;
+    });
+  }
+
   function applyConcern() {
     const type = currentConcern();
     form.classList.toggle('concern-safety', type === 'Safety');
     form.classList.toggle('concern-food',   type === 'Food safety');
+    applyPlaceholders(type);
     if (type) concernErr.classList.remove('show');
     // A category chosen and then switched away from must not be submitted
     // alongside a personal-safety report.
@@ -316,6 +344,8 @@
   document.querySelectorAll('input[name="concernType"]').forEach(r => {
     r.addEventListener('change', applyConcern);
   });
+  // lang.js has just reset every placeholder to its safety wording.
+  document.addEventListener('portal:langchange', () => applyPlaceholders(currentConcern()));
   applyConcern();
 
   // ── Validation ──────────────────────────────────────────────
