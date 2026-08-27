@@ -92,6 +92,13 @@ const FORMS = {
     secret: 'FLOW_SAFETY', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SAF',
     fields: {
       referenceId: TEXT(20),
+      // 'Safety' | 'Food safety'. Deliberately NOT required: the page enforces
+      // the choice, and a cached page submitting without it must never have a
+      // safety report rejected over a field added after it was cached. The
+      // flow treats an absent value as 'Safety'.
+      concernType:  TEXT(40),
+      foodCategory: TEXT(80),   // only set when concernType is 'Food safety'
+      reporterName: TEXT(120),  // for reporting-KPI credit; optional by design
       location:    { max: 100,  required: true },
       urgency:     { max: 60,   required: true },
       description: { max: 4000, required: true, min: 10 },

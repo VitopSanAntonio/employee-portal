@@ -168,6 +168,32 @@ const VALID_SAFETY = {
   check('photos-optional', none.status === 200 && !('photos' in forwarded.body), `${none.status}`);
 }
 
+// ── Concern type (safety vs food safety) ─────────────────────
+{
+  await post('safety', { ...VALID_SAFETY, concernType: 'Food safety',
+    foodCategory: 'Pest activity', reporterName: 'A. Operator' });
+  check('food-safety-fields-forwarded',
+    forwarded.body.concernType === 'Food safety' &&
+    forwarded.body.foodCategory === 'Pest activity' &&
+    forwarded.body.reporterName === 'A. Operator',
+    forwarded.body.foodCategory);
+
+  // A page cached before this field existed must never have a safety report
+  // rejected for omitting it.
+  const legacy = await post('safety', VALID_SAFETY);
+  check('concern-type-optional', legacy.status === 200 && !('concernType' in forwarded.body),
+    `${legacy.status}`);
+
+  const longType = await post('safety', { ...VALID_SAFETY, concernType: 'x'.repeat(41) });
+  check('concern-type-length-capped', longType.status === 400 &&
+    (await longType.clone().json()).error === 'too_long_concernType', `${longType.status}`);
+
+  // Reporter names land in a cell like any other text.
+  await post('safety', { ...VALID_SAFETY, reporterName: '=cmd|calc' });
+  check('reporter-name-sanitized', forwarded.body.reporterName.startsWith("'="),
+    forwarded.body.reporterName);
+}
+
 // ── Anonymity ────────────────────────────────────────────────
 {
   const base = { department: 'Quality', category: 'Safety', suggestion: 'x'.repeat(30) };

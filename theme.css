@@ -789,6 +789,24 @@ select option { color: var(--text-primary); }
 .photo-zone.is-full .zone-prompt { display: none; }
 .photo-zone.is-full .zone-full { display: block; }
 
+/* ── Concern-type variants (safety concern form) ──
+   Both wordings live in the markup and CSS picks one, rather than JavaScript
+   rewriting text. That keeps lang.js as the only thing that ever sets these
+   strings — a JS swap would fight it on every language toggle.
+
+   Neither variant shows until a type is chosen, so the form cannot open with
+   "Immediate danger" beside a question about a dirty table. display:none also
+   takes hidden fields out of the tab order, which height:0 does not.
+
+   These rules only ever *add* display:none. Restoring a shown element with a
+   literal value would flatten whatever display it already had — .form-row is
+   a grid, and `display: revert` would turn it into a block. */
+.concern-safety .when-food   { display: none; }
+.concern-food   .when-safety { display: none; }
+/* Before a type is picked, neither wording applies. */
+form:not(.concern-safety):not(.concern-food) .when-safety,
+form:not(.concern-safety):not(.concern-food) .when-food { display: none; }
+
 /* ── Multi-photo gallery ── */
 .photo-gallery {
   display: grid;

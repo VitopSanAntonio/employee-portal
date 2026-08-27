@@ -61,8 +61,41 @@
       <div class="form-card" id="form-card">
         <form id="safety-form" novalidate>
 
+          <!-- Section 0: Concern type -->
+          <!--
+            Single choice, not multi. Both types count toward an employee
+            reporting KPI, and a report that is filed under two categories
+            cannot be counted once — so the category has to be unambiguous.
+            It is also the first thing on the page because it changes the
+            wording of everything below it.
+          -->
+          <div class="section-label" id="concern-label" data-en="What are you reporting?" data-es="¿Qué estás reportando?">What are you reporting?</div>
+          <div class="pill-grid pill-grid--row" id="concern-grid" role="radiogroup" aria-labelledby="concern-label">
+            <div>
+              <input type="radio" name="concernType" id="ct-safety" value="Safety" class="pill-input" />
+              <label class="pill-label pill-label--row" for="ct-safety">
+                <span class="priority-dot" style="background:var(--status-danger)"></span>
+                <span class="p-text">
+                  <span class="p-name" data-en="Safety" data-es="Seguridad">Safety</span>
+                  <span class="p-sub" data-en="Risk to a person" data-es="Riesgo para una persona">Risk to a person</span>
+                </span>
+              </label>
+            </div>
+            <div>
+              <input type="radio" name="concernType" id="ct-food" value="Food safety" class="pill-input" />
+              <label class="pill-label pill-label--row" for="ct-food">
+                <span class="priority-dot" style="background:var(--green-02)"></span>
+                <span class="p-text">
+                  <span class="p-name" data-en="Food safety" data-es="Inocuidad alimentaria">Food safety</span>
+                  <span class="p-sub" data-en="Hygiene, pests, contamination" data-es="Higiene, plagas, contaminación">Hygiene, pests, contamination</span>
+                </span>
+              </label>
+            </div>
+          </div>
+          <span class="field-error" role="alert" id="concern-error" style="margin-top:6px" data-en="Please choose what you are reporting." data-es="Por favor elige qué estás reportando.">Please choose what you are reporting.</span>
+
           <!-- Section 1: Location -->
-          <div class="section-label" data-en="Location" data-es="Ubicación">Location</div>
+          <div class="section-label section-gap" data-en="Location" data-es="Ubicación">Location</div>
           <div class="form-row full">
             <div class="field" id="f-location">
               <label for="location" data-en="Department" data-es="Departamento">Department</label>
@@ -82,6 +115,28 @@
             </div>
           </div>
 
+          <!-- What was observed — food safety only.
+               display:none (not height:0) so it leaves the tab order too when
+               hidden; the suggestion form's collapsed email box was once
+               reachable by keyboard while invisible. -->
+          <div class="form-row full section-gap when-food">
+            <div class="field" id="f-foodCategory">
+              <label for="foodCategory" data-en="What did you observe?" data-es="¿Qué observaste?">What did you observe?</label>
+              <select id="foodCategory" name="foodCategory">
+                <option value="" disabled selected data-en="Select…" data-es="Selecciona…">Select…</option>
+                <option value="Cleanliness / housekeeping" data-en="Cleanliness / housekeeping" data-es="Limpieza / orden">Cleanliness / housekeeping</option>
+                <option value="Pest activity" data-en="Pest activity" data-es="Actividad de plagas">Pest activity</option>
+                <option value="Foreign material risk" data-en="Foreign material risk" data-es="Riesgo de material extraño">Foreign material risk</option>
+                <option value="Personal hygiene / GMP" data-en="Personal hygiene / GMP" data-es="Higiene personal / BPM">Personal hygiene / GMP</option>
+                <option value="Damaged or dirty equipment" data-en="Damaged or dirty equipment" data-es="Equipo dañado o sucio">Damaged or dirty equipment</option>
+                <option value="Waste / drainage" data-en="Waste / drainage" data-es="Residuos / drenaje">Waste / drainage</option>
+                <option value="Chemical or lubricant storage" data-en="Chemical or lubricant storage" data-es="Almacenamiento de químicos o lubricantes">Chemical or lubricant storage</option>
+                <option value="Other" data-en="Other" data-es="Otro">Other</option>
+              </select>
+              <span class="field-error" role="alert" data-en="Please select what you observed." data-es="Por favor selecciona qué observaste.">Please select what you observed.</span>
+            </div>
+          </div>
+
           <!-- Section 2: Urgency -->
           <div class="section-label section-gap" id="urgency-label" data-en="Urgency level" data-es="Nivel de urgencia">Urgency level</div>
           <div class="pill-grid pill-grid--3" role="radiogroup" aria-labelledby="urgency-label">
@@ -90,7 +145,7 @@
               <label class="pill-label" for="urgLow">
                 <span class="priority-dot" style="background:var(--safety-yellow);border:1px solid var(--border-strong)"></span>
                 <span class="p-name" data-en="Low" data-es="Bajo">Low</span>
-                <span class="p-sub" data-en="No immediate danger" data-es="Sin peligro inmediato">No immediate danger</span>
+                <span class="p-sub when-safety" data-en="No immediate danger" data-es="Sin peligro inmediato">No immediate danger</span><span class="p-sub when-food" data-en="Routine observation" data-es="Observación rutinaria">Routine observation</span>
               </label>
             </div>
             <div>
@@ -98,7 +153,7 @@
               <label class="pill-label" for="urgMed">
                 <span class="priority-dot" style="background:var(--fuchsia-02)"></span>
                 <span class="p-name" data-en="Medium" data-es="Medio">Medium</span>
-                <span class="p-sub" data-en="Needs attention soon" data-es="Requiere atención pronto">Needs attention soon</span>
+                <span class="p-sub when-safety" data-en="Needs attention soon" data-es="Requiere atención pronto">Needs attention soon</span><span class="p-sub when-food" data-en="Needs attention soon" data-es="Requiere atención pronto">Needs attention soon</span>
               </label>
             </div>
             <div>
@@ -106,7 +161,7 @@
               <label class="pill-label" for="urgHigh">
                 <span class="priority-dot" style="background:var(--status-danger)"></span>
                 <span class="p-name" data-en="High" data-es="Alto">High</span>
-                <span class="p-sub" data-en="Immediate danger" data-es="Peligro inmediato">Immediate danger</span>
+                <span class="p-sub when-safety" data-en="Immediate danger" data-es="Peligro inmediato">Immediate danger</span><span class="p-sub when-food" data-en="Product may be affected" data-es="El producto puede estar afectado">Product may be affected</span>
               </label>
             </div>
           </div>
@@ -127,7 +182,7 @@
 
           <div class="form-row full section-gap">
             <div class="field">
-              <label for="solution"><span data-en="Near miss / suggested solution" data-es="Casi accidente / solución sugerida">Near miss / suggested solution</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <label for="solution"><span class="when-safety" data-en="Near miss / suggested solution" data-es="Casi accidente / solución sugerida">Near miss / suggested solution</span><span class="when-food" data-en="Suggested improvement" data-es="Mejora sugerida">Suggested improvement</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
               <textarea id="solution" name="solution" rows="3" maxlength="4000"
                 data-en-placeholder="Was anyone nearly hurt? Do you have an idea to fix this?"
                 data-es-placeholder="¿Alguien estuvo a punto de lesionarse? ¿Tienes alguna idea para solucionarlo?"
@@ -154,7 +209,23 @@
             </div>
           </div>
 
+          <!--
+            Reporting counts toward an employee KPI, so a report nobody can
+            attribute earns its author nothing. Left optional on purpose: a
+            required name suppresses exactly the safety reports people are
+            most reluctant to file. The hint sells the credit instead.
+          -->
           <div class="form-row full section-gap">
+            <div class="field" id="f-reporterName">
+              <label for="reporterName"><span data-en="Your name or employee ID" data-es="Tu nombre o número de empleado">Your name or employee ID</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
+              <input type="text" id="reporterName" name="reporterName" maxlength="120"
+                data-en-placeholder="So this report counts toward your reporting goal"
+                data-es-placeholder="Para que este reporte cuente en tu meta de reportes"
+                placeholder="So this report counts toward your reporting goal" />
+            </div>
+          </div>
+
+          <div class="form-row full">
             <div class="field" id="f-email">
               <label for="email"><span data-en="Your email" data-es="Tu correo electrónico">Your email</span> <span class="opt" data-en="(optional — for follow-up)" data-es="(opcional — para seguimiento)">(optional — for follow-up)</span></label>
               <input type="email" id="email" name="email"
@@ -216,8 +287,36 @@
   const successScr  = document.getElementById('success-screen');
   const refDisplay  = document.getElementById('ref-display');
   const urgencyErr  = document.getElementById('urgency-error');
+  const concernErr  = document.getElementById('concern-error');
 
   const photo = PortalPhoto.init();
+
+  // ── Concern type ────────────────────────────────────────────
+  // Drives a class on the form; CSS picks which wording and which fields
+  // apply. Nothing here rewrites text, so lang.js stays the only thing that
+  // sets those strings and a language toggle can't undo the choice.
+  function currentConcern() {
+    const picked = document.querySelector('input[name="concernType"]:checked');
+    return picked ? picked.value : '';
+  }
+
+  function applyConcern() {
+    const type = currentConcern();
+    form.classList.toggle('concern-safety', type === 'Safety');
+    form.classList.toggle('concern-food',   type === 'Food safety');
+    if (type) concernErr.classList.remove('show');
+    // A category chosen and then switched away from must not be submitted
+    // alongside a personal-safety report.
+    if (type !== 'Food safety') {
+      document.getElementById('foodCategory').selectedIndex = 0;
+      document.getElementById('f-foodCategory').classList.remove('invalid');
+    }
+  }
+
+  document.querySelectorAll('input[name="concernType"]').forEach(r => {
+    r.addEventListener('change', applyConcern);
+  });
+  applyConcern();
 
   // ── Validation ──────────────────────────────────────────────
   function validateForm() {
@@ -227,8 +326,20 @@
     const emailVal = document.getElementById('email').value.trim();
 
     let ok = true;
+
+    const type = currentConcern();
+    if (!type) { concernErr.classList.add('show'); ok = false; }
+    else         concernErr.classList.remove('show');
+
     ok = PortalForm.validateField('location',    loc)             && ok;
     ok = PortalForm.validateField('description', desc.length >= 10) && ok;
+
+    // Only required on the branch that shows it — an unpicked select in a
+    // hidden field must never block a personal-safety report.
+    if (type === 'Food safety') {
+      ok = PortalForm.validateField('foodCategory',
+        document.getElementById('foodCategory').value) && ok;
+    }
 
     if (!urgency) { urgencyErr.classList.add('show'); ok = false; }
     else            urgencyErr.classList.remove('show');
@@ -263,6 +374,11 @@
 
     const payload = {
       referenceId: refId,
+      concernType:  currentConcern(),
+      // Empty for a personal-safety report; the flow routes on concernType.
+      foodCategory: currentConcern() === 'Food safety'
+        ? document.getElementById('foodCategory').value : '',
+      reporterName: document.getElementById('reporterName').value.trim(),
       location:    document.getElementById('location').value,
       urgency:     document.querySelector('input[name="urgency"]:checked').value,
       description: document.getElementById('description').value.trim(),
@@ -299,7 +415,9 @@
     form.reset();
     photo.clear();
     document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
+    applyConcern();                 // form.reset() clears the radios, not the class
     urgencyErr.classList.remove('show');
+    concernErr.classList.remove('show');
     document.getElementById('submit-error').classList.remove('show');
     PortalForm.restoreSubmitButton();
     formCard.style.display     = 'block';
