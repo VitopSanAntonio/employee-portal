@@ -226,12 +226,20 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.click('label[for="ct-food"]');
   const catShown  = await page.locator('#f-foodCategory').isVisible();
   const foodWord  = (await page.locator('#urgHigh + label .p-sub:visible').textContent()).trim();
+  // "Was anyone nearly hurt?" is meaningless for a dirty table.
+  const foodHint  = await page.locator('#solution').getAttribute('placeholder');
+  // lang.js resets every placeholder from data-<lang>-placeholder on a language
+  // change, which would silently restore the safety wording.
+  await page.click('#lang-toggle');
+  const foodHintEs = await page.locator('#solution').getAttribute('placeholder');
+  await page.click('#lang-toggle');
 
   // Switching back must hide the category AND drop any value already chosen.
   await page.selectOption('#foodCategory', 'Pest activity');
   await page.click('label[for="ct-safety"]');
   const catHidden = !(await page.locator('#f-foodCategory').isVisible());
   const safetyWord = (await page.locator('#urgHigh + label .p-sub:visible').textContent()).trim();
+  const safetyHint = await page.locator('#solution').getAttribute('placeholder');
   const catUnfocusable = await page.evaluate(() => {
     const el = document.getElementById('foodCategory');
     el.focus();
@@ -251,6 +259,9 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
     page: 'safety-concern', mode: 'food-safety-branch',
     pass: neitherShown && typeRequired && catShown && catHidden && catUnfocusable
           && foodWord === 'Product may be affected' && safetyWord === 'Immediate danger'
+          && foodHint === 'How could we stop this happening again?'
+          && foodHintEs === '¿Cómo podríamos evitar que vuelva a ocurrir?'
+          && safetyHint.startsWith('Was anyone nearly hurt')
           && sent.concernType === 'Food safety'
           && sent.foodCategory === 'Cleanliness / housekeeping'
           && sent.reporterName === 'A. Operator',
@@ -514,7 +525,6 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await page.evaluate(() => navigator.serviceWorker.ready);
   const cached = await waitFor(async () => page.evaluate(async () => {
     const c = await caches.open('portal-v5');
-    const c = await caches.open('portal-v4');
     const paths = (await c.keys()).map(r => new URL(r.url).pathname);
     return paths.includes('/') && paths.includes('/index.html');
   }));
