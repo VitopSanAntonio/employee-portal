@@ -42,6 +42,7 @@ function watchPrompts(page, { answer = null } = {}) {
 
 async function fillForm(page, name) {
   if (name === 'safety-concern') {
+    await page.click('label[for="ct-safety"]');
     await page.selectOption('#location', 'Quality');
     await page.click('label[for="urgLow"]');
     await page.fill('#description', 'Loose guard rail on mezzanine near press 4.');
@@ -198,6 +199,87 @@ for (const name of ['safety-concern', 'suggestion-form', 'maintenance-request'])
   await page.click('#submit-btn', { force: true }).catch(() => {});
   await waitFor(() => page.locator('#success-screen').isVisible());
   results.push({ page: 'maintenance-request', mode: 'no-double-submit', pass: posts === 1, detail: `${posts} posts` });
+  await page.close();
+}
+
+// Food safety shares the safety form. Picking a type has to swap the wording,
+// reveal the category field, keep it out of the tab order while hidden, and
+// leave a personal-safety report unable to carry a food category.
+{
+  const page = await browser.newPage();
+  let sent = null;
+  await page.route(isProxy, route => {
+    sent = JSON.parse(route.request().postData() || '{}');
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referenceId: 'SAF-0042' }) });
+  });
+  await page.goto(`http://localhost:${PORT}/safety-concern.html`);
+
+  // Before a choice, neither wording shows and the category is unreachable.
+  const neitherShown = !(await page.locator('#f-foodCategory').isVisible())
+    && (await page.locator('.when-safety:visible').count()) === 0
+    && (await page.locator('.when-food:visible').count()) === 0;
+
+  // Submitting with no type picked must stop at the type, not the flow.
+  await page.click('#submit-btn');
+  const typeRequired = await page.locator('#concern-error.show').isVisible() && sent === null;
+
+  await page.click('label[for="ct-food"]');
+  const catShown  = await page.locator('#f-foodCategory').isVisible();
+  const foodWord  = (await page.locator('#urgHigh + label .p-sub:visible').textContent()).trim();
+
+  // Switching back must hide the category AND drop any value already chosen.
+  await page.selectOption('#foodCategory', 'Pest activity');
+  await page.click('label[for="ct-safety"]');
+  const catHidden = !(await page.locator('#f-foodCategory').isVisible());
+  const safetyWord = (await page.locator('#urgHigh + label .p-sub:visible').textContent()).trim();
+  const catUnfocusable = await page.evaluate(() => {
+    const el = document.getElementById('foodCategory');
+    el.focus();
+    return document.activeElement !== el;
+  });
+
+  await page.click('label[for="ct-food"]');
+  await page.selectOption('#foodCategory', 'Cleanliness / housekeeping');
+  await page.fill('#reporterName', 'A. Operator');
+  await page.selectOption('#location', 'Break room / Common Area');
+  await page.click('label[for="urgLow"]');
+  await page.fill('#description', 'Table in the break room was left dirty after break.');
+  await page.click('#submit-btn');
+  await waitFor(() => page.locator('#success-screen').isVisible());
+
+  results.push({
+    page: 'safety-concern', mode: 'food-safety-branch',
+    pass: neitherShown && typeRequired && catShown && catHidden && catUnfocusable
+          && foodWord === 'Product may be affected' && safetyWord === 'Immediate danger'
+          && sent.concernType === 'Food safety'
+          && sent.foodCategory === 'Cleanliness / housekeeping'
+          && sent.reporterName === 'A. Operator',
+    detail: `${sent && sent.concernType}/${sent && sent.foodCategory}`
+  });
+  await page.close();
+}
+
+// A personal-safety report must never carry a food category, even if one was
+// picked and then the type was switched.
+{
+  const page = await browser.newPage();
+  let sent = null;
+  await page.route(isProxy, route => {
+    sent = JSON.parse(route.request().postData() || '{}');
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referenceId: 'SAF-0043' }) });
+  });
+  await page.goto(`http://localhost:${PORT}/safety-concern.html`);
+  await page.click('label[for="ct-food"]');
+  await page.selectOption('#foodCategory', 'Pest activity');
+  await page.click('label[for="ct-safety"]');
+  await fillForm(page, 'safety-concern');
+  await page.click('#submit-btn');
+  await waitFor(() => page.locator('#success-screen').isVisible());
+  results.push({
+    page: 'safety-concern', mode: 'category-cleared-on-switch',
+    pass: sent.concernType === 'Safety' && sent.foodCategory === '',
+    detail: JSON.stringify({ t: sent && sent.concernType, c: sent && sent.foodCategory })
+  });
   await page.close();
 }
 
