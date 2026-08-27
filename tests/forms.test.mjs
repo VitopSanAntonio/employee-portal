@@ -514,7 +514,6 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await page.evaluate(() => navigator.serviceWorker.ready);
   const cached = await waitFor(async () => page.evaluate(async () => {
     const c = await caches.open('portal-v5');
-    const c = await caches.open('portal-v4');
     const paths = (await c.keys()).map(r => new URL(r.url).pathname);
     return paths.includes('/') && paths.includes('/index.html');
   }));
