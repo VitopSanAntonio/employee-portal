@@ -6,14 +6,12 @@ the `SAF-` reference series and the status lookup is unchanged.
 
 ## What changed in the payload
 
-Three new fields on `POST /submit/safety`:
+Two new fields on `POST /submit/safety`:
 
 ```json
 {
   "concernType":  "Food safety",
   "foodCategory": "Pest activity",
-  "reporterName": "A. Operator",
-
   "location":    "Break room / Common Area",
   "urgency":     "Low — No immediate danger",
   "description": "Table in the break room was left dirty after break.",
@@ -30,7 +28,8 @@ Three new fields on `POST /submit/safety`:
 - `foodCategory` is set only when `concernType` is `"Food safety"`; it is `""`
   for a personal-safety report, even if the employee picked a category and then
   switched the type back.
-- `reporterName` is optional and may be empty.
+- `email` is optional and may be empty. It is the only field identifying the
+  reporter — see the KPI section below.
 
 **`concernType` can also be absent.** The Worker deliberately does not require
 it: a page cached before this change must never have a safety report rejected
@@ -48,10 +47,9 @@ Add to `properties`:
 ```json
 "concernType":  { "type": "string" },
 "foodCategory": { "type": "string" },
-"reporterName": { "type": "string" }
 ```
 
-Do **not** add any of them to `required`.
+Do **not** add either of them to `required`.
 
 ## Step 2 — Route on the type
 
@@ -71,7 +69,7 @@ type is ever added.
 
 ## Step 3 — Store the type
 
-Add `concernType`, `foodCategory` and `reporterName` as columns on the
+Add `concernType` and `foodCategory` as columns on the
 SharePoint list (or the workbook). Even if both types share one notification
 mailbox at first, storing the type is what makes the KPI countable later —
 and backfilling it is not possible.
@@ -82,27 +80,30 @@ it without cleanup.
 ## Step 4 — The reporting KPI
 
 Reporting counts toward an employee goal, so the number that matters is
-**reports per employee per period**. That needs `reporterName` populated.
+**reports per employee per period**. The form carries no name field: `email` is
+the only thing identifying the reporter, and the directory turns it into a name.
 
-It is optional on the form on purpose: a required name suppresses exactly the
-safety reports people are most reluctant to file, and suppressing those costs
-more than an uncounted report. The field's hint sells the credit instead
-("So this report counts toward your reporting goal").
+`email` is optional, which is deliberate — a required identity suppresses
+exactly the safety reports people are most reluctant to file, and losing those
+costs more than an uncounted observation. The consequence is that **a report
+with no email cannot be attributed to anyone**, so expect the KPI to
+under-count rather than to be exact.
 
 Two things worth doing in the flow:
 
-- Where `reporterName` is empty, write `"Not given"` rather than blank. A blank
-  cell is indistinguishable from a column that failed to populate.
-- If `email` is present but `reporterName` is not, fall back to the email's
-  local part — most people fill in one or the other:
+- Where `email` is empty, write `"Not given"` to the reporter column rather
+  than leaving it blank. A blank cell is indistinguishable from a column that
+  failed to populate.
   ```
-  if(empty(triggerBody()?['reporterName']),
-     if(empty(triggerBody()?['email']), 'Not given', first(split(triggerBody()?['email'], '@'))),
-     triggerBody()?['reporterName'])
+  if(empty(triggerBody()?['email']), 'Not given', triggerBody()?['email'])
   ```
+- Resolve the name once, at write time, rather than in every report you build
+  later. The Office 365 Users connector's **Search for users (V2)** on the
+  submitted address gives you a display name; store both.
 
-If the KPI has to be airtight and you accept the trade-off, making the field
-required is a one-line change on the form — say so and it can be done.
+If the under-count becomes a real problem, making `email` required is a
+one-line change on the form — but weigh it against the reports you would stop
+receiving.
 
 ## Step 5 — Don't let volume become noise
 
@@ -139,5 +140,5 @@ times out the flow after 20 seconds:
 | Safety, High urgency | Safety manager notified, `concernType` = Safety, `foodCategory` empty |
 | Food safety, Pest activity | Food safety owner notified, both fields populated |
 | Food safety, then switched back to Safety before submitting | `foodCategory` empty — the form clears it |
-| Name left blank | Record written with "Not given", not an empty cell |
+| Email left blank | Reporter column written as "Not given", not an empty cell |
 | Payload with `concernType` omitted entirely | Treated as Safety, nothing rejected |

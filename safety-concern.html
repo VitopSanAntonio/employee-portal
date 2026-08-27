@@ -213,25 +213,9 @@
             </div>
           </div>
 
-          <!--
-            Reporting counts toward an employee KPI, so a report nobody can
-            attribute earns its author nothing. Left optional on purpose: a
-            required name suppresses exactly the safety reports people are
-            most reluctant to file. The hint sells the credit instead.
-          -->
           <div class="form-row full section-gap">
-            <div class="field" id="f-reporterName">
-              <label for="reporterName"><span data-en="Your name or employee ID" data-es="Tu nombre o número de empleado">Your name or employee ID</span> <span class="opt" data-en="(optional)" data-es="(opcional)">(optional)</span></label>
-              <input type="text" id="reporterName" name="reporterName" maxlength="120"
-                data-en-placeholder="So this report counts toward your reporting goal"
-                data-es-placeholder="Para que este reporte cuente en tu meta de reportes"
-                placeholder="So this report counts toward your reporting goal" />
-            </div>
-          </div>
-
-          <div class="form-row full">
             <div class="field" id="f-email">
-              <label for="email"><span data-en="Your email" data-es="Tu correo electrónico">Your email</span> <span class="opt" data-en="(optional — for follow-up)" data-es="(opcional — para seguimiento)">(optional — for follow-up)</span></label>
+              <label for="email"><span data-en="Your email" data-es="Tu correo electrónico">Your email</span> <span class="opt" data-en="(optional — for follow-up and reporting credit)" data-es="(opcional — para seguimiento y crédito de reporte)">(optional — for follow-up and reporting credit)</span></label>
               <input type="email" id="email" name="email"
                 data-en-placeholder="your.name@smurfitwestrock.com"
                 data-es-placeholder="tu.nombre@smurfitwestrock.com"
@@ -408,7 +392,6 @@
       // Empty for a personal-safety report; the flow routes on concernType.
       foodCategory: currentConcern() === 'Food safety'
         ? document.getElementById('foodCategory').value : '',
-      reporterName: document.getElementById('reporterName').value.trim(),
       location:    document.getElementById('location').value,
       urgency:     document.querySelector('input[name="urgency"]:checked').value,
       description: document.getElementById('description').value.trim(),
