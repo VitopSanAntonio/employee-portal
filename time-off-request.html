@@ -135,7 +135,18 @@
     line-height: 1.55;
     color: var(--gray-02);
   }
-  .help-box.show { display: block; }
+  /* flex-wrap rather than a breakpoint: the photo sits beside the text on a
+     kiosk and above it on a phone, with no width to keep in sync. */
+  .help-box.show { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+  .help-box span { flex: 1 1 220px; min-width: 0; }
+  .help-photo {
+    width: 160px;
+    height: auto;
+    flex-shrink: 0;
+    display: block;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-default);
+  }
 
   /* ── Tabs ── */
   #gate { display: none; margin-top: var(--space-6); }
@@ -346,7 +357,14 @@
         <button type="button" class="help-toggle" id="help-toggle" aria-expanded="false" aria-controls="clock-help"
           data-en="Where do I find this? ›" data-es="¿Dónde encuentro esto? ›">Where do I find this? ›</button>
         <div class="help-box" id="clock-help">
-          <span id="clock-help-text" data-en="Your time clock number is printed in the bottom-right corner of your timeclock card. It's the same number you used on the Microsoft Form. If your card is worn or missing, your supervisor can look it up for you." data-es="Tu número de reloj checador está impreso en la esquina inferior derecha de tu tarjeta. Es el mismo número que usabas en el formulario de Microsoft. Si tu tarjeta está desgastada o la perdiste, tu supervisor puede consultarlo por ti.">Your time clock number is printed in the bottom-right corner of your timeclock card. It's the same number you used on the Microsoft Form. If your card is worn or missing, your supervisor can look it up for you.</span>
+          <!-- loading="lazy" because the box starts collapsed: a browser fetches
+               a display:none image anyway, and this is the heaviest asset on
+               the page for something most employees never open. -->
+          <img src="timeclock-card-example.png" class="help-photo" width="744" height="744" loading="lazy" decoding="async"
+            alt="A timeclock card. The card number is in the bottom-right corner, outlined in red."
+            data-en-alt="A timeclock card. The card number is in the bottom-right corner, outlined in red."
+            data-es-alt="Una tarjeta de reloj checador. El número está en la esquina inferior derecha, marcado en rojo.">
+          <span id="clock-help-text" data-en="Your time clock number is printed in the bottom-right corner of your timeclock card — the boxed number above. It's the same number you used on the Microsoft Form. If your card is worn or missing, your supervisor can look it up for you." data-es="Tu número de reloj checador está impreso en la esquina inferior derecha de tu tarjeta — el número marcado arriba. Es el mismo número que usabas en el formulario de Microsoft. Si tu tarjeta está desgastada o la perdiste, tu supervisor puede consultarlo por ti.">Your time clock number is printed in the bottom-right corner of your timeclock card — the boxed number above. It's the same number you used on the Microsoft Form. If your card is worn or missing, your supervisor can look it up for you.</span>
         </div>
       </div>
 

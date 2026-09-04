@@ -59,6 +59,13 @@ window.PortalStorage = window.PortalStorage || {
       el.placeholder = el.getAttribute('data-' + lang + '-placeholder') || el.getAttribute('data-en-placeholder');
     });
 
+    // Translate alt text. An image that carries meaning needs its description
+    // in the reader's language too — the rest of the page being bilingual does
+    // not help someone who only ever hears the alt.
+    document.querySelectorAll('[data-en-alt]').forEach(el => {
+      el.alt = el.getAttribute('data-' + lang + '-alt') || el.getAttribute('data-en-alt');
+    });
+
     // Update toggle button — label shows the language you'd switch TO
     const btn = document.getElementById('lang-toggle');
     if (btn) {
