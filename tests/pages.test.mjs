@@ -166,6 +166,28 @@ for (const p of ['index', 'safety-concern', 'suggestion-form', 'maintenance-requ
   const stored = await page.evaluate(() => JSON.stringify(Object.entries(localStorage)));
   check('timeoff-clock-number-not-persisted', !stored.includes('048213'), stored);
 
+  // "Where do I find this?" shows a photo of a real card with the number
+  // boxed. It has to actually load — a broken image here answers nothing.
+  await page.click('#help-toggle');
+  const photo = page.locator('.help-photo');
+  // Polled, not asserted immediately: the photo is loading="lazy", so the
+  // fetch only starts when the box is opened. Checking `complete` on the same
+  // tick as the click tests the click, not the image.
+  const photoLoaded = await waitFor(() =>
+    photo.evaluate(img => img.complete && img.naturalWidth > 0));
+  check('timeoff-card-photo-loads', (await photo.isVisible()) && photoLoaded === true);
+  check('timeoff-help-toggle-is-expanded',
+    (await page.locator('#help-toggle').getAttribute('aria-expanded')) === 'true');
+
+  // The photo carries meaning, so its alt has to switch languages with
+  // everything else — lang.js only learned about alt for this.
+  const altEn = await photo.getAttribute('alt');
+  await page.click('#lang-toggle');
+  const altEs = await photo.getAttribute('alt');
+  check('timeoff-card-photo-alt-is-bilingual',
+    altEn.includes('bottom-right') && altEs.includes('esquina inferior derecha'),
+    `${altEn} / ${altEs}`);
+
   await page.close();
 }
 

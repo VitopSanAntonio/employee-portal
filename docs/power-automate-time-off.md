@@ -267,6 +267,9 @@ Worker's half can be verified with no flow at all.
    the two `forms.cloud.microsoft` URLs.
 3. Remove the preview banner and the `noindex` meta from
    `time-off-request.html`.
-4. Add `time-off-request.html` and `time-off-request.js` to `SHELL` in `sw.js`
-   and bump `CACHE_VERSION`, so the page works offline like the rest.
+4. Add `time-off-request.html`, `time-off-request.js` and
+   `timeclock-card-example.png` to `SHELL` in `sw.js` and bump
+   `CACHE_VERSION`, so the page works offline like the rest. The photo matters
+   here: "where do I find my number" is exactly the question an employee has
+   when they are standing somewhere with no signal.
 5. Turn off the Microsoft Forms so nothing arrives by two routes at once.
