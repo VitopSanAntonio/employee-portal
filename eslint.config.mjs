@@ -9,6 +9,9 @@ const BROWSER_GLOBALS = {
   URL: 'readonly', Image: 'readonly',
   Event: 'readonly', CustomEvent: 'readonly', DOMException: 'readonly',
   AbortController: 'readonly',
+  // form-utils.js publishes this on window; the page scripts that consume it
+  // see it as a bare global.
+  PortalForm: 'readonly',
   setTimeout: 'readonly', clearTimeout: 'readonly',
   requestAnimationFrame: 'readonly', matchMedia: 'readonly',
 };
@@ -27,7 +30,7 @@ export default [
   },
   {
     // Browser-side shared modules, loaded via plain <script> tags.
-    files: ['lang.js', 'form-utils.js', 'photo-upload.js'],
+    files: ['lang.js', 'form-utils.js', 'photo-upload.js', 'time-off-request.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',

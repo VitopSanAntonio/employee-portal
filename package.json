@@ -11,7 +11,7 @@
     "test:pages": "node tests/pages.test.mjs",
     "test:a11y": "node tests/axe.test.mjs",
     "lint": "npm run lint:html && npm run lint:js",
-    "lint:html": "html-validate index.html safety-concern.html suggestion-form.html maintenance-request.html status-check.html time-off.html",
+    "lint:html": "html-validate index.html safety-concern.html suggestion-form.html maintenance-request.html status-check.html time-off.html time-off-request.html",
     "lint:js": "eslint ."
   },
   "devDependencies": {
