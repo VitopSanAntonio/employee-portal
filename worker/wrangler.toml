@@ -11,6 +11,16 @@
 #   wrangler secret put FLOW_STATUS
 #   wrangler secret put ACCESS_CODE
 #
+# Time off (see README.md — three of the four flows are not built yet, and
+# those routes answer 500 until their secret is set):
+#
+#   wrangler secret put VALIDATE_FLOW_URL
+#   wrangler secret put VALIDATE_SECRET
+#   wrangler secret put TIMEOFF_FLOW_URL
+#   wrangler secret put TIMEOFF_LOOKUP_FLOW_URL
+#   wrangler secret put TIMEOFF_CANCEL_FLOW_URL
+#   wrangler secret put TIMEOFF_SECRET
+#
 # Deploying from source overwrites whatever is currently live, including any
 # edit made in the Cloudflare dashboard. If the two have drifted, reconcile
 # before the first `wrangler deploy` — this file is meant to become the

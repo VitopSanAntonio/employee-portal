@@ -530,6 +530,150 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await ctx.close();
 }
 
+// ── Time off (preview): the submitted payload is a contract ──
+//
+// The Power Automate flow matches leaveType with a Switch and reads the other
+// keys by name, so a renamed key or a stringified number is a silent drop, not
+// an error. Worth pinning from the page's side as well as the Worker's.
+{
+  const page = await browser.newPage();
+  let sent = null;
+  let submitCalls = 0;
+
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    if (url.includes('/submit/timeoff')) {
+      submitCalls++;
+      sent = JSON.parse(route.request().postData() || '{}');
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ referenceId: 'TMO-004242' }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+
+  const prompts = watchPrompts(page);
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+
+  // End date before start date must not reach the wire.
+  await page.selectOption('#leaveType', 'Vacation');
+  await page.fill('#startDate', '2026-09-17');
+  await page.fill('#endDate', '2026-09-15');
+  await page.fill('#hours', '24');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#f-endDate.invalid');
+  results.push({
+    page: 'time-off-request', mode: 'end-before-start-blocked',
+    pass: submitCalls === 0 &&
+      (await page.locator('#endDate-error').textContent()).includes('on or after'),
+    detail: await page.locator('#endDate-error').textContent()
+  });
+
+  // The four-hour vacation minimum from the design copy is enforced here and
+  // not in the Worker — a local HR rule, not part of the flow's contract.
+  await page.fill('#endDate', '2026-09-17');
+  await page.fill('#hours', '2');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#f-hours.invalid');
+  results.push({
+    page: 'time-off-request', mode: 'vacation-four-hour-minimum',
+    pass: submitCalls === 0 &&
+      (await page.locator('#hours-error').textContent()).includes('4 hours'),
+    detail: await page.locator('#hours-error').textContent()
+  });
+
+  await page.fill('#hours', '24');
+  await page.click('label[for="fmla-no"]');
+  await page.fill('#notesToManager', 'Family trip.');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#success-screen', { state: 'visible' });
+
+  results.push({
+    page: 'time-off-request', mode: 'payload-matches-flow-contract',
+    pass: sent !== null &&
+      sent.clockNumber === '048213' &&
+      sent.leaveType === 'Vacation' &&
+      sent.startDate === '2026-09-17' &&
+      sent.endDate === '2026-09-17' &&
+      sent.hours === 24 && typeof sent.hours === 'number' &&
+      sent.vacationCoversFMLA === 'No' &&
+      sent.notesToManager === 'Family trip.',
+    detail: JSON.stringify(sent)
+  });
+
+  results.push({
+    page: 'time-off-request', mode: 'server-reference-shown',
+    pass: (await page.locator('#ref-display').textContent()) === 'TMO-004242',
+    detail: await page.locator('#ref-display').textContent()
+  });
+
+  // The access code is paused, so nothing may prompt — the Worker decides.
+  results.push({
+    page: 'time-off-request', mode: 'no-access-code-prompt',
+    pass: prompts.length === 0, detail: prompts.join(',')
+  });
+
+  await page.close();
+}
+
+// A failed submission must show the banner and give the button back — never a
+// silent reset, which reads as "sent".
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    return route.fulfill({ status: 500, body: 'boom' });
+  });
+
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.selectOption('#leaveType', 'Floating Holiday');
+  await page.fill('#startDate', '2026-10-01');
+  await page.fill('#endDate', '2026-10-01');
+  await page.fill('#hours', '8');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#submit-error.show');
+
+  const banner = (await page.locator('#submit-error span').textContent()).trim();
+  results.push({
+    page: 'time-off-request', mode: 'submit-failure-shows-banner',
+    pass: (await page.locator('#form-card').isVisible()) &&
+      (await page.locator('#success-screen').isVisible()) === false &&
+      (await page.locator('#submit-btn').isEnabled()) &&
+      // Plain English an operator can act on — never a status code.
+      !/\b\d{3}\b/.test(banner),
+    detail: banner
+  });
+  await page.close();
+}
+
+// A roster lookup that never lands must not read as a bad badge number.
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => route.abort('failed'));
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#id-error.show');
+  results.push({
+    page: 'time-off-request', mode: 'validation-outage-is-not-bad-badge',
+    pass: (await page.locator('#id-bad').isVisible()) === false &&
+      (await page.locator('#gate').isVisible()) === false,
+    detail: (await page.locator('#id-error').textContent()).trim().slice(0, 60)
+  });
+  await page.close();
+}
+
 await browser.close();
 server.close();
 report(results);

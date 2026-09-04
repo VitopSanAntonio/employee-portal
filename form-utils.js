@@ -209,6 +209,73 @@ window.PortalForm = (function () {
     }
   }
 
+  /**
+   * Lookup that is gated by the access code — the time-off pages' clock-number
+   * check and request list.
+   *
+   * lookupJSON above is for reads that need no code (status check). This one
+   * is for reads that do: the clock-number routes hand back a real employee's
+   * name and leave history, so they sit behind the same REQUIRE_ACCESS_CODE
+   * switch as the submissions and need the same prompt-on-401 retry.
+   *
+   * Returns { ok, data, message, cancelled }:
+   *   ok=true            -> the lookup completed; read data.found for whether
+   *                         a record exists. A 404 lands here too, with
+   *                         found:false — it is an answer, not a failure.
+   *   ok=false           -> nothing was learned (offline, bad code, rate
+   *                         limited, proxy down). Show `message` when set.
+   *   cancelled          -> the employee dismissed the code prompt.
+   *
+   * Keeping 404 on the ok=true path is the same distinction status-check.html
+   * documents: telling someone their badge number is wrong during an outage
+   * sends them to their supervisor over a number that was right all along.
+   */
+  async function lookupGatedJSON(formKey, payload) {
+    let code = storedAccessCode();
+
+    for (let attempt = 0; ; attempt++) {
+      const body = Object.assign({}, payload);
+      if (code) body.accessCode = code;
+
+      let res;
+      try {
+        res = await fetchWithTimeout(PROXY + '/submit/' + formKey, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(body)
+        });
+      } catch (err) {
+        console.error('Lookup error:', err);
+        return { ok: false, data: null, message: t('offline'), cancelled: false };
+      }
+
+      if (res.status === 401) {
+        forgetAccessCode();
+        // One retry, matching submitJSON: the first 401 asks for a code, a
+        // second means the code typed in response to it was wrong too.
+        if (attempt > 0) {
+          return { ok: false, data: null, message: t('badCode'), cancelled: false };
+        }
+        code = window.prompt(t('prompt'));
+        if (!code) return { ok: false, data: null, message: '', cancelled: true };
+        rememberAccessCode(code);
+        continue;
+      }
+
+      if (res.status === 429) {
+        return { ok: false, data: null, message: t('rate'), cancelled: false };
+      }
+
+      if (res.ok || res.status === 404) {
+        const data = await res.json().catch(() => null);
+        if (data === null) return { ok: false, data: null, message: '', cancelled: false };
+        return { ok: true, data, message: '', cancelled: false };
+      }
+
+      return { ok: false, data: null, message: '', cancelled: false };
+    }
+  }
+
   // ── Error banner ────────────────────────────────────────────
 
   // Pass a message to override the banner text (e.g. wrong access code);
@@ -263,7 +330,7 @@ window.PortalForm = (function () {
 
   return {
     validateField, isValidEmail, restoreSubmitButton, setSubmitting,
-    submitJSON, lookupJSON, showSubmitError, clearInvalidOnInput,
+    submitJSON, lookupJSON, lookupGatedJSON, showSubmitError, clearInvalidOnInput,
     fallbackRefId, clearRefId, forgetAccessCode
   };
 })();

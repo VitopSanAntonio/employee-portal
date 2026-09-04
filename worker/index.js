@@ -7,6 +7,11 @@
  *
  * Routes:  POST /submit/<formKey>
  * Health:  GET  /health
+ *
+ * The time-off routes (validate, timeoff, timeoff-lookup, timeoff-cancel)
+ * are additions to the same table, not a second dispatcher: they inherit the
+ * CORS check, the access-code switch, the size guard and the shape checks
+ * that every other submission already goes through.
  */
 
 // ─────────────────────────────────────────────────────────────
@@ -75,6 +80,36 @@ const PHOTOS_FIELD = {
   maxTotalBytes: 12 * 1024 * 1024,
 };
 
+/**
+ * A time clock number, as it appears on the badge. Digits only, and that is
+ * not cosmetic: the validation flow builds its SharePoint OData filter by
+ * string interpolation, so an apostrophe in this value does not fail — it
+ * silently changes the query. This pattern is the only thing preventing that,
+ * and it is enforced here rather than on the page because the page is a
+ * courtesy and this route is reachable with curl.
+ */
+const CLOCK_NUMBER = { max: 10, required: true, re: /^\d{1,10}$/ };
+
+/**
+ * Matched by a Switch in the Power Automate flow. A value that is not exactly
+ * one of these does not error — it falls through the Switch and the request is
+ * accepted, logged, and never routed to anyone. Hence an allowlist rather than
+ * a length cap.
+ *
+ * NOTE: the written brief for this work spells the last one "FMLA Without
+ * vacation" (lowercase v) and the design handoff spells it "FMLA Without
+ * Vacation". Confirmed as the capitalised form. If the flow's Switch turns out
+ * to be cased the other way, this line and the matching <option> value in
+ * time-off-request.html are the two places to change.
+ */
+const LEAVE_TYPES = [
+  'Vacation',
+  'Floating Holiday',
+  'LSK CarryOver',
+  'Perfect Attendance Reward',
+  'FMLA Without Vacation',
+];
+
 const FORMS = {
   suggestion: {
     secret: 'FLOW_SUGGESTION', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SUG',
@@ -125,9 +160,104 @@ const FORMS = {
     secret: 'FLOW_STATUS', requiresCode: false, passthrough: true,
     fields: { referenceId: { max: 20, required: true } },
   },
+
+  // ── Time off ────────────────────────────────────────────────
+  //
+  // Four routes replacing the two Microsoft Forms. They share a gate: the
+  // employee's time clock number, checked against the roster before anything
+  // else happens. That check is what the Forms version could not do — Forms
+  // cannot validate against a SharePoint list, so a mistyped number was only
+  // caught after submission, by which point HR had an orphan request and no
+  // way to trace it.
+
+  /**
+   * Clock number -> display name. The gate in front of every route below.
+   *
+   * `limitBucket` puts it on its own counter: validation fires while the
+   * employee types, and sharing the submission counter would mean a badge
+   * typed slowly used up the allowance for the request that follows it. The
+   * ceiling is tighter than a submission's because this endpoint is an
+   * enumeration oracle — a loop over numbers returns a real employee name for
+   * every valid one.
+   *
+   * `project` is why this is not a plain passthrough: the flow reads a roster
+   * row, and only these two fields are anyone's business in a browser.
+   */
+  validate: {
+    secret: 'VALIDATE_FLOW_URL', secretHeader: 'VALIDATE_SECRET',
+    requiresCode: REQUIRE_ACCESS_CODE,
+    passthrough: true, project: projectValidate, foundOn404: true,
+    limitBucket: 'lookup', maxPerWindow: 10,
+    fields: { clockNumber: CLOCK_NUMBER },
+  },
+
+  /**
+   * A new time-off request.
+   *
+   * `revalidates` re-runs the clock-number check server-side before
+   * forwarding. The page will not let an employee submit an unrecognised
+   * number, but that is a UX affordance, not a control: this route answers
+   * curl too, and an orphan request is exactly what this work exists to stop.
+   */
+  timeoff: {
+    secret: 'TIMEOFF_FLOW_URL', secretHeader: 'TIMEOFF_SECRET',
+    requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'TMO',
+    revalidates: 'clockNumber',
+    check: checkTimeOffDates,
+    fields: {
+      referenceId:        TEXT(20),
+      clockNumber:        CLOCK_NUMBER,
+      leaveType:          { max: 60, required: true, oneOf: LEAVE_TYPES },
+      startDate:          { max: 10, required: true, date: true },
+      endDate:            { max: 10, required: true, date: true },
+      // Everything is tracked in hours, 8 hours = 1 day, and half days are
+      // real — so a number rather than a string, and decimals allowed.
+      hours:              { required: true, number: { min: 0.25, max: 2000 } },
+      vacationCoversFMLA: { max: 3, oneOf: ['Yes', 'No'] },
+      notesToManager:     TEXT(1000),
+    },
+  },
+
+  /**
+   * Balances and existing requests for one clock number.
+   *
+   * Same oracle problem as /validate and then some — this one returns an
+   * employee's leave history — so it shares the tighter lookup ceiling and is
+   * projected down to the fields the page actually renders.
+   */
+  'timeoff-lookup': {
+    secret: 'TIMEOFF_LOOKUP_FLOW_URL', secretHeader: 'TIMEOFF_SECRET',
+    requiresCode: REQUIRE_ACCESS_CODE,
+    passthrough: true, project: projectTimeOffLookup, foundOn404: true,
+    limitBucket: 'lookup', maxPerWindow: 10,
+    fields: { clockNumber: CLOCK_NUMBER },
+  },
+
+  /**
+   * Cancel a request the employee already sent.
+   *
+   * Both the reference and the clock number are required and the clock number
+   * is re-validated, so a stranger with the Worker URL cannot cancel someone
+   * else's vacation by guessing a TMO number alone. The flow must still check
+   * that the reference actually belongs to that clock number — this Worker
+   * cannot know that, and it is the last piece of the check.
+   */
+  'timeoff-cancel': {
+    secret: 'TIMEOFF_CANCEL_FLOW_URL', secretHeader: 'TIMEOFF_SECRET',
+    requiresCode: REQUIRE_ACCESS_CODE,
+    revalidates: 'clockNumber',
+    fields: {
+      referenceId: { max: 20, required: true, re: /^TMO-\d{4,6}$/ },
+      clockNumber: CLOCK_NUMBER,
+      reason:      TEXT(1000),
+    },
+  },
 };
 
 const LIMITS = {
+  // Default ceiling. A form may set its own `maxPerWindow` (the time-off
+  // lookups do — see FORMS above) and its own `limitBucket` to count on a
+  // separate tally rather than eating into this one.
   maxPerWindow: 6,             // submissions per IP per window
   windowMs:     60_000,        // 1 minute
   // Photos ride along as base64 in the JSON body, and the maintenance form
@@ -144,12 +274,20 @@ const LIMITS = {
 
 const hits = new Map();
 
-function rateLimited(ip) {
+/**
+ * `bucket` separates tallies that should not compete. Submissions all share
+ * one, but the time-off lookups get their own: validation fires while the
+ * employee is still typing their badge number, and counting those against the
+ * submission allowance meant a slow typist ran out of submissions before
+ * reaching the submit button.
+ */
+function rateLimited(bucket, ip, ceiling) {
   const now = Date.now();
-  const rec = hits.get(ip);
+  const key = bucket + ':' + ip;
+  const rec = hits.get(key);
 
   if (!rec || now > rec.resetAt) {
-    hits.set(ip, { count: 1, resetAt: now + LIMITS.windowMs });
+    hits.set(key, { count: 1, resetAt: now + LIMITS.windowMs });
     if (hits.size > 5000) {
       for (const [k, v] of hits) if (now > v.resetAt) hits.delete(k);
     }
@@ -157,7 +295,7 @@ function rateLimited(ip) {
   }
 
   rec.count += 1;
-  return rec.count > LIMITS.maxPerWindow;
+  return rec.count > ceiling;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -276,12 +414,30 @@ function validatePayload(payload, fields) {
       continue;
     }
 
+    // Numbers arrive as a number from the page and as whatever a direct POST
+    // felt like sending, so both are accepted and one number is forwarded.
+    // Kept ahead of the string check because a JSON number is not a string.
+    if (rule.number) {
+      const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+      if (!Number.isFinite(n)) return { error: `invalid_${key}` };
+      if (n < rule.number.min || n > rule.number.max) return { error: `out_of_range_${key}` };
+      clean[key] = n;
+      continue;
+    }
+
     if (typeof raw !== 'string') return { error: `invalid_${key}` };
     if (raw.length > rule.max) return { error: `too_long_${key}` };
 
     // `min` is a floor on meaningful content, so it ignores surrounding space —
     // otherwise "          " passes a 10-character minimum.
     if (rule.min && raw.trim().length < rule.min) return { error: `too_short_${key}` };
+
+    if (rule.re && !rule.re.test(raw)) return { error: `invalid_${key}` };
+    if (rule.date && !isCalendarDate(raw)) return { error: `invalid_${key}` };
+
+    // An allowlist, not a length cap: see LEAVE_TYPES on why a near-miss is
+    // worse here than a rejection.
+    if (rule.oneOf && !rule.oneOf.includes(raw)) return { error: `invalid_${key}` };
 
     clean[key] = raw;
   }
@@ -343,6 +499,117 @@ function validateArrayField(key, raw, rule) {
   if (rule.maxTotalBytes && total > rule.maxTotalBytes) return { error: `too_large_${key}` };
 
   return { list };
+}
+
+/**
+ * A real calendar date in YYYY-MM-DD, not merely a string shaped like one.
+ *
+ * The round-trip through Date is what rejects 2026-02-30: the shape test alone
+ * passes it, and Date rolls it forward to March 2nd, so the flow would book
+ * time off on a day the employee never asked for.
+ */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isCalendarDate(value) {
+  if (!ISO_DATE_RE.test(value)) return false;
+  const d = new Date(value + 'T00:00:00Z');
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * Cross-field rule for a time-off request. `fields` can only see one key at a
+ * time, and "ends before it starts" needs two.
+ *
+ * A plain string compare is correct here and a date compare would not be
+ * clearer: both values already passed isCalendarDate, and ISO-8601 dates sort
+ * lexicographically.
+ */
+function checkTimeOffDates(clean) {
+  if (clean.endDate < clean.startDate) return 'end_before_start';
+  return null;
+}
+
+/**
+ * What a lookup flow is allowed to tell the browser.
+ *
+ * Both flows read rows out of an HR list — a roster row for /validate, a leave
+ * history for /timeoff-lookup — and a passthrough would hand the browser every
+ * column those rows happen to carry, including ones added later by whoever
+ * next edits the SharePoint list. Projecting keeps that decision here, and
+ * doubles as the contract the flows are built against (worker/README.md).
+ */
+const str = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '');
+const num = value => (Number.isFinite(Number(value)) ? Number(value) : null);
+
+function projectValidate(data) {
+  return {
+    found: data.found === true,
+    displayName: str(data.displayName, 80),
+  };
+}
+
+function projectTimeOffLookup(data) {
+  return {
+    found: data.found === true,
+    displayName: str(data.displayName, 80),
+    balances: Array.isArray(data.balances)
+      ? data.balances.slice(0, 20).map(b => ({
+          leaveType: str(b && b.leaveType, 60),
+          hours:     num(b && b.hours),
+        }))
+      : [],
+    requests: Array.isArray(data.requests)
+      ? data.requests.slice(0, 50).map(r => ({
+          referenceId: str(r && r.referenceId, 20),
+          leaveType:   str(r && r.leaveType, 60),
+          startDate:   str(r && r.startDate, 10),
+          endDate:     str(r && r.endDate, 10),
+          hours:       num(r && r.hours),
+          status:      str(r && r.status, 40),
+        }))
+      : [],
+  };
+}
+
+/**
+ * Asks the validation flow whether a clock number is on the roster.
+ *
+ * Used by the routes that write something (a request, a cancellation) before
+ * they forward. The page already checked — but the page is a courtesy, and
+ * this route answers curl. Returns `{ found }` on a real answer or `{ error }`
+ * when the flow could not be reached; the caller must not conflate the two,
+ * because "the roster service is down" and "you do not work here" are very
+ * different things to tell someone.
+ */
+async function clockNumberExists(clockNumber, env, signal) {
+  const url = env.VALIDATE_FLOW_URL;
+  if (!url) return { error: 'flow_not_configured' };
+  const secret = env.VALIDATE_SECRET;
+  if (!secret) return { error: 'flow_secret_not_configured' };
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Portal-Secret': secret },
+      body: JSON.stringify({ clockNumber }),
+      signal,
+    });
+  } catch (err) {
+    return { error: err && err.name === 'AbortError' ? 'flow_timeout' : 'proxy_error' };
+  }
+
+  if (res.status === 404) return { found: false };
+  if (!res.ok) return { error: 'flow_error' };
+
+  // A flow that answers 200 with no body means "found" — the 404 above is how
+  // it says otherwise.
+  try {
+    const body = await res.json();
+    return { found: body && body.found !== false };
+  } catch {
+    return { found: true };
+  }
 }
 
 /**
@@ -418,7 +685,7 @@ export default {
     }
 
     // Route: /submit/<formKey>
-    const match = url.pathname.match(/^\/submit\/([a-z]+)\/?$/);
+    const match = url.pathname.match(/^\/submit\/([a-z-]+)\/?$/);
     if (!match) {
       return json({ ok: false, error: 'not_found' }, 404, origin);
     }
@@ -437,7 +704,7 @@ export default {
 
     // Rate limit
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (rateLimited(ip)) {
+    if (rateLimited(form.limitBucket || 'submit', ip, form.maxPerWindow || LIMITS.maxPerWindow)) {
       return json(
         { ok: false, error: 'rate_limited', message: 'Too many submissions. Please wait a minute and try again.' },
         429,
@@ -495,10 +762,28 @@ export default {
       return json({ ok: false, error }, 400, origin);
     }
 
+    // Rules that need more than one field at a time.
+    const crossFieldError = form.check ? form.check(clean) : null;
+    if (crossFieldError) {
+      return json({ ok: false, error: crossFieldError }, 400, origin);
+    }
+
     // Resolve the real flow URL from secrets
     const flowUrl = env[form.secret];
     if (!flowUrl) {
       return json({ ok: false, error: 'flow_not_configured' }, 500, origin);
+    }
+
+    // Flows that authenticate their caller do it with a shared secret header.
+    // Declared but unset is a misconfiguration, not a licence to call the flow
+    // without one: an HTTP-triggered flow left open to unauthenticated callers
+    // is a worse failure than a route this Worker refuses to serve.
+    let flowSecret = null;
+    if (form.secretHeader) {
+      flowSecret = env[form.secretHeader];
+      if (!flowSecret) {
+        return json({ ok: false, error: 'flow_secret_not_configured' }, 500, origin);
+      }
     }
 
     // Add server-side context the browser can't be trusted to supply. A lookup
@@ -527,16 +812,52 @@ export default {
     const timer = setTimeout(() => controller.abort(), LIMITS.flowTimeoutMs);
 
     try {
+      // Server-side re-validation of the clock number, before anything is
+      // written. Shares the one timeout budget with the forward below, so a
+      // hanging roster lookup cannot double this route's worst case.
+      if (form.revalidates) {
+        const gate = await clockNumberExists(clean[form.revalidates], env, controller.signal);
+        if (gate.error) {
+          clearTimeout(timer);
+          return json(
+            { ok: false, error: 'flow_error', message: 'Submission could not be delivered. Please try again or tell your supervisor.' },
+            502,
+            origin
+          );
+        }
+        if (!gate.found) {
+          clearTimeout(timer);
+          return json(
+            { ok: false, error: 'unknown_clock_number', message: 'That time clock number was not recognized. Check your badge or see your supervisor.' },
+            400,
+            origin
+          );
+        }
+      }
+
       const upstream = await fetch(flowUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(flowSecret ? { 'X-Portal-Secret': flowSecret } : {}),
+        },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
 
       clearTimeout(timer);
 
+      // A lookup flow answers 404 for "no such record". That is an answer, not
+      // a failure, and the page needs to tell the two apart: "check your badge
+      // number" and "we couldn't reach the system" send an employee to very
+      // different places.
+      if (form.foundOn404 && upstream.status === 404) {
+        return json({ found: false }, 404, origin);
+      }
+
       // Flows without a Response action return 202 — any 2xx means accepted.
+      // The upstream body stops here: a 401 means the shared secret is
+      // misconfigured, and that must not be legible from a browser.
       if (!upstream.ok) {
         return json(
           { ok: false, error: 'flow_error', status: upstream.status, message: 'Submission could not be delivered. Please try again or tell your supervisor.' },
@@ -550,7 +871,26 @@ export default {
       let text = '';
       try { text = await upstream.text(); } catch { /* no body */ }
 
-      // Lookup-style forms need the flow's own JSON, not our wrapper.
+      // Lookup-style forms need the flow's own JSON, not our wrapper. Forms
+      // that declare a `project` get only the fields it names — see
+      // projectValidate / projectTimeOffLookup on why.
+      if (form.project) {
+        let data;
+        try {
+          data = JSON.parse(text || '{}');
+        } catch {
+          data = null;
+        }
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+          return json(
+            { ok: false, error: 'flow_error', message: 'Could not look that up right now. Please try again in a moment.' },
+            502,
+            origin
+          );
+        }
+        return json(form.project(data), 200, origin);
+      }
+
       if (form.passthrough) {
         return new Response(text || '{}', {
           status: 200,
