@@ -399,12 +399,17 @@
 
   mineRetry.addEventListener('click', loadMine);
 
+  // Keyed on the lowercased status the flow returns. `denied` and `cancelled`
+  // are kept alongside the current spellings: a row written before the rename,
+  // or a flow edited only halfway, still renders as itself rather than
+  // dropping to the neutral fallback pill.
   const STATUS_META = {
     pending:                  { cls: 'status-pending',   en: 'Pending',                 es: 'Pendiente' },
     approved:                 { cls: 'status-done',      en: 'Approved',                es: 'Aprobada' },
-    denied:                   { cls: 'status-denied',    en: 'Denied',                  es: 'Denegada' },
-    cancelled:                { cls: 'status-cancelled', en: 'Cancelled',               es: 'Cancelada' },
-    canceled:                 { cls: 'status-cancelled', en: 'Cancelled',               es: 'Cancelada' },
+    rejected:                 { cls: 'status-rejected',  en: 'Rejected',                es: 'Rechazada' },
+    denied:                   { cls: 'status-rejected',  en: 'Rejected',                es: 'Rechazada' },
+    canceled:                 { cls: 'status-canceled',  en: 'Canceled',                es: 'Cancelada' },
+    cancelled:                { cls: 'status-canceled',  en: 'Canceled',                es: 'Cancelada' },
     'cancellation requested': { cls: 'status-requested', en: 'Cancellation requested',  es: 'Cancelación solicitada' }
   };
 
@@ -418,7 +423,7 @@
     'Floating Holiday': 'Día flotante',
     'LSK CarryOver': 'LSK acumulado',
     'Perfect Attendance Reward': 'Premio por asistencia perfecta',
-    'FMLA Without Vacation': 'FMLA sin vacaciones'
+    'FMLA': 'FMLA'
   };
 
   function leaveTypeLabel(value) {

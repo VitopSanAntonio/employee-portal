@@ -420,8 +420,13 @@ const VALID_SAFETY = {
   check('timeoff-rejects-leave-type-drift',
     drifted.status === 400 && (await drifted.clone().json()).error === 'invalid_leaveType');
 
-  const fmlaType = await post('timeoff', { ...VALID_TIMEOFF, leaveType: 'FMLA Without Vacation' });
-  check('timeoff-accepts-fmla-without-vacation', fmlaType.status === 200, `${fmlaType.status}`);
+  const fmlaType = await post('timeoff', { ...VALID_TIMEOFF, leaveType: 'FMLA' });
+  check('timeoff-accepts-fmla', fmlaType.status === 200, `${fmlaType.status}`);
+
+  // The pre-rename spelling must not quietly still work — it would fall
+  // through the flow's Switch and be routed to nobody.
+  const oldFmla = await post('timeoff', { ...VALID_TIMEOFF, leaveType: 'FMLA Without Vacation' });
+  check('timeoff-rejects-retired-fmla-spelling', oldFmla.status === 400, `${oldFmla.status}`);
 
   const backwards = await post('timeoff', { ...VALID_TIMEOFF, endDate: '2026-09-14' });
   check('timeoff-rejects-end-before-start',

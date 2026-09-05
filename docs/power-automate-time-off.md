@@ -121,18 +121,15 @@ Receives:
 - `Floating Holiday`
 - `LSK CarryOver`
 - `Perfect Attendance Reward`
-- `FMLA Without Vacation`
+- `FMLA`
 
-> **Confirm the last one before wiring the Switch.** The written brief for this
-> work spells it `FMLA Without vacation` (lowercase v); the design handoff
-> spells it `FMLA Without Vacation`. The capitalised form was chosen. If the
-> Switch ends up cased the other way, change `LEAVE_TYPES` in
-> `worker/index.js` and the matching `<option value>` in
-> `time-off-request.html` — both, or requests silently stop matching.
+> **Type these into the Switch exactly as written.** A near-miss does not error
+> here — it falls through the Switch and the request is accepted, logged, and
+> routed to nobody. That is why the Worker rejects anything not on the list
+> rather than just capping its length.
 >
-> A near-miss does not error here. It falls through the Switch and the request
-> is accepted, logged, and routed to nobody. That is why the Worker rejects
-> anything not on the list rather than just capping its length.
+> The same five strings live in `LEAVE_TYPES` in `worker/index.js` and in the
+> `<option value>` list in `time-off-request.html`. All three have to agree.
 
 `hours` is a **number**, not a string — everything is tracked in hours (8 hours
 = 1 day) and half days are real, so expect decimals like `4.5`.
@@ -198,12 +195,15 @@ Return **404** for a clock number with no record, same as the validation flow.
 | ------------------------- | ------- | ----------- |
 | `Pending`                 | yellow  | yes         |
 | `Approved`                | green   | yes         |
-| `Denied`                  | fuchsia | no          |
-| `Cancelled`               | grey    | no          |
+| `Rejected`                | fuchsia | no          |
+| `Canceled`                | grey    | no          |
 | `Cancellation requested`  | indigo  | no          |
 
 Anything else renders in a neutral pill showing the raw text, so a status you
-add later is untidy rather than broken.
+add later is untidy rather than broken. `Rejected` and `Canceled` were
+previously spelled `Denied` and `Cancelled`; the page still recognises both older
+spellings and shows them under the current labels, so historical rows do not
+drop to the neutral pill. New rows should use the spellings in the table.
 
 Sort newest first — the page renders the array in the order it arrives.
 
