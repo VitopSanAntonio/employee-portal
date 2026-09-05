@@ -105,11 +105,9 @@ that must not be legible from a browser on the plant floor.
 not error, it would fall through the Switch and be accepted, logged and routed
 to nobody.
 
-> **Confirm before the flow is built:** the written brief for this work spells
-> the last option `FMLA Without vacation` (lowercase v); the design handoff
-> spells it `FMLA Without Vacation`. The capitalised form was chosen. If the
-> flow's Switch is cased the other way, `LEAVE_TYPES` here and the matching
-> `<option value>` in `time-off-request.html` are the two places to change.
+> The five values live in three places that must agree exactly: `LEAVE_TYPES`
+> in `worker/index.js`, the `<option value>` list in `time-off-request.html`,
+> and the flow's own Switch. Change one and requests silently stop matching.
 
 `hours` is forwarded as a **number**, not a string. Everything is tracked in
 hours (8 hours = 1 day) and half days are real, so decimals are accepted.
@@ -138,8 +136,11 @@ the SharePoint list. The projections double as the shape the flows must return:
 ```
 
 `status` values the page renders with their own colour: `Pending`, `Approved`,
-`Denied`, `Cancelled`, `Cancellation requested`. Anything else renders in a
+`Rejected`, `Canceled`, `Cancellation requested`. Anything else renders in a
 neutral pill with the raw text, so a new status is untidy rather than broken.
+The page also still recognises the retired spellings `Denied` and `Cancelled`,
+displaying them under the current labels, so a historical row does not drop to
+the neutral pill.
 
 `/submit/timeoff-cancel` sends `{ referenceId, clockNumber, reason }`. The
 Worker checks the reference is shaped `TMO-nnnnnn` and re-validates the clock

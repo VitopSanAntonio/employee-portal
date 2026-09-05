@@ -93,7 +93,7 @@ Receives this JSON:
 
 `leaveType` is exactly one of five strings, matched by a Switch:
 `Vacation`, `Floating Holiday`, `LSK CarryOver`, `Perfect Attendance Reward`,
-`FMLA Without Vacation`.
+`FMLA`.
 
 `vacationCoversFMLA` is `"Yes"`, `"No"`, or absent. `hours` arrives as a JSON
 number, not a string.
@@ -143,7 +143,7 @@ Receives `{ "clockNumber": "048213" }`. Returns:
 
 404 if the clock number has no record.
 
-`status` must be one of: `Pending`, `Approved`, `Denied`, `Cancelled`,
+`status` must be one of: `Pending`, `Approved`, `Rejected`, `Canceled`,
 `Cancellation requested` — the page colours each one. Sort `requests` newest
 first.
 

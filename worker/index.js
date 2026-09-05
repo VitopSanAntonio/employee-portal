@@ -96,18 +96,16 @@ const CLOCK_NUMBER = { max: 10, required: true, re: /^\d{1,10}$/ };
  * accepted, logged, and never routed to anyone. Hence an allowlist rather than
  * a length cap.
  *
- * NOTE: the written brief for this work spells the last one "FMLA Without
- * vacation" (lowercase v) and the design handoff spells it "FMLA Without
- * Vacation". Confirmed as the capitalised form. If the flow's Switch turns out
- * to be cased the other way, this line and the matching <option> value in
- * time-off-request.html are the two places to change.
+ * Changing one of these strings means changing it in three places at once, or
+ * the mismatch is silent: here, the matching <option value> in
+ * time-off-request.html, and the flow's own Switch.
  */
 const LEAVE_TYPES = [
   'Vacation',
   'Floating Holiday',
   'LSK CarryOver',
   'Perfect Attendance Reward',
-  'FMLA Without Vacation',
+  'FMLA',
 ];
 
 const FORMS = {

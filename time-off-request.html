@@ -227,13 +227,13 @@
   .req-action { flex: 0 0 auto; margin-left: auto; }
   .req-action .btn-outline { min-height: 40px; }
 
-  /* Denied / cancelled / cancellation-requested have no equivalent on the
+  /* Rejected / canceled / cancellation-requested have no equivalent on the
      status-check page, so they are defined here rather than added to the
      shared status set. */
-  .status-denied    { background: var(--fuchsia-04); border: 1px solid var(--fuchsia-02); color: var(--fuchsia-01); }
-  .status-denied .dot { background: var(--fuchsia-02); }
-  .status-cancelled { background: var(--surface-sunken); border: 1px solid var(--border-strong); color: var(--text-secondary); }
-  .status-cancelled .dot { background: var(--gray-04); }
+  .status-rejected  { background: var(--fuchsia-04); border: 1px solid var(--fuchsia-02); color: var(--fuchsia-01); }
+  .status-rejected .dot { background: var(--fuchsia-02); }
+  .status-canceled  { background: var(--surface-sunken); border: 1px solid var(--border-strong); color: var(--text-secondary); }
+  .status-canceled .dot { background: var(--gray-04); }
   .status-requested { background: var(--indigo-04); border: 1px solid var(--indigo-02); color: var(--indigo-01); }
   .status-requested .dot { background: var(--indigo-02); }
 
@@ -394,7 +394,7 @@
                     <option value="Floating Holiday" data-en="Floating Holiday" data-es="Día flotante">Floating Holiday</option>
                     <option value="LSK CarryOver" data-en="LSK CarryOver" data-es="LSK acumulado">LSK CarryOver</option>
                     <option value="Perfect Attendance Reward" data-en="Perfect Attendance Reward" data-es="Premio por asistencia perfecta">Perfect Attendance Reward</option>
-                    <option value="FMLA Without Vacation" data-en="FMLA Without Vacation" data-es="FMLA sin vacaciones">FMLA Without Vacation</option>
+                    <option value="FMLA" data-en="FMLA" data-es="FMLA">FMLA</option>
                   </select>
                   <span class="field-error" role="alert" data-en="Please select a time off type." data-es="Por favor selecciona un tipo de tiempo libre.">Please select a time off type.</span>
                 </div>
@@ -495,7 +495,7 @@
 
           <div class="notice" style="margin-bottom:var(--space-5)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span data-en="Only pending or approved requests can be cancelled. Denied or already-cancelled requests are shown for your records." data-es="Solo se pueden cancelar las solicitudes pendientes o aprobadas. Las denegadas o ya canceladas se muestran para tus registros.">Only pending or approved requests can be cancelled. Denied or already-cancelled requests are shown for your records.</span>
+            <span data-en="Only pending or approved requests can be canceled. Rejected or already-canceled requests are shown for your records." data-es="Solo se pueden cancelar las solicitudes pendientes o aprobadas. Las rechazadas o ya canceladas se muestran para tus registros.">Only pending or approved requests can be canceled. Rejected or already-canceled requests are shown for your records.</span>
           </div>
 
           <div class="list-state show" id="mine-loading">
