@@ -674,6 +674,113 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await page.close();
 }
 
+// ── Time off: the rejection an employee will actually hit ────
+//
+// Running out of hours is a decision, not a fault. It has to read as a
+// specific answer rather than "we couldn't reach the system", and it has to
+// read that way in Spanish too.
+{
+  for (const lang of ['en', 'es']) {
+    const page = await browser.newPage();
+    await page.route(isProxy, route => {
+      const url = route.request().url();
+      if (url.includes('/submit/validate')) {
+        return route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+      }
+      return route.fulfill({ status: 400, contentType: 'application/json',
+        body: JSON.stringify({
+          ok: false, error: 'insufficient_balance',
+          message: 'You have 16 hours of Vacation available and requested 24.'
+        }) });
+    });
+    if (lang === 'es') await seedStorage(page, { portalLang: 'es' });
+
+    await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+    await page.fill('#clockNumber', '048213');
+    await page.waitForSelector('#gate.show');
+    await page.selectOption('#leaveType', 'Vacation');
+    await page.fill('#startDate', '2026-09-15');
+    await page.fill('#endDate', '2026-09-17');
+    await page.fill('#hours', '24');
+    await page.click('#submit-btn');
+    await page.waitForSelector('#submit-error.show');
+
+    const banner = (await page.locator('#submit-error span').textContent()).trim();
+    const lead = lang === 'es'
+      ? 'No tienes suficientes horas'
+      : 'You do not have enough hours';
+    results.push({
+      page: 'time-off-request', mode: `insufficient-balance-${lang}`,
+      // Our lead sentence in the reader's language, then the flow's own
+      // detail, which carries the numbers we cannot know.
+      pass: banner.includes(lead) && banner.includes('16 hours') &&
+        (await page.locator('#form-card').isVisible()) &&
+        (await page.locator('#submit-btn').isEnabled()),
+      detail: banner
+    });
+    await page.close();
+  }
+}
+
+// ── Time off: the reference must not outlive its submission ──
+{
+  const page = await browser.newPage();
+  const refs = [];
+  let failNext = true;
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    refs.push(JSON.parse(route.request().postData() || '{}').referenceId);
+    if (failNext) return route.fulfill({ status: 500, body: 'boom' });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+
+  const fill = async () => {
+    await page.selectOption('#leaveType', 'Vacation');
+    await page.fill('#startDate', '2026-09-15');
+    await page.fill('#endDate', '2026-09-17');
+    await page.fill('#hours', '24');
+  };
+
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await fill();
+  await page.click('#submit-btn');
+  await page.waitForSelector('#submit-error.show');
+
+  // Retry, same employee, same unsent form: the reference has to hold, or the
+  // flow writes a second row for one week off.
+  await page.click('#submit-btn');
+  await page.waitForSelector('#submit-error.show');
+  results.push({
+    page: 'time-off-request', mode: 'reference-stable-across-retry',
+    pass: refs.length === 2 && refs[0] === refs[1] && /^TMO-\d{4,6}$/.test(refs[0]),
+    detail: refs.join(' / ')
+  });
+
+  // Different badge at the same screen. The previous employee's reference must
+  // not follow them: the flow treats a known _ref as a duplicate, returns 200
+  // and writes nothing, so their request would vanish without a trace.
+  await page.fill('#clockNumber', '111222');
+  await page.waitForSelector('#gate.show');
+  await fill();
+  failNext = false;
+  await page.click('#submit-btn');
+  await page.waitForSelector('#success-screen', { state: 'visible' });
+  results.push({
+    page: 'time-off-request', mode: 'reference-not-reused-by-next-employee',
+    pass: refs.length === 3 && refs[2] !== refs[0] && /^TMO-\d{4,6}$/.test(refs[2]),
+    detail: refs.join(' / ')
+  });
+  await page.close();
+}
+
 await browser.close();
 server.close();
 report(results);

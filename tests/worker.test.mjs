@@ -471,6 +471,103 @@ const VALID_SAFETY = {
   upstreamReply = () => new Response('{}', { status: 200 });
 }
 
+// ── Time off: what a flow is allowed to explain ──────────────
+//
+// Running out of hours is the one rejection an employee will actually meet.
+// Collapsing it into "could not be delivered" sends them to their supervisor
+// over a request the system understood and declined on purpose.
+{
+  const VALID_TIMEOFF = {
+    clockNumber: '048213', leaveType: 'Vacation',
+    startDate: '2026-09-15', endDate: '2026-09-17', hours: 24,
+  };
+  const rosterOk = new Response(JSON.stringify({ found: true, displayName: 'Albiar A.' }), { status: 200 });
+
+  const withFlowReply = reply => (url =>
+    url.includes('/validate') ? rosterOk.clone() : reply());
+
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'insufficient_balance',
+    message: 'You have 16 hours of Vacation available and requested 24.',
+  }), { status: 400 }));
+
+  const short = await post('timeoff', VALID_TIMEOFF);
+  const shortBody = await short.clone().json();
+  check('timeoff-relays-insufficient-balance',
+    short.status === 400 && shortBody.error === 'insufficient_balance' &&
+    shortBody.message.includes('16 hours'),
+    `${short.status} ${JSON.stringify(shortBody)}`);
+
+  // The flow's message reaches a browser, so it cannot be unbounded.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'insufficient_balance', message: 'x'.repeat(5000),
+  }), { status: 400 }));
+  const longMsg = await post('timeoff', VALID_TIMEOFF);
+  check('timeoff-relayed-message-is-capped',
+    (await longMsg.clone().json()).message.length <= 300,
+    `${(await longMsg.clone().json()).message.length}`);
+
+  // The flow spells this one with a space; ours is snake_case.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'invalid leaveType',
+  }), { status: 400 }));
+  const badType = await post('timeoff', VALID_TIMEOFF);
+  check('timeoff-maps-invalid-leavetype',
+    badType.status === 400 && (await badType.clone().json()).error === 'invalid_leave_type',
+    `${badType.status}`);
+
+  // Everything off the allowlist keeps the old behaviour — generic, body
+  // stops at the Worker.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'unauthorized', message: 'shared secret did not match',
+  }), { status: 401 }));
+  const unauth = await post('timeoff', VALID_TIMEOFF);
+  const unauthText = await unauth.clone().text();
+  check('timeoff-401-stays-generic',
+    unauth.status === 502 && !unauthText.includes('shared secret'),
+    `${unauth.status}: ${unauthText}`);
+
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'internal_error',
+  }), { status: 500 }));
+  const boom = await post('timeoff', VALID_TIMEOFF);
+  check('timeoff-500-stays-generic',
+    boom.status === 502 && (await boom.clone().json()).error === 'flow_error', `${boom.status}`);
+
+  // A code that would otherwise find something on Object.prototype.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'constructor', message: 'should not be relayed',
+  }), { status: 400 }));
+  const proto = await post('timeoff', VALID_TIMEOFF);
+  const protoText = await proto.clone().text();
+  check('timeoff-prototype-key-not-allowlisted',
+    proto.status === 502 && !protoText.includes('should not be relayed'), `${proto.status}`);
+
+  // The flow's own roster check disagreeing with the one the Worker just ran.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({ found: false }), { status: 404 }));
+  const gone = await post('timeoff', VALID_TIMEOFF);
+  check('timeoff-flow-404-is-unknown-clock-number',
+    gone.status === 400 && (await gone.clone().json()).error === 'unknown_clock_number',
+    `${gone.status}`);
+
+  // The flow echoes the _ref it was sent rather than minting its own.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({ referenceId: 'TMO-366331' }), { status: 200 }));
+  const echoed = await post('timeoff', { ...VALID_TIMEOFF, referenceId: 'TMO-366331' });
+  check('timeoff-echoed-reference-is-returned',
+    (await echoed.clone().json()).referenceId === 'TMO-366331' &&
+    calls[1].body._ref === 'TMO-366331',
+    JSON.stringify(await echoed.clone().json()));
+
+  // Bare YYYY-MM-DD, never an ISO datetime: SharePoint reads a bare date as
+  // midnight UTC and its columns are Date Only to match. A time component
+  // would shift the booking by a day.
+  check('timeoff-dates-forwarded-bare',
+    calls[1].body.startDate === '2026-09-15' && calls[1].body.endDate === '2026-09-17',
+    `${calls[1].body.startDate}..${calls[1].body.endDate}`);
+
+  upstreamReply = () => new Response('{}', { status: 200 });
+}
+
 // ── Time off: lookup and cancellation ────────────────────────
 {
   upstreamReply = () => new Response(JSON.stringify({

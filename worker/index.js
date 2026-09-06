@@ -100,6 +100,49 @@ const CLOCK_NUMBER = { max: 10, required: true, re: /^\d{1,10}$/ };
  * the mismatch is silent: here, the matching <option value> in
  * time-off-request.html, and the flow's own Switch.
  */
+/**
+ * Errors a flow is allowed to explain to the browser, by the `error` code in
+ * its own 4xx body.
+ *
+ * The default for an upstream failure is a generic 502 with the body stopping
+ * here, because a 401 means the shared secret is misconfigured and that must
+ * not be legible from a browser. But that default is wrong for the one
+ * rejection an employee will actually hit: asking for more hours than they
+ * have. Telling them "could not be delivered" sends them to their supervisor
+ * over a request the system understood perfectly and declined on purpose.
+ *
+ * So: an allowlist. A code that is on it is relayed under `as`, with the
+ * flow's own `message` when `relayMessage` is set — that message carries the
+ * specifics (which balance, how many hours) that this Worker cannot know.
+ * Anything not on the list, and any 5xx, still collapses to the generic 502.
+ *
+ * Keys are the flow's spellings, verbatim. `invalid leaveType` has a space
+ * because that is what the flow sends.
+ */
+const TIMEOFF_UPSTREAM_ERRORS = {
+  insufficient_balance: {
+    as: 'insufficient_balance', status: 400, relayMessage: true,
+    fallback: 'You do not have enough hours available for that request.',
+  },
+  // The Worker validates leaveType against LEAVE_TYPES before forwarding, so
+  // this only fires if the two lists have drifted apart — which is exactly
+  // when a clear answer is worth having.
+  'invalid leaveType': {
+    as: 'invalid_leave_type', status: 400,
+    fallback: 'That time off type is not available. Please pick another.',
+  },
+};
+
+/** Cap on a flow-authored message relayed to the browser. */
+const MAX_RELAYED_MESSAGE = 300;
+
+/** What the browser is told when a flow failed in a way it may not see. */
+const FLOW_FAILURE_MESSAGE =
+  'Submission could not be delivered. Please try again or tell your supervisor.';
+
+const UNKNOWN_CLOCK_MESSAGE =
+  'That time clock number was not recognized. Check your badge or see your supervisor.';
+
 const LEAVE_TYPES = [
   'Vacation',
   'Floating Holiday',
@@ -202,6 +245,7 @@ const FORMS = {
     requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'TMO',
     revalidates: 'clockNumber',
     check: checkTimeOffDates,
+    upstreamErrors: TIMEOFF_UPSTREAM_ERRORS,
     fields: {
       referenceId:        TEXT(20),
       clockNumber:        CLOCK_NUMBER,
@@ -611,6 +655,50 @@ async function clockNumberExists(clockNumber, env, signal) {
 }
 
 /**
+ * Turns a flow's non-2xx into what the browser is allowed to see.
+ *
+ * Three outcomes, narrowest first:
+ *  - a 404 from a route that re-validates means the flow's roster check
+ *    disagreed with the one this Worker just ran. Rare, but it is a real
+ *    answer about the clock number, not an outage.
+ *  - an allowlisted `error` code in a 4xx body is relayed under its mapped
+ *    name, with the flow's own message when the rule permits it.
+ *  - everything else, 5xx included, is a generic 502 and the upstream body
+ *    stops here.
+ */
+async function upstreamFailure(form, upstream, origin) {
+  if (form.revalidates && upstream.status === 404) {
+    return json({ ok: false, error: 'unknown_clock_number', message: UNKNOWN_CLOCK_MESSAGE }, 400, origin);
+  }
+
+  if (form.upstreamErrors && upstream.status >= 400 && upstream.status < 500) {
+    let body = null;
+    try { body = await upstream.json(); } catch { /* not JSON — fall through */ }
+
+    const code = body && typeof body.error === 'string' ? body.error : null;
+    // hasOwnProperty rather than a bare lookup: a code of "constructor" or
+    // "toString" would otherwise find something on Object.prototype and be
+    // treated as allowlisted.
+    const rule = code && Object.prototype.hasOwnProperty.call(form.upstreamErrors, code)
+      ? form.upstreamErrors[code]
+      : null;
+
+    if (rule) {
+      const relayed = rule.relayMessage && typeof body.message === 'string'
+        ? body.message.slice(0, MAX_RELAYED_MESSAGE)
+        : '';
+      return json({ ok: false, error: rule.as, message: relayed || rule.fallback }, rule.status, origin);
+    }
+  }
+
+  return json(
+    { ok: false, error: 'flow_error', status: upstream.status, message: FLOW_FAILURE_MESSAGE },
+    502,
+    origin
+  );
+}
+
+/**
  * Fallback reference, used only when the flow doesn't return one of its own.
  * The format has to match what status-check.html accepts — /^(MNT|SAF|SUG)-\d{4,6}$/
  * with a 10-character input cap — or the number we hand the employee is one
@@ -817,19 +905,11 @@ export default {
         const gate = await clockNumberExists(clean[form.revalidates], env, controller.signal);
         if (gate.error) {
           clearTimeout(timer);
-          return json(
-            { ok: false, error: 'flow_error', message: 'Submission could not be delivered. Please try again or tell your supervisor.' },
-            502,
-            origin
-          );
+          return json({ ok: false, error: 'flow_error', message: FLOW_FAILURE_MESSAGE }, 502, origin);
         }
         if (!gate.found) {
           clearTimeout(timer);
-          return json(
-            { ok: false, error: 'unknown_clock_number', message: 'That time clock number was not recognized. Check your badge or see your supervisor.' },
-            400,
-            origin
-          );
+          return json({ ok: false, error: 'unknown_clock_number', message: UNKNOWN_CLOCK_MESSAGE }, 400, origin);
         }
       }
 
@@ -854,14 +934,10 @@ export default {
       }
 
       // Flows without a Response action return 202 — any 2xx means accepted.
-      // The upstream body stops here: a 401 means the shared secret is
-      // misconfigured, and that must not be legible from a browser.
+      // A failure is generic by default; see upstreamFailure for the two
+      // narrow cases a flow is allowed to explain.
       if (!upstream.ok) {
-        return json(
-          { ok: false, error: 'flow_error', status: upstream.status, message: 'Submission could not be delivered. Please try again or tell your supervisor.' },
-          502,
-          origin
-        );
+        return upstreamFailure(form, upstream, origin);
       }
 
       // If the flow returns its own reference, prefer that one.
@@ -916,7 +992,7 @@ export default {
         {
           ok: false,
           error: aborted ? 'flow_timeout' : 'proxy_error',
-          message: 'Submission could not be delivered. Please try again or tell your supervisor.',
+          message: FLOW_FAILURE_MESSAGE,
         },
         504,
         origin

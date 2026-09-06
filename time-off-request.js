@@ -53,6 +53,7 @@
   // request — and now sees a balance — under the previous person's name.
   let identity = null;          // { clockNumber, displayName }
   let mine = null;              // { balances, requests } as last loaded
+  let formOwner = null;        // clock number the request form was filled for
   let cancelOpenFor = null;     // referenceId whose cancel panel is expanded
   let cancelSentFor = null;     // referenceId that just had a cancellation sent
 
@@ -143,6 +144,10 @@
     }
 
     if (data && data.found) {
+      // A different badge means a different person at the same screen. Whatever
+      // is half-typed in the form is theirs now, not the previous employee's.
+      if (formOwner && formOwner !== clockNumber) resetRequestForm();
+      formOwner = clockNumber;
       openGate(data.displayName, clockNumber);
     } else {
       setIdState('id-bad');
@@ -318,11 +323,11 @@
       notesToManager:     document.getElementById('notesToManager').value.trim()
     };
 
-    const { ok, referenceId, message, cancelled } = await PortalForm.submitJSON('timeoff', payload);
+    const { ok, referenceId, error, message, cancelled } = await PortalForm.submitJSON('timeoff', payload);
 
     if (!ok) {
       if (cancelled) { PortalForm.restoreSubmitButton(); return; }
-      PortalForm.showSubmitError(message);
+      PortalForm.showSubmitError(submitErrorText(error, message));
       return;
     }
 
@@ -335,7 +340,54 @@
     window.scrollTo(0, 0);
   });
 
+  /**
+   * Wording for a submission the proxy rejected on purpose.
+   *
+   * Running out of hours is the one rejection an employee will actually meet,
+   * and it is not an error on their part — it needs to read as an answer.
+   * The lead sentence is ours so it lands in the reader's language; the detail
+   * after it comes from the flow, because only the flow knows which balance
+   * fell short and by how much. That detail is English-only for now.
+   *
+   * Anything we do not recognise returns undefined, which leaves the page's
+   * own bilingual banner text alone.
+   */
+  const SUBMIT_ERRORS = {
+    insufficient_balance: {
+      en: 'You do not have enough hours for that request.',
+      es: 'No tienes suficientes horas para esa solicitud.'
+    },
+    unknown_clock_number: {
+      en: 'That time clock number was not recognized. Check your badge or see your supervisor.',
+      es: 'Ese número de reloj checador no fue reconocido. Revisa tu credencial o consulta con tu supervisor.'
+    },
+    invalid_leave_type: {
+      en: 'That time off type is not available right now. Please pick another, or see your supervisor.',
+      es: 'Ese tipo de tiempo libre no está disponible. Elige otro o consulta con tu supervisor.'
+    }
+  };
+
+  function submitErrorText(error, message) {
+    const known = SUBMIT_ERRORS[error];
+    if (!known) return message || undefined;
+
+    const lead = known[currentLang()] || known.en;
+    // The flow's own wording is appended, not substituted: it carries the
+    // numbers. Skipped when it is just our fallback echoed back.
+    return message && message !== known.en ? lead + ' ' + message : lead;
+  }
+
   function resetRequestForm() {
+    // The pending reference belongs to the form's unsent contents, so it dies
+    // with them. Leaving it alive was a real hazard on a shared kiosk: after a
+    // failed submit the idle timer clears the screen, the next person fills the
+    // form out, and their request reuses the previous reference — which the
+    // flow treats as a duplicate of a row that may already exist, returning 200
+    // and writing nothing. Their week off vanishes silently.
+    //
+    // Deliberately NOT called on a retry after a failure: that path must keep
+    // the same reference, which is what makes the retry idempotent.
+    PortalForm.clearRefId('TMO');
     form.reset();
     document.querySelectorAll('#panel-request .field').forEach(f => f.classList.remove('invalid'));
     document.getElementById('submit-error').classList.remove('show');

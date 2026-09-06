@@ -92,10 +92,32 @@ filter here first.**
 
 ---
 
-## 2. Request flow → `TIMEOFF_FLOW_URL`
+## 2. Request flow → `TIMEOFF_FLOW_URL` — **built**
 
-Replaces `https://forms.cloud.microsoft/e/ZuGyfK4j70`. This is the one to build
-first — the request form is the page's main tab.
+Replaces `https://forms.cloud.microsoft/e/ZuGyfK4j70`.
+
+Built and HTTP-triggered. It validates the shared secret, the leaveType and the
+clock number itself — defence in depth behind the Worker's own checks, not a
+replacement for them — and responds as soon as the SharePoint row is written,
+continuing the approval, item permissions and the two-week reminder after the
+connection closes. Its response contract:
+
+| Status | Body | Meaning |
+| --- | --- | --- |
+| 200 | `{"referenceId": "TMO-366331"}` | Accepted. Always echoes the `_ref` it was sent. |
+| 400 | `{"error": "invalid leaveType"}` | Not one of the five |
+| 400 | `{"error": "insufficient_balance", "message": "…"}` | Not enough hours |
+| 401 | `{"error": "unauthorized"}` | Shared secret missing or wrong |
+| 404 | `{"found": false}` | Clock number not on the roster |
+| 500 | `{"error": "internal_error"}` | Flow failure |
+
+`insufficient_balance` is the only one whose `message` reaches the browser —
+see "What a flow is allowed to explain" in `worker/README.md`. **Flows 3 and 4
+should use the same shapes**, including the same `error` spellings, so the
+Worker keeps one path for all of them.
+
+The section below is the original build note, kept because it describes the
+requirements the built flow satisfies.
 
 Receives:
 
@@ -142,9 +164,11 @@ Receives:
 { "referenceId": "TMO-004242" }
 ```
 
-The Worker prefers the flow's reference over the page's fallback. Either way
-the employee is shown one, so the format has to be `TMO-` plus 4–6 digits — the
-"My time off" tab matches on it.
+**As built, the flow echoes the `_ref` it was sent and does not mint its own.**
+So the page's reference is the permanent identifier: it is what lands in
+SharePoint, what the lookup flow returns, and what the cancellation flow checks
+ownership against. The `TMO-` plus 4–6 digits format is load-bearing — the
+Worker's `timeoff-cancel` route rejects anything else.
 
 ### Upsert on `_ref`, do not insert
 
