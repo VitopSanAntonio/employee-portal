@@ -122,16 +122,27 @@ const CLOCK_NUMBER = { max: 10, required: true, re: /^\d{1,10}$/ };
 const TIMEOFF_UPSTREAM_ERRORS = {
   insufficient_balance: {
     as: 'insufficient_balance', status: 400, relayMessage: true,
-    fallback: 'You do not have enough hours available for that request.',
+    fallback: 'You do not have enough hours for that request.',
   },
-  // A request the flow already holds. Not the retry case — a retry carries the
-  // same _ref and the flow answers 200 with the existing reference — so this
-  // is a genuinely new submission colliding with time off already on file.
-  // The employee needs to know that rather than being told to try again, which
-  // is what the generic failure would have suggested.
+  // The edit-after-timeout case, and the reason it is not silent.
+  //
+  // The flow answers 200 for a true retry — same _ref, identical payload — so
+  // this fires only when the _ref is already on file and the payload has
+  // changed: the submission timed out, the flow wrote the row anyway, and the
+  // employee edited something before trying again. Without this the flow would
+  // treat it as a duplicate, return 200, write nothing, and the edit would
+  // vanish behind a success screen.
+  //
+  // The flow sends it as a 409, which is the honest status; it is normalised
+  // to a 400 here because that is this Worker's one "your submission was
+  // rejected, here is why" answer — the same normalisation a flow 404 gets.
+  //
+  // relayMessage is off: the flow's message is good English, but the useful
+  // half is an instruction, and the page can say it in both languages from the
+  // reference it already holds. See SUBMIT_ERRORS in time-off-request.js.
   already_submitted: {
-    as: 'already_submitted', status: 400, relayMessage: true,
-    fallback: 'You already have a request on file for that time off.',
+    as: 'already_submitted', status: 400,
+    fallback: 'That request was already submitted. To change it, cancel it and submit a new one.',
   },
   // The Worker validates leaveType against LEAVE_TYPES before forwarding, so
   // this only fires if the two lists have drifted apart — which is exactly

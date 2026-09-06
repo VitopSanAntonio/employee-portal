@@ -107,7 +107,7 @@ connection closes. Its response contract:
 | 200 | `{"referenceId": "TMO-366331"}` | Accepted. Always echoes the `_ref` it was sent. |
 | 400 | `{"error": "invalid leaveType"}` | Not one of the five |
 | 400 | `{"error": "insufficient_balance", "message": "…"}` | Not enough hours |
-| 400 | `{"error": "already_submitted", "message": "…"}` | Time off already on file for those dates |
+| 409 | `{"error": "already_submitted", "message": "…"}` | `_ref` already on file **and the payload differs** |
 | 401 | `{"error": "unauthorized"}` | Shared secret missing or wrong |
 | 404 | `{"found": false}` | Clock number not on the roster |
 | 500 | `{"error": "internal_error"}` | Flow failure |
@@ -164,6 +164,27 @@ Receives:
 ```json
 { "referenceId": "TMO-004242" }
 ```
+
+### Edit after a timeout
+
+`Check_Duplicate` finding an existing row is not automatically a retry. The
+flow compares the stored StartDate, EndDate, HoursRequested and LeaveType
+against the incoming payload:
+
+- **identical** → 200 with the existing reference. A true retry; nothing is
+  written twice.
+- **different** → 409 `already_submitted`. The submission timed out, the row
+  was written anyway, and the employee edited something before trying again.
+  Returning 200 here would discard the edit behind a success screen.
+
+The Worker normalises that 409 to its own 400 and the page composes the
+message in both languages from the reference it already holds, so the
+instruction — cancel it, then submit a new one — is not English-only. The flow
+still sends its own `message`; the page does not use it.
+
+> **This instruction points at the cancel tab, which needs Flows 3 and 4.**
+> Until both exist, an employee told to "cancel it under My time off" finds a
+> tab that cannot load. Worth keeping in mind when sequencing go-live.
 
 **As built, the flow echoes the `_ref` it was sent and does not mint its own.**
 So the page's reference is the permanent identifier: it is what lands in

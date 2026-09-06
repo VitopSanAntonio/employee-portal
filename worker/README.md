@@ -155,11 +155,21 @@ the Worker — a 401 means the shared secret is misconfigured, and that must not
 be legible from a browser.
 
 `TIMEOFF_UPSTREAM_ERRORS` is the exception. It exists for the rejections an
-employee will actually meet — **insufficient_balance** (asking for more hours
-than you have) and **already_submitted** (time off already on file for those
-dates). Both are the system working, not failing. Telling someone "could not be
+employee will actually meet:
+
+- **insufficient_balance** — more hours than they have.
+- **already_submitted** — the flow's 409 for edit-after-timeout: the `_ref` is
+  on file and the payload has changed, so the submission timed out, the row was
+  written anyway, and something was edited before the retry. An identical retry
+  is the flow's 200 path and never lands here.
+
+Both are the system working, not failing. Telling someone "could not be
 delivered" sends them to their supervisor over a request that was understood
 and declined on purpose, and invites a retry that will be declined again.
+
+A flow's status is normalised to the Worker's own — the 409 above becomes a
+400, the same way a flow 404 does. The allowlist matches on the `error` code,
+not the status.
 
 A flow's 4xx whose `error` matches a key there is relayed under the mapped
 name, carrying the flow's own `message` when the rule allows it — that message

@@ -723,23 +723,27 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   }
 }
 
-// Every code on the Worker's relay allowlist needs page copy in both
-// languages, or the employee it was added for reads it in English.
-{
+// Edit-after-timeout, in Spanish. The flow's own message is good English, but
+// the useful half is an instruction — so the page composes both languages from
+// the reference it already holds, and must still name that reference.
+for (const lang of ['en', 'es']) {
   const page = await browser.newPage();
+  let sentRef = null;
   await page.route(isProxy, route => {
     const url = route.request().url();
     if (url.includes('/submit/validate')) {
       return route.fulfill({ status: 200, contentType: 'application/json',
         body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
     }
+    sentRef = JSON.parse(route.request().postData() || '{}').referenceId;
     return route.fulfill({ status: 400, contentType: 'application/json',
       body: JSON.stringify({
         ok: false, error: 'already_submitted',
-        message: 'A request covering Sep 15-17 is already on file (TMO-100001).'
+        message: 'This request was already submitted as ' + sentRef +
+          '. To change it, cancel it in My Time Off and submit a new one.'
       }) });
   });
-  await seedStorage(page, { portalLang: 'es' });
+  if (lang === 'es') await seedStorage(page, { portalLang: 'es' });
   await page.goto(`http://localhost:${PORT}/time-off-request.html`);
   await page.fill('#clockNumber', '048213');
   await page.waitForSelector('#gate.show');
@@ -751,10 +755,13 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await page.waitForSelector('#submit-error.show');
 
   const banner = (await page.locator('#submit-error span').textContent()).trim();
+  const instruction = lang === 'es' ? 'cancélala en Mi tiempo libre' : 'cancel it under My time off';
   results.push({
-    page: 'time-off-request', mode: 'already-submitted-es',
-    // Spanish lead, then the flow's detail naming the request already on file.
-    pass: banner.includes('Ya tienes una solicitud') && banner.includes('TMO-100001'),
+    page: 'time-off-request', mode: `already-submitted-${lang}`,
+    // Names the reference, tells them what to do, and says it once — the
+    // flow's English is dropped rather than appended.
+    pass: banner.includes(sentRef) && banner.includes(instruction) &&
+      banner.indexOf('submitted') === banner.lastIndexOf('submitted'),
     detail: banner
   });
   await page.close();

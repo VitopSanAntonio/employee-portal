@@ -327,7 +327,7 @@
 
     if (!ok) {
       if (cancelled) { PortalForm.restoreSubmitButton(); return; }
-      PortalForm.showSubmitError(submitErrorText(error, message));
+      PortalForm.showSubmitError(submitErrorText(error, message, refId));
       return;
     }
 
@@ -353,32 +353,47 @@
    * own bilingual banner text alone.
    */
   const SUBMIT_ERRORS = {
+    // `detail: true` appends the proxy's message after our sentence, because
+    // only the flow knows which balance fell short and by how much. Without
+    // it, our sentence is the whole message.
     insufficient_balance: {
-      en: 'You do not have enough hours for that request.',
-      es: 'No tienes suficientes horas para esa solicitud.'
+      detail: true,
+      en: () => 'You do not have enough hours for that request.',
+      es: () => 'No tienes suficientes horas para esa solicitud.'
     },
+    // The submission timed out, the row was written anyway, and something was
+    // edited before retrying. The flow's own message says this well in
+    // English, but the useful half is an instruction — and an instruction only
+    // half the plant can read is not much use. Composed here instead, from the
+    // reference the page already holds, which is the same one the flow would
+    // have quoted.
     already_submitted: {
-      en: 'You already have a request for that time off.',
-      es: 'Ya tienes una solicitud para ese tiempo libre.'
+      en: ref => 'This request was already submitted as ' + ref +
+        '. To change it, cancel it under My time off and submit a new one.',
+      es: ref => 'Esta solicitud ya fue enviada como ' + ref +
+        '. Para cambiarla, cancélala en Mi tiempo libre y envía una nueva.'
     },
     unknown_clock_number: {
-      en: 'That time clock number was not recognized. Check your badge or see your supervisor.',
-      es: 'Ese número de reloj checador no fue reconocido. Revisa tu credencial o consulta con tu supervisor.'
+      en: () => 'That time clock number was not recognized. Check your badge or see your supervisor.',
+      es: () => 'Ese número de reloj checador no fue reconocido. Revisa tu credencial o consulta con tu supervisor.'
     },
     invalid_leave_type: {
-      en: 'That time off type is not available right now. Please pick another, or see your supervisor.',
-      es: 'Ese tipo de tiempo libre no está disponible. Elige otro o consulta con tu supervisor.'
+      en: () => 'That time off type is not available right now. Please pick another, or see your supervisor.',
+      es: () => 'Ese tipo de tiempo libre no está disponible. Elige otro o consulta con tu supervisor.'
     }
   };
 
-  function submitErrorText(error, message) {
+  function submitErrorText(error, message, refId) {
     const known = SUBMIT_ERRORS[error];
     if (!known) return message || undefined;
 
-    const lead = known[currentLang()] || known.en;
-    // The flow's own wording is appended, not substituted: it carries the
-    // numbers. Skipped when it is just our fallback echoed back.
-    return message && message !== known.en ? lead + ' ' + message : lead;
+    const write = known[currentLang()] || known.en;
+    const lead = write(refId);
+    // The proxy's fallback wording is our own English sentence, so appending
+    // it would say the same thing twice.
+    return known.detail && message && message !== known.en(refId)
+      ? lead + ' ' + message
+      : lead;
   }
 
   function resetRequestForm() {

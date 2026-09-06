@@ -65,7 +65,7 @@ exactly — same status codes, same body shapes, same `error` spellings:
 | 200 | `{"referenceId": "TMO-366331"}` |
 | 400 | `{"error": "invalid leaveType"}` |
 | 400 | `{"error": "insufficient_balance", "message": "…"}` |
-| 400 | `{"error": "already_submitted", "message": "…"}` |
+| 409 | `{"error": "already_submitted", "message": "…"}` |
 | 401 | `{"error": "unauthorized"}` |
 | 404 | `{"found": false}` |
 | 500 | `{"error": "internal_error"}` |
