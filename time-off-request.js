@@ -357,6 +357,10 @@
       en: 'You do not have enough hours for that request.',
       es: 'No tienes suficientes horas para esa solicitud.'
     },
+    already_submitted: {
+      en: 'You already have a request for that time off.',
+      es: 'Ya tienes una solicitud para ese tiempo libre.'
+    },
     unknown_clock_number: {
       en: 'That time clock number was not recognized. Check your badge or see your supervisor.',
       es: 'Ese número de reloj checador no fue reconocido. Revisa tu credencial o consulta con tu supervisor.'

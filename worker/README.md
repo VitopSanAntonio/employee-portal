@@ -154,11 +154,12 @@ An upstream failure is a generic 502 by default and the flow's body stops at
 the Worker — a 401 means the shared secret is misconfigured, and that must not
 be legible from a browser.
 
-`TIMEOFF_UPSTREAM_ERRORS` is the exception, and it exists for one case:
-**insufficient_balance**. Asking for more hours than you have is the one
-rejection an employee will actually meet, and it is the system working, not
-failing. Telling them "could not be delivered" sends them to their supervisor
-over a request that was understood and declined on purpose.
+`TIMEOFF_UPSTREAM_ERRORS` is the exception. It exists for the rejections an
+employee will actually meet — **insufficient_balance** (asking for more hours
+than you have) and **already_submitted** (time off already on file for those
+dates). Both are the system working, not failing. Telling someone "could not be
+delivered" sends them to their supervisor over a request that was understood
+and declined on purpose, and invites a retry that will be declined again.
 
 A flow's 4xx whose `error` matches a key there is relayed under the mapped
 name, carrying the flow's own `message` when the rule allows it — that message

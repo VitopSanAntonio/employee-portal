@@ -723,6 +723,43 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   }
 }
 
+// Every code on the Worker's relay allowlist needs page copy in both
+// languages, or the employee it was added for reads it in English.
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    return route.fulfill({ status: 400, contentType: 'application/json',
+      body: JSON.stringify({
+        ok: false, error: 'already_submitted',
+        message: 'A request covering Sep 15-17 is already on file (TMO-100001).'
+      }) });
+  });
+  await seedStorage(page, { portalLang: 'es' });
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.selectOption('#leaveType', 'Vacation');
+  await page.fill('#startDate', '2026-09-15');
+  await page.fill('#endDate', '2026-09-17');
+  await page.fill('#hours', '24');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#submit-error.show');
+
+  const banner = (await page.locator('#submit-error span').textContent()).trim();
+  results.push({
+    page: 'time-off-request', mode: 'already-submitted-es',
+    // Spanish lead, then the flow's detail naming the request already on file.
+    pass: banner.includes('Ya tienes una solicitud') && banner.includes('TMO-100001'),
+    detail: banner
+  });
+  await page.close();
+}
+
 // ── Time off: the reference must not outlive its submission ──
 {
   const page = await browser.newPage();

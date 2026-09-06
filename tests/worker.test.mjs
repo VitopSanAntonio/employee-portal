@@ -507,6 +507,30 @@ const VALID_SAFETY = {
     (await longMsg.clone().json()).message.length <= 300,
     `${(await longMsg.clone().json()).message.length}`);
 
+  // Time off already on file. Distinct from a retry, which carries the same
+  // _ref and gets a 200 with the existing reference — so this must not read as
+  // "try again", which is what the generic failure suggested.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'already_submitted',
+    message: 'A request covering Sep 15-17 is already on file (TMO-100001).',
+  }), { status: 400 }));
+  const dupe = await post('timeoff', VALID_TIMEOFF);
+  const dupeBody = await dupe.clone().json();
+  check('timeoff-relays-already-submitted',
+    dupe.status === 400 && dupeBody.error === 'already_submitted' &&
+    dupeBody.message.includes('TMO-100001'),
+    `${dupe.status} ${JSON.stringify(dupeBody)}`);
+
+  // The allowlist matches on the flow's error code, not its status, so a flow
+  // that answers 409 for this instead of 400 still reaches the employee.
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({
+    error: 'already_submitted', message: 'Already on file.',
+  }), { status: 409 }));
+  const dupe409 = await post('timeoff', VALID_TIMEOFF);
+  check('timeoff-already-submitted-relayed-from-409',
+    dupe409.status === 400 && (await dupe409.clone().json()).error === 'already_submitted',
+    `${dupe409.status}`);
+
   // The flow spells this one with a space; ours is snake_case.
   upstreamReply = withFlowReply(() => new Response(JSON.stringify({
     error: 'invalid leaveType',

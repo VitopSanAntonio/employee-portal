@@ -124,6 +124,15 @@ const TIMEOFF_UPSTREAM_ERRORS = {
     as: 'insufficient_balance', status: 400, relayMessage: true,
     fallback: 'You do not have enough hours available for that request.',
   },
+  // A request the flow already holds. Not the retry case — a retry carries the
+  // same _ref and the flow answers 200 with the existing reference — so this
+  // is a genuinely new submission colliding with time off already on file.
+  // The employee needs to know that rather than being told to try again, which
+  // is what the generic failure would have suggested.
+  already_submitted: {
+    as: 'already_submitted', status: 400, relayMessage: true,
+    fallback: 'You already have a request on file for that time off.',
+  },
   // The Worker validates leaveType against LEAVE_TYPES before forwarding, so
   // this only fires if the two lists have drifted apart — which is exactly
   // when a clear answer is worth having.

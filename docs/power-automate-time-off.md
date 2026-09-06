@@ -107,6 +107,7 @@ connection closes. Its response contract:
 | 200 | `{"referenceId": "TMO-366331"}` | Accepted. Always echoes the `_ref` it was sent. |
 | 400 | `{"error": "invalid leaveType"}` | Not one of the five |
 | 400 | `{"error": "insufficient_balance", "message": "…"}` | Not enough hours |
+| 400 | `{"error": "already_submitted", "message": "…"}` | Time off already on file for those dates |
 | 401 | `{"error": "unauthorized"}` | Shared secret missing or wrong |
 | 404 | `{"found": false}` | Clock number not on the roster |
 | 500 | `{"error": "internal_error"}` | Flow failure |
