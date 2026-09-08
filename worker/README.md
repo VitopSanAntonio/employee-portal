@@ -148,12 +148,78 @@ number, but it **cannot** check that the reference actually belongs to that
 employee — the flow must do that, or a stranger who guesses a TMO number can
 cancel somebody's vacation.
 
+### What a flow is allowed to explain
+
+An upstream failure is a generic 502 by default and the flow's body stops at
+the Worker — a 401 means the shared secret is misconfigured, and that must not
+be legible from a browser.
+
+`TIMEOFF_UPSTREAM_ERRORS` is the exception. It exists for the rejections an
+employee will actually meet:
+
+- **insufficient_balance** — more hours than they have.
+- **already_submitted** — the flow's 409 for edit-after-timeout: the `_ref` is
+  on file and the payload has changed, so the submission timed out, the row was
+  written anyway, and something was edited before the retry. An identical retry
+  is the flow's 200 path and never lands here.
+- **not_cancellable** — the cancellation flow's 409, on its own allowlist. Its
+  message names the request's current status and is written to be read by an
+  employee, so it is relayed.
+
+Both are the system working, not failing. Telling someone "could not be
+delivered" sends them to their supervisor over a request that was understood
+and declined on purpose, and invites a retry that will be declined again.
+
+A flow's status is normalised to the Worker's own — the 409 above becomes a
+400, the same way a flow 404 does. The allowlist matches on the `error` code,
+not the status.
+
+A flow's 4xx whose `error` matches a key there is relayed under the mapped
+name, carrying the flow's own `message` when the rule allows it — that message
+holds the specifics (which balance, how many hours) the Worker cannot know. It
+is capped at `MAX_RELAYED_MESSAGE` and reaches the page as text.
+
+`form-utils.js` surfaces a body's `error` and `message` **only on a 400**. Every
+other failure keeps the page's own wording, because the proxy's messages are
+English and the pages are bilingual. `time-off-request.js` then maps the code
+to its own EN/ES lead sentence and appends the flow's detail after it.
+
+A **404** means different things on different routes, so each declares its own
+`upstream404` rather than sharing one rule:
+
+- **request** → `unknown_clock_number`, the same answer the Worker gives from
+  its own roster check. Rare, since it re-validates before forwarding, but it
+  means the two checks disagreeing still produces an answer about the badge
+  rather than an outage.
+- **cancellation** → `request_not_found`. The flow answers 404 both for a
+  reference that does not exist and for one belonging to a different employee,
+  **deliberately**, so that walking the `TMO-` range teaches a stranger
+  nothing. Neither the Worker nor the page may distinguish the two, and the
+  page's copy must not hint at which occurred. Do not add a more specific
+  error here.
+
+### The cancellation outcome
+
+`/submit/timeoff-cancel` is projected (`projectTimeOffCancel`) rather than
+wrapped, because the flow reports **which** of two things happened and the page
+has to say the right one:
+
+- `Canceled` — done. The hours are already back.
+- `Cancellation requested` — a supervisor still has to confirm, and the time
+  off stays in effect until they do.
+
+The flow decides: cancelling time that has not started yet is immediate, while
+cancelling time already taken is a real decision and needs approval. An
+unrecognised value is reported as `Cancellation requested` — being wrong in
+that direction is recoverable; telling somebody their vacation is cancelled
+when it is not sends them home on a workday.
+
 ### Still to build
 
-`VALIDATE_FLOW_URL` exists and is tested. The other three flows do not exist
-yet: those routes answer `500 flow_not_configured` until the secrets are set,
-and the page turns that into "we couldn't reach the time off system", which is
-the correct thing for an employee to see in the meantime.
+`VALIDATE_FLOW_URL` and `TIMEOFF_FLOW_URL` exist. The lookup and cancellation
+flows do not: those two routes answer `500 flow_not_configured` until their
+secrets are set, and the page turns that into "we couldn't reach the time off
+system", which is the correct thing for an employee to see in the meantime.
 
 `TMO-` references are **not** lookupable on `status-check.html`, which accepts
 only `/^(MNT|SAF|SUG)-\d{4,6}$/`. The "My time off" tab is where a time-off

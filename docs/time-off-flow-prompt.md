@@ -1,5 +1,9 @@
 # Prompt for building the Power Automate flows
 
+> **All four flows are now built.** This file is kept as the record of what
+> each was built to do; there is nothing left to hand to a new conversation.
+> If a fifth flow is ever needed, the structure below is the pattern to follow.
+
 Copy everything below the line into a **new Claude conversation** (claude.ai).
 It is self-contained — Claude will not have this repo, so the prompt carries
 every contract it needs.
@@ -7,9 +11,10 @@ every contract it needs.
 Attach `docs/power-automate-time-off.md` to that conversation if you can; it
 saves repeating yourself. The prompt works without it.
 
-**Work one flow at a time.** Ask for Flow 2, build it, test it, then come back
-for Flow 3. A single conversation that tries to produce all three at once will
-give you three half-specified flows.
+**Flow 2 (the request flow) is built.** Two remain: the lookup and the
+cancellation. Work one at a time — ask for Flow 3, build it, test it, then come
+back for Flow 4. A single conversation that tries to produce both at once will
+give you two half-specified flows.
 
 ---
 
@@ -38,7 +43,8 @@ Nothing may assume a signed-in Microsoft identity, SSO, or Azure AD. Do not
 suggest a Forms trigger, a "for a selected item" trigger, or anything requiring
 the employee to authenticate.
 
-The validation flow already exists and works. I need the other three.
+Two flows already exist and work: the validation flow and the request flow. I
+need the lookup flow and the cancellation flow.
 
 ## What already exists
 
@@ -48,9 +54,33 @@ looks the number up in a SharePoint roster list, and returns either
 It builds its OData filter by string interpolation; the Worker guarantees the
 value is digits-only before calling it.
 
-I'll tell you the roster list's actual columns when you ask.
+**Request flow** — HTTP trigger. Writes a time-off request to SharePoint. It
+responds as soon as the row is written and continues the approval, item
+permissions and a reminder branch after the connection closes, which keeps the
+caller's round trip to one lookup and one write. It looks up the incoming
+`_ref` before creating anything and returns the existing reference if a row is
+already there, so a retry is idempotent.
 
-## Shared requirements for all three flows
+Its response contract is the pattern I want the two new flows to follow
+exactly — same status codes, same body shapes, same `error` spellings:
+
+| Status | Body |
+| --- | --- |
+| 200 | `{"referenceId": "TMO-366331"}` |
+| 400 | `{"error": "invalid leaveType"}` |
+| 400 | `{"error": "insufficient_balance", "message": "…"}` |
+| 409 | `{"error": "already_submitted", "message": "…"}` |
+| 401 | `{"error": "unauthorized"}` |
+| 404 | `{"found": false}` |
+| 500 | `{"error": "internal_error"}` |
+
+Only `insufficient_balance` has its `message` shown to the employee; the caller
+collapses everything else into a generic failure, so don't put anything
+diagnostic in the other bodies.
+
+I'll tell you the roster and request lists' actual columns when you ask.
+
+## Shared requirements for both flows
 
 **Authentication.** Each flow is called with a shared secret in an
 `X-Portal-Secret` header. Make checking it the **first action**, and return 401
@@ -71,50 +101,9 @@ are real, so expect decimals like 4.5.
 
 ---
 
-## Flow 2 — Submit a time off request
+## Flow 2 — Submit a time off request — **already built**
 
-Receives this JSON:
-
-```json
-{
-  "clockNumber": "048213",
-  "leaveType": "Vacation",
-  "startDate": "2026-09-15",
-  "endDate": "2026-09-17",
-  "hours": 24,
-  "vacationCoversFMLA": "No",
-  "notesToManager": "Family trip.",
-  "_ref": "TMO-366331",
-  "_submittedAt": "2026-09-04T02:28:13.337Z",
-  "_form": "timeoff",
-  "_sourceIp": "10.0.0.37"
-}
-```
-
-`leaveType` is exactly one of five strings, matched by a Switch:
-`Vacation`, `Floating Holiday`, `LSK CarryOver`, `Perfect Attendance Reward`,
-`FMLA`.
-
-`vacationCoversFMLA` is `"Yes"`, `"No"`, or absent. `hours` arrives as a JSON
-number, not a string.
-
-It must:
-1. Check the shared secret.
-2. Write the request to SharePoint, notify the employee's supervisor, and
-   branch on `leaveType` — I'll describe the existing routing when you ask.
-3. Return `{ "referenceId": "TMO-004242" }` — `TMO-` plus 4 to 6 digits.
-
-**The upsert requirement.** When a flow takes longer than the Worker's
-20-second timeout, the Worker gives up but the flow keeps running and still
-creates the record. The employee sees an error and resubmits — with the *same*
-`_ref`, because the page holds one reference for the whole attempt. So the
-SharePoint write must **look up `_ref` first and update the existing row if it
-finds one**, rather than always creating. Show me how to do that without a race
-between two near-simultaneous retries. Otherwise one week off gets booked
-twice.
-
-Please also tell me what happens in your design if the Switch gets a value that
-isn't one of the five — I want it to fail loudly, not fall through silently.
+Described above as the pattern to match. Nothing to do here.
 
 ## Flow 3 — Look up balance and existing requests
 
@@ -144,8 +133,10 @@ Receives `{ "clockNumber": "048213" }`. Returns:
 404 if the clock number has no record.
 
 `status` must be one of: `Pending`, `Approved`, `Rejected`, `Canceled`,
-`Cancellation requested` — the page colours each one. Sort `requests` newest
-first.
+`Cancellation requested` — the page colours each one. These match the
+SharePoint columns exactly, including the inconsistency: `Canceled` has one L,
+`Cancellation requested` has a lowercase r. Don't normalise them. Sort
+`requests` newest first.
 
 Return **only** these keys. No approver emails, accrual codes or HR notes —
 this response goes to a browser.
@@ -188,7 +179,7 @@ supervisor confirms — the cancellation is a request, not an immediate undo.
 
 ## How I'd like the answer
 
-- **One flow at a time.** Start with Flow 2. Don't write all three at once.
+- **One flow at a time.** Start with Flow 3. Don't write both at once.
 - Numbered steps naming the **exact action** to add ("Add a *Condition*
   control", "Add *Send an HTTP request to SharePoint*"), since I'm clicking
   through the designer.

@@ -119,10 +119,15 @@ window.PortalForm = (function () {
   /**
    * POSTs the payload through the proxy.
    *   formKey: 'suggestion' | 'safety' | 'maintenance'
-   * Returns { ok, referenceId, message, cancelled }.
+   * Returns { ok, referenceId, error, message, data, cancelled }.
    *   cancelled          -> user dismissed the code prompt; leave the form as-is
    *   ok=false + message -> show that message to the user
    *   ok=false, no message-> show the page's own default error wording
+   *   error              -> the proxy's machine-readable code on a 400, so a
+   *                         page can substitute its own bilingual copy rather
+   *                         than showing the proxy's English
+   *   data               -> the parsed success body, for routes that answer
+   *                         with more than a reference
    * Anything that is not a cancellation must surface an error: a silent
    * reset would read as "sent" to someone filing a safety report.
    *
@@ -172,12 +177,30 @@ window.PortalForm = (function () {
 
       let ok = res.ok;
       let referenceId = '';
+      let error = '';
+      let message = '';
+      // The parsed success body, for routes that answer with more than a
+      // reference — the cancellation route reports whether it took effect
+      // immediately or still needs a supervisor.
+      let data = null;
+
       if (ok) {
-        const data = await res.json().catch(() => null);
+        data = await res.json().catch(() => null);
         if (data && data.ok === false) ok = false;
         if (data && data.referenceId) referenceId = data.referenceId;
+      } else if (res.status === 400) {
+        // Only 400. A 400 is the proxy deciding this submission is wrong and
+        // saying why — a balance that will not cover the request, a clock
+        // number the roster does not know. Every other failure keeps the
+        // page's own bilingual wording, because the proxy's messages are
+        // English and "could not be delivered" is already on the page in both
+        // languages.
+        const body = await res.json().catch(() => null);
+        if (body && typeof body.error === 'string') error = body.error;
+        if (body && typeof body.message === 'string') message = body.message;
       }
-      return { ok, referenceId, message: '', cancelled: false };
+
+      return { ok, referenceId, error, message, data, cancelled: false };
     }
   }
 

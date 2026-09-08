@@ -92,10 +92,33 @@ filter here first.**
 
 ---
 
-## 2. Request flow → `TIMEOFF_FLOW_URL`
+## 2. Request flow → `TIMEOFF_FLOW_URL` — **built**
 
-Replaces `https://forms.cloud.microsoft/e/ZuGyfK4j70`. This is the one to build
-first — the request form is the page's main tab.
+Replaces `https://forms.cloud.microsoft/e/ZuGyfK4j70`.
+
+Built and HTTP-triggered. It validates the shared secret, the leaveType and the
+clock number itself — defence in depth behind the Worker's own checks, not a
+replacement for them — and responds as soon as the SharePoint row is written,
+continuing the approval, item permissions and the two-week reminder after the
+connection closes. Its response contract:
+
+| Status | Body | Meaning |
+| --- | --- | --- |
+| 200 | `{"referenceId": "TMO-366331"}` | Accepted. Always echoes the `_ref` it was sent. |
+| 400 | `{"error": "invalid leaveType"}` | Not one of the five |
+| 400 | `{"error": "insufficient_balance", "message": "…"}` | Not enough hours |
+| 409 | `{"error": "already_submitted", "message": "…"}` | `_ref` already on file **and the payload differs** |
+| 401 | `{"error": "unauthorized"}` | Shared secret missing or wrong |
+| 400 | `{"found": false}` | Clock number not on the roster — note **400**, not 404, and no `error` key. The other three flows answer 404 here; the Worker matches on the body as well as the status so both work. |
+| 500 | `{"error": "internal_error"}` | Flow failure |
+
+`insufficient_balance` is the only one whose `message` reaches the browser —
+see "What a flow is allowed to explain" in `worker/README.md`. **Flows 3 and 4
+should use the same shapes**, including the same `error` spellings, so the
+Worker keeps one path for all of them.
+
+The section below is the original build note, kept because it describes the
+requirements the built flow satisfies.
 
 Receives:
 
@@ -142,9 +165,32 @@ Receives:
 { "referenceId": "TMO-004242" }
 ```
 
-The Worker prefers the flow's reference over the page's fallback. Either way
-the employee is shown one, so the format has to be `TMO-` plus 4–6 digits — the
-"My time off" tab matches on it.
+### Edit after a timeout
+
+`Check_Duplicate` finding an existing row is not automatically a retry. The
+flow compares the stored StartDate, EndDate, HoursRequested and LeaveType
+against the incoming payload:
+
+- **identical** → 200 with the existing reference. A true retry; nothing is
+  written twice.
+- **different** → 409 `already_submitted`. The submission timed out, the row
+  was written anyway, and the employee edited something before trying again.
+  Returning 200 here would discard the edit behind a success screen.
+
+The Worker normalises that 409 to its own 400 and the page composes the
+message in both languages from the reference it already holds, so the
+instruction — cancel it, then submit a new one — is not English-only. The flow
+still sends its own `message`; the page does not use it.
+
+> **This instruction points at the cancel tab, which needs Flows 3 and 4.**
+> Until both exist, an employee told to "cancel it under My time off" finds a
+> tab that cannot load. Worth keeping in mind when sequencing go-live.
+
+**As built, the flow echoes the `_ref` it was sent and does not mint its own.**
+So the page's reference is the permanent identifier: it is what lands in
+SharePoint, what the lookup flow returns, and what the cancellation flow checks
+ownership against. The `TMO-` plus 4–6 digits format is load-bearing — the
+Worker's `timeoff-cancel` route rejects anything else.
 
 ### Upsert on `_ref`, do not insert
 
@@ -159,7 +205,7 @@ week off.
 
 ---
 
-## 3. Lookup flow → `TIMEOFF_LOOKUP_FLOW_URL`
+## 3. Lookup flow → `TIMEOFF_LOOKUP_FLOW_URL` — **built**
 
 Powers the "My time off" tab: the balance the employees have been asking for,
 and the list of their existing requests.
@@ -189,6 +235,13 @@ Receives `{ "clockNumber": "048213" }` and returns:
 
 Return **404** for a clock number with no record, same as the validation flow.
 
+**All four balance buckets come back every time, zeros included** — an employee
+with no Legacy Carryover gets a `0` row rather than a missing one, because the
+zero tells them the category exists. The page renders them as sent and does not
+filter. `balances` is entitlement − used − pending, so the number shown is what
+can actually be requested right now, and the request flow applies the same
+arithmetic — the page and the submit check agree by construction.
+
 `status` values the page gives their own colour:
 
 | Status                    | Pill    | Cancellable |
@@ -213,7 +266,42 @@ Sort newest first — the page renders the array in the order it arrives.
 
 ---
 
-## 4. Cancellation flow → `TIMEOFF_CANCEL_FLOW_URL`
+## 4. Cancellation flow → `TIMEOFF_CANCEL_FLOW_URL` — **built**
+
+Responds before starting the supervisor approval, like the request flow.
+
+### The response says which of two things happened
+
+| Case | `status` returned |
+| --- | --- |
+| FMLA | `Canceled` |
+| Request was `Pending` | `Canceled` |
+| `Approved`, starts in the future | `Canceled` |
+| `Approved`, already started or past | `Cancellation requested` |
+
+```json
+{ "status": "Canceled", "referenceId": "TMO-100001" }
+```
+
+The page reads this and says the matching thing — `Canceled` means the hours
+are already back, `Cancellation requested` means the time off is still in
+effect until a supervisor confirms. Most cancellations are for time that has
+not happened yet; only cancelling time already taken is a real decision,
+because it asserts the employee actually worked those days.
+
+### Error exits
+
+| Status | Body |
+| --- | --- |
+| 401 | `{"error": "unauthorized"}` |
+| 404 | `{"error": "not_found"}` |
+| 409 | `{"error": "not_cancellable", "message": "…"}` |
+
+**The 404 is ambiguous on purpose and must stay that way.** It covers both "no
+such reference" and "belongs to a different employee", so that walking the
+`TMO-` range teaches a stranger nothing. Neither the Worker nor the page
+distinguishes them, and the page's copy is written not to hint at which
+occurred.
 
 Replaces `https://forms.cloud.microsoft/e/gRUsQwKJKM`. Receives:
 
