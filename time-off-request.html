@@ -441,12 +441,12 @@
                   <!-- text + inputmode rather than type="number": it keeps the
                        phone's numeric keypad without the desktop spinner arrows,
                        and it inherits theme.css's input styling. -->
-                  <input type="text" id="hours" name="hours" inputmode="decimal" autocomplete="off" maxlength="6"
+                  <input type="text" id="hours" name="hours" inputmode="numeric" autocomplete="off" maxlength="6"
                     data-en-placeholder="e.g. 24" data-es-placeholder="ej. 24" placeholder="e.g. 24">
-                  <span class="field-error" role="alert" id="hours-error" data-en="Enter the total hours requested." data-es="Ingresa el total de horas solicitadas." data-en-min="Vacation requests need at least 4 hours." data-es-min="Las solicitudes de vacaciones requieren al menos 4 horas.">Enter the total hours requested.</span>
+                  <span class="field-error" role="alert" id="hours-error" data-en="Enter the total hours requested." data-es="Ingresa el total de horas solicitadas." data-en-min="Vacation requests need at least 4 hours." data-es-min="Las solicitudes de vacaciones requieren al menos 4 horas." data-en-whole="Whole hours only — enter 4 or 5, not 4.5." data-es-whole="Solo horas completas — ingresa 4 o 5, no 4.5.">Enter the total hours requested.</span>
                 </div>
               </div>
-              <p class="hours-hint" data-en="Vacation requests require a minimum of 4 hours. Example: Three 8-hour days = 24 hours." data-es="Las solicitudes de vacaciones requieren un mínimo de 4 horas. Ejemplo: Tres días de 8 horas = 24 horas.">Vacation requests require a minimum of 4 hours. Example: Three 8-hour days = 24 hours.</p>
+              <p class="hours-hint" data-en="Whole hours only — no half hours. Vacation requests require a minimum of 4 hours. Example: Three 8-hour days = 24 hours." data-es="Solo horas completas — sin medias horas. Las solicitudes de vacaciones requieren un mínimo de 4 horas. Ejemplo: Tres días de 8 horas = 24 horas.">Whole hours only — no half hours. Vacation requests require a minimum of 4 hours. Example: Three 8-hour days = 24 hours.</p>
 
               <div class="section-label section-gap" data-en="Notes for manager" data-es="Notas para el gerente">Notes for manager</div>
               <div class="form-row full">

@@ -155,7 +155,9 @@ Receives:
 > `<option value>` list in `time-off-request.html`. All three have to agree.
 
 `hours` is a **number**, not a string — everything is tracked in hours (8 hours
-= 1 day) and half days are real, so expect decimals like `4.5`.
+= 1 day), and always a **whole number** — the portal rejects 4.5 rather than
+rounding it, on the page and again in the Worker. The flow itself still accepts
+decimals; nothing coming from the portal will send one.
 
 `vacationCoversFMLA` is `"Yes"`, `"No"`, or absent. It is optional on the form.
 

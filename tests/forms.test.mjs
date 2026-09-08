@@ -588,6 +588,20 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
     detail: await page.locator('#hours-error').textContent()
   });
 
+  // A half hour must be refused outright, not rounded — and the complaint has
+  // to name the actual problem rather than "enter the hours".
+  for (const bad of ['4.5', '4,5']) {
+    await page.fill('#hours', bad);
+    await page.click('#submit-btn');
+    await page.waitForSelector('#f-hours.invalid');
+    results.push({
+      page: 'time-off-request', mode: `whole-hours-only-${bad}`,
+      pass: submitCalls === 0 &&
+        (await page.locator('#hours-error').textContent()).includes('Whole hours only'),
+      detail: await page.locator('#hours-error').textContent()
+    });
+  }
+
   await page.fill('#hours', '24');
   await page.click('label[for="fmla-no"]');
   await page.fill('#notesToManager', 'Family trip.');

@@ -299,9 +299,10 @@ const FORMS = {
       leaveType:          { max: 60, required: true, oneOf: LEAVE_TYPES },
       startDate:          { max: 10, required: true, date: true },
       endDate:            { max: 10, required: true, date: true },
-      // Everything is tracked in hours, 8 hours = 1 day, and half days are
-      // real — so a number rather than a string, and decimals allowed.
-      hours:              { required: true, number: { min: 0.25, max: 2000 } },
+      // Everything is tracked in hours, 8 hours = 1 day. Whole hours only —
+      // a request of 4.5 is rejected rather than rounded, because rounding it
+      // either way books time the employee did not ask for.
+      hours:              { required: true, number: { min: 1, max: 2000, integer: true } },
       vacationCoversFMLA: { max: 3, oneOf: ['Yes', 'No'] },
       notesToManager:     TEXT(1000),
     },
@@ -520,6 +521,7 @@ function validatePayload(payload, fields) {
     if (rule.number) {
       const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
       if (!Number.isFinite(n)) return { error: `invalid_${key}` };
+      if (rule.number.integer && !Number.isInteger(n)) return { error: `not_whole_${key}` };
       if (n < rule.number.min || n > rule.number.max) return { error: `out_of_range_${key}` };
       clean[key] = n;
       continue;

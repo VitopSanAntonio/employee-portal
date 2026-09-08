@@ -247,10 +247,17 @@
   // accepted is the worse failure.
   const VACATION_MIN_HOURS = 4;
 
+  // Whole hours only. Digits and nothing else, so "4.5" and "4,5" are both
+  // rejected outright rather than parsed — parseFloat would read "4,5" as 4
+  // and quietly book half the time off the employee meant to ask for.
+  const WHOLE_HOURS = /^\d+$/;
+  // Close enough to a number to be worth a specific complaint rather than the
+  // generic "enter the hours" message.
+  const DECIMALISH = /^\d*[.,]\d*$|^\d+[.,]\d*$/;
+
   function parseHours(raw) {
-    // A comma decimal separator is what a Spanish-language keypad offers.
-    const n = parseFloat(String(raw).trim().replace(',', '.'));
-    return Number.isFinite(n) ? n : NaN;
+    const text = String(raw).trim();
+    return WHOLE_HOURS.test(text) ? Number(text) : NaN;
   }
 
   function validateForm() {
@@ -275,9 +282,10 @@
       PortalForm.validateField('endDate', true);
     }
 
-    const hours = parseHours(document.getElementById('hours').value);
+    const rawHours = document.getElementById('hours').value.trim();
+    const hours = parseHours(rawHours);
     if (!(hours > 0)) {
-      showFieldError('hours-error', null);
+      showFieldError('hours-error', DECIMALISH.test(rawHours) ? 'whole' : null);
       valid = PortalForm.validateField('hours', false) && valid;
     } else if (leaveType === 'Vacation' && hours < VACATION_MIN_HOURS) {
       showFieldError('hours-error', 'min');
@@ -374,6 +382,12 @@
         '. To change it, cancel it under My time off and submit a new one.',
       es: ref => 'Esta solicitud ya fue enviada como ' + ref +
         '. Para cambiarla, cancélala en Mi tiempo libre y envía una nueva.'
+    },
+    // Only reachable from a page cached before the whole-hours rule shipped;
+    // the current one blocks it before submitting.
+    not_whole_hours: {
+      en: () => 'Time off is requested in whole hours. Round to the nearest hour and try again.',
+      es: () => 'El tiempo libre se solicita en horas completas. Redondea a la hora más cercana e inténtalo de nuevo.'
     },
     unknown_clock_number: {
       en: () => 'That time clock number was not recognized. Check your badge or see your supervisor.',
