@@ -1,5 +1,9 @@
 # Prompt for building the Power Automate flows
 
+> **All four flows are now built.** This file is kept as the record of what
+> each was built to do; there is nothing left to hand to a new conversation.
+> If a fifth flow is ever needed, the structure below is the pattern to follow.
+
 Copy everything below the line into a **new Claude conversation** (claude.ai).
 It is self-contained — Claude will not have this repo, so the prompt carries
 every contract it needs.

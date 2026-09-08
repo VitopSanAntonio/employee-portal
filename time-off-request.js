@@ -40,6 +40,7 @@
   const mineEmpty   = document.getElementById('mine-empty');
   const mineContent = document.getElementById('mine-content');
   const mineRetry   = document.getElementById('mine-retry');
+  const mineRefresh = document.getElementById('mine-refresh');
   const mineFailedText = document.getElementById('mine-failed-text');
   const balanceGrid = document.getElementById('balance-grid');
   const reqList     = document.getElementById('req-list');
@@ -56,6 +57,7 @@
   let formOwner = null;        // clock number the request form was filled for
   let cancelOpenFor = null;     // referenceId whose cancel panel is expanded
   let cancelSentFor = null;     // referenceId that just had a cancellation sent
+  let cancelSentOutcome = null; // and which of the two outcomes came back
 
   // Guarded rather than assumed: lang.js defines PortalStorage but loads after
   // this file.
@@ -353,11 +355,11 @@
    * own bilingual banner text alone.
    */
   const SUBMIT_ERRORS = {
-    // `detail: true` appends the proxy's message after our sentence, because
-    // only the flow knows which balance fell short and by how much. Without
-    // it, our sentence is the whole message.
+    // No `detail`: the built flow's message is "Not enough hours available for
+    // this leave type", which restates our own sentence rather than adding the
+    // numbers. Turn it back on the day the flow names the shortfall — the
+    // relay is already in place, this is the only line that gates it.
     insufficient_balance: {
-      detail: true,
       en: () => 'You do not have enough hours for that request.',
       es: () => 'No tienes suficientes horas para esa solicitud.'
     },
@@ -382,6 +384,37 @@
       es: () => 'Ese tipo de tiempo libre no está disponible. Elige otro o consulta con tu supervisor.'
     }
   };
+
+  /**
+   * Wording for a cancellation the proxy refused.
+   *
+   * request_not_found stays vague on purpose. The flow answers 404 both for a
+   * reference that does not exist and for one belonging to somebody else, so
+   * that walking the TMO- range teaches a stranger nothing. Copy that hinted
+   * at which case occurred would give back exactly what the flow withholds.
+   */
+  const CANCEL_ERRORS = {
+    not_cancellable: {
+      detail: true,
+      en: () => 'This request can no longer be canceled.',
+      es: () => 'Esta solicitud ya no se puede cancelar.'
+    },
+    request_not_found: {
+      en: () => 'That request is no longer available. Refresh your list and try again.',
+      es: () => 'Esa solicitud ya no está disponible. Actualiza tu lista e inténtalo de nuevo.'
+    }
+  };
+
+  function cancelErrorText(error, message) {
+    const known = CANCEL_ERRORS[error];
+    if (known) {
+      const lead = (known[currentLang()] || known.en)();
+      return known.detail && message ? lead + ' ' + message : lead;
+    }
+    return message || (currentLang() === 'es'
+      ? 'No se pudo enviar la cancelación — verifica tu conexión e inténtalo de nuevo.'
+      : 'Your cancellation could not be sent — check your connection and try again.');
+  }
 
   function submitErrorText(error, message, refId) {
     const known = SUBMIT_ERRORS[error];
@@ -459,6 +492,11 @@
       requests: Array.isArray(data.requests) ? data.requests : []
     };
 
+    // The lookup returns all four balance buckets every time, zeros included,
+    // so "nothing here" can no longer be inferred from the balances — an
+    // employee with no requests still gets four rows. The whole-tab empty state
+    // is now only for a flow that returns neither, and having no requests is
+    // said inline under the balances instead.
     if (!mine.balances.length && !mine.requests.length) {
       showMineState('mine-empty');
       return;
@@ -469,6 +507,15 @@
   }
 
   mineRetry.addEventListener('click', loadMine);
+
+  // An explicit refresh rather than a silent refetch after a cancellation:
+  // an immediate reload could race the flow's own balance restoration and
+  // show a number that contradicts the confirmation just given.
+  mineRefresh.addEventListener('click', () => {
+    cancelSentFor = null;
+    cancelSentOutcome = null;
+    loadMine();
+  });
 
   // Keyed on the lowercased status the flow returns. `denied` and `cancelled`
   // are kept alongside the current spellings: a row written before the rename,
@@ -578,6 +625,16 @@
   function renderRequests() {
     reqList.textContent = '';
 
+    if (!mine.requests.length) {
+      const empty = document.createElement('p');
+      empty.className = 'field-hint';
+      empty.textContent = currentLang() === 'es'
+        ? 'Aún no tienes solicitudes de tiempo libre.'
+        : 'You have no time off requests yet.';
+      reqList.appendChild(empty);
+      return;
+    }
+
     mine.requests.forEach(r => {
       const meta = statusMeta(r.status);
       const isOpen = cancelOpenFor === r.referenceId;
@@ -631,8 +688,9 @@
   }
 
   function cancelSentLine() {
+    const done = cancelSentOutcome === 'Canceled';
     const sent = document.createElement('div');
-    sent.className = 'cancel-sent';
+    sent.className = 'cancel-sent' + (done ? ' cancel-done' : '');
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('fill', 'none');
@@ -642,9 +700,19 @@
     poly.setAttribute('points', '20 6 9 17 4 12');
     svg.appendChild(poly);
     const text = document.createElement('span');
-    text.textContent = currentLang() === 'es'
-      ? 'Solicitud de cancelación enviada — tu supervisor la confirmará en breve.'
-      : 'Cancellation request sent — your supervisor will confirm shortly.';
+    if (done) {
+      // The balance above is now a number short of the truth, hence the nudge
+      // to refresh rather than a silent refetch that could race the flow.
+      text.textContent = currentLang() === 'es'
+        ? 'Cancelada. Tus horas fueron devueltas — actualiza para ver tu saldo.'
+        : 'Canceled. Your hours have been returned — refresh to see your balance.';
+    } else {
+      // The second sentence is the one that matters: until a supervisor
+      // confirms, the employee is still expected to be off work.
+      text.textContent = currentLang() === 'es'
+        ? 'Cancelación solicitada — tu supervisor la confirmará. Este tiempo libre sigue vigente hasta entonces.'
+        : 'Cancellation requested — your supervisor will confirm. This time off stays in effect until then.';
+    }
     sent.appendChild(svg);
     sent.appendChild(text);
     return sent;
@@ -707,7 +775,7 @@
       confirmText.textContent = es ? 'Enviando…' : 'Submitting…';
       failed.style.display = 'none';
 
-      const { ok, message, cancelled } = await PortalForm.submitJSON('timeoff-cancel', {
+      const { ok, error, message, data, cancelled } = await PortalForm.submitJSON('timeoff-cancel', {
         referenceId: r.referenceId,
         clockNumber: identity.clockNumber,
         reason:      area.value.trim()
@@ -718,19 +786,23 @@
         confirmSpinner.style.display = 'none';
         confirmText.textContent = es ? 'Confirmar cancelación' : 'Confirm cancellation';
         if (cancelled) return;
-        failed.textContent = message || (es
-          ? 'No se pudo enviar la cancelación — verifica tu conexión e inténtalo de nuevo.'
-          : 'Your cancellation could not be sent — check your connection and try again.');
+        failed.textContent = cancelErrorText(error, message);
         failed.style.display = 'block';
         return;
       }
 
-      // Reflect it locally rather than refetching: the flow needs the
-      // supervisor to confirm before the stored status changes, so a reload
-      // here would show the old status and read as though nothing happened.
-      r.status = 'Cancellation requested';
+      // Which outcome happened is the flow's call, not ours: cancelling time
+      // that has not started yet takes effect immediately, while cancelling
+      // time already taken needs a supervisor to confirm it. Assuming the
+      // second — as this did before the flow could tell us — would have told
+      // people their vacation was still pending when it was already gone;
+      // assuming the first would tell them it was cancelled when it was not,
+      // which is worse. So read it.
+      const outcome = (data && data.status) || 'Cancellation requested';
+      r.status = outcome;
       cancelOpenFor = null;
       cancelSentFor = r.referenceId;
+      cancelSentOutcome = outcome;
       renderRequests();
     });
 

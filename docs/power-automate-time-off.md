@@ -109,7 +109,7 @@ connection closes. Its response contract:
 | 400 | `{"error": "insufficient_balance", "message": "…"}` | Not enough hours |
 | 409 | `{"error": "already_submitted", "message": "…"}` | `_ref` already on file **and the payload differs** |
 | 401 | `{"error": "unauthorized"}` | Shared secret missing or wrong |
-| 404 | `{"found": false}` | Clock number not on the roster |
+| 400 | `{"found": false}` | Clock number not on the roster — note **400**, not 404, and no `error` key. The other three flows answer 404 here; the Worker matches on the body as well as the status so both work. |
 | 500 | `{"error": "internal_error"}` | Flow failure |
 
 `insufficient_balance` is the only one whose `message` reaches the browser —
@@ -205,7 +205,7 @@ week off.
 
 ---
 
-## 3. Lookup flow → `TIMEOFF_LOOKUP_FLOW_URL`
+## 3. Lookup flow → `TIMEOFF_LOOKUP_FLOW_URL` — **built**
 
 Powers the "My time off" tab: the balance the employees have been asking for,
 and the list of their existing requests.
@@ -235,6 +235,13 @@ Receives `{ "clockNumber": "048213" }` and returns:
 
 Return **404** for a clock number with no record, same as the validation flow.
 
+**All four balance buckets come back every time, zeros included** — an employee
+with no Legacy Carryover gets a `0` row rather than a missing one, because the
+zero tells them the category exists. The page renders them as sent and does not
+filter. `balances` is entitlement − used − pending, so the number shown is what
+can actually be requested right now, and the request flow applies the same
+arithmetic — the page and the submit check agree by construction.
+
 `status` values the page gives their own colour:
 
 | Status                    | Pill    | Cancellable |
@@ -259,7 +266,42 @@ Sort newest first — the page renders the array in the order it arrives.
 
 ---
 
-## 4. Cancellation flow → `TIMEOFF_CANCEL_FLOW_URL`
+## 4. Cancellation flow → `TIMEOFF_CANCEL_FLOW_URL` — **built**
+
+Responds before starting the supervisor approval, like the request flow.
+
+### The response says which of two things happened
+
+| Case | `status` returned |
+| --- | --- |
+| FMLA | `Canceled` |
+| Request was `Pending` | `Canceled` |
+| `Approved`, starts in the future | `Canceled` |
+| `Approved`, already started or past | `Cancellation requested` |
+
+```json
+{ "status": "Canceled", "referenceId": "TMO-100001" }
+```
+
+The page reads this and says the matching thing — `Canceled` means the hours
+are already back, `Cancellation requested` means the time off is still in
+effect until a supervisor confirms. Most cancellations are for time that has
+not happened yet; only cancelling time already taken is a real decision,
+because it asserts the employee actually worked those days.
+
+### Error exits
+
+| Status | Body |
+| --- | --- |
+| 401 | `{"error": "unauthorized"}` |
+| 404 | `{"error": "not_found"}` |
+| 409 | `{"error": "not_cancellable", "message": "…"}` |
+
+**The 404 is ambiguous on purpose and must stay that way.** It covers both "no
+such reference" and "belongs to a different employee", so that walking the
+`TMO-` range teaches a stranger nothing. Neither the Worker nor the page
+distinguishes them, and the page's copy is written not to hint at which
+occurred.
 
 Replaces `https://forms.cloud.microsoft/e/gRUsQwKJKM`. Receives:
 

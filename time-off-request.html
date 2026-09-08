@@ -252,6 +252,11 @@
     color: var(--indigo-01); font-size: var(--text-t3);
   }
   .cancel-sent svg { width: 16px; height: 16px; flex-shrink: 0; }
+  /* Done, not pending — the hours are already back. */
+  .cancel-sent.cancel-done { border-top-color: var(--green-02); color: var(--green-01); }
+
+  .mine-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); }
+  .mine-toolbar .btn { min-height: 40px; }
 
   .cancel-failed { margin-top: var(--space-3); font-size: var(--text-t3); color: var(--status-danger); }
 
@@ -521,6 +526,9 @@
           </div>
 
           <div id="mine-content" style="display:none">
+            <div class="mine-toolbar">
+              <button type="button" class="btn btn-outline" id="mine-refresh" data-en="Refresh" data-es="Actualizar">Refresh</button>
+            </div>
             <div class="section-label" data-en="Your balance" data-es="Tu saldo">Your balance</div>
             <div class="balance-grid" id="balance-grid"></div>
             <div class="section-label" data-en="Your requests" data-es="Tus solicitudes">Your requests</div>

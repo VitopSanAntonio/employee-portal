@@ -712,9 +712,10 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
       : 'You do not have enough hours';
     results.push({
       page: 'time-off-request', mode: `insufficient-balance-${lang}`,
-      // Our lead sentence in the reader's language, then the flow's own
-      // detail, which carries the numbers we cannot know.
-      pass: banner.includes(lead) && banner.includes('16 hours') &&
+      // Said once, in the reader's language. The built flow's own message is a
+      // restatement rather than the numbers, so it is not appended — see
+      // SUBMIT_ERRORS. The form stays put and the button comes back.
+      pass: banner.includes(lead) && !banner.includes('16 hours') &&
         (await page.locator('#form-card').isVisible()) &&
         (await page.locator('#submit-btn').isEnabled()),
       detail: banner
@@ -763,6 +764,154 @@ for (const lang of ['en', 'es']) {
     pass: banner.includes(sentRef) && banner.includes(instruction) &&
       banner.indexOf('submitted') === banner.lastIndexOf('submitted'),
     detail: banner
+  });
+  await page.close();
+}
+
+// ── Time off: the cancellation outcome is the flow's to decide ──
+//
+// Cancelling time that has not started yet takes effect immediately;
+// cancelling time already taken needs a supervisor. Saying the wrong one
+// either strands somebody at work or sends them home on a workday.
+for (const [outcome, lang, expect, reject] of [
+  ['Canceled',               'en', 'hours have been returned', 'stays in effect'],
+  ['Canceled',               'es', 'horas fueron devueltas',   'sigue vigente'],
+  ['Cancellation requested', 'en', 'stays in effect until',    'have been returned'],
+  ['Cancellation requested', 'es', 'sigue vigente hasta',      'fueron devueltas'],
+]) {
+  const page = await browser.newPage();
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    if (url.includes('/submit/timeoff-lookup')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          found: true, displayName: 'Albiar A.',
+          balances: [
+            { leaveType: 'Vacation', hours: 64 },
+            { leaveType: 'Floating Holiday', hours: 8 },
+            { leaveType: 'LSK CarryOver', hours: 0 },
+            { leaveType: 'Perfect Attendance Reward', hours: 0 }
+          ],
+          requests: [{ referenceId: 'TMO-100001', leaveType: 'Vacation',
+                       startDate: '2026-09-15', endDate: '2026-09-17',
+                       hours: 24, status: 'Approved' }]
+        }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, referenceId: 'TMO-100001', status: outcome }) });
+  });
+  if (lang === 'es') await seedStorage(page, { portalLang: 'es' });
+
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.click('#tab-mine');
+  await page.waitForSelector('#req-list .req-row');
+
+  // Zero balances are rendered, not filtered — they tell an employee the
+  // category exists at all.
+  if (lang === 'en') {
+    const cards = await page.locator('#balance-grid .balance-card').count();
+    const zeroShown = (await page.locator('#balance-grid').textContent()).includes('0');
+    results.push({ page: 'time-off-request', mode: 'zero-balances-rendered',
+      pass: cards === 4 && zeroShown, detail: `${cards} cards` });
+  }
+
+  await page.click('.req-action button');
+  await page.waitForSelector('.cancel-panel');
+  await page.click('.cancel-actions .btn-primary');
+  await page.waitForSelector('.cancel-sent');
+
+  const line = (await page.locator('.cancel-sent').textContent()).trim();
+  const pillNow = (await page.locator('#req-list .status-pill').textContent()).trim();
+  results.push({
+    page: 'time-off-request', mode: `cancel-${outcome.replace(/ /g, '-')}-${lang}`,
+    pass: line.includes(expect) && !line.includes(reject) &&
+      // and the pill agrees with the sentence
+      (outcome === 'Canceled'
+        ? (lang === 'es' ? pillNow.includes('Cancelada') : pillNow.includes('Canceled'))
+        : (lang === 'es' ? pillNow.includes('solicitada') : pillNow.includes('requested'))),
+    detail: `${pillNow} — ${line}`
+  });
+  await page.close();
+}
+
+// No requests is said inline under the balances. It cannot be inferred from an
+// empty balances array any more — the lookup always returns all four buckets.
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({
+        found: true, displayName: 'Albiar A.',
+        balances: [{ leaveType: 'Vacation', hours: 0 }],
+        requests: []
+      }) });
+  });
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.click('#tab-mine');
+  await page.waitForSelector('#mine-content', { state: 'visible' });
+  results.push({
+    page: 'time-off-request', mode: 'no-requests-said-inline',
+    pass: (await page.locator('#req-list').textContent()).includes('no time off requests') &&
+      (await page.locator('#balance-grid .balance-card').count()) === 1,
+    detail: (await page.locator('#req-list').textContent()).trim()
+  });
+  await page.close();
+}
+
+// A reference that is gone, or was never theirs — the flow answers 404 to both
+// on purpose, and the copy must not hint at which.
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    if (url.includes('/submit/timeoff-lookup')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          found: true, displayName: 'Albiar A.', balances: [],
+          requests: [{ referenceId: 'TMO-100001', leaveType: 'Vacation',
+                       startDate: '2026-09-15', endDate: '2026-09-17',
+                       hours: 24, status: 'Pending' }]
+        }) });
+    }
+    return route.fulfill({ status: 400, contentType: 'application/json',
+      body: JSON.stringify({ ok: false, error: 'request_not_found',
+        message: 'That request is no longer available.' }) });
+  });
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.click('#tab-mine');
+  await page.waitForSelector('#req-list .req-row');
+  await page.click('.req-action button');
+  await page.waitForSelector('.cancel-panel');
+  await page.click('.cancel-actions .btn-primary');
+  await page.waitForSelector('.cancel-failed');
+
+  const failed = (await page.locator('.cancel-failed').textContent()).trim().toLowerCase();
+  results.push({
+    page: 'time-off-request', mode: 'cancel-404-copy-stays-ambiguous',
+    // Never "belongs to someone else" or "does not exist" — either would give
+    // back what the flow's ambiguous 404 withholds.
+    pass: failed.includes('no longer available') &&
+      !/someone else|another employee|does not exist|doesn't exist|not yours/.test(failed),
+    detail: failed
   });
   await page.close();
 }

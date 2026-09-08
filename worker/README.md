@@ -162,6 +162,9 @@ employee will actually meet:
   on file and the payload has changed, so the submission timed out, the row was
   written anyway, and something was edited before the retry. An identical retry
   is the flow's 200 path and never lands here.
+- **not_cancellable** — the cancellation flow's 409, on its own allowlist. Its
+  message names the request's current status and is written to be read by an
+  employee, so it is relayed.
 
 Both are the system working, not failing. Telling someone "could not be
 delivered" sends them to their supervisor over a request that was understood
@@ -181,10 +184,35 @@ other failure keeps the page's own wording, because the proxy's messages are
 English and the pages are bilingual. `time-off-request.js` then maps the code
 to its own EN/ES lead sentence and appends the flow's detail after it.
 
-The request route also maps a flow's **404** to `unknown_clock_number`, the
-same answer the Worker gives from its own roster check. Rare — the Worker
-re-validates before forwarding — but it means the two checks disagreeing still
-produces an answer about the badge rather than an outage.
+A **404** means different things on different routes, so each declares its own
+`upstream404` rather than sharing one rule:
+
+- **request** → `unknown_clock_number`, the same answer the Worker gives from
+  its own roster check. Rare, since it re-validates before forwarding, but it
+  means the two checks disagreeing still produces an answer about the badge
+  rather than an outage.
+- **cancellation** → `request_not_found`. The flow answers 404 both for a
+  reference that does not exist and for one belonging to a different employee,
+  **deliberately**, so that walking the `TMO-` range teaches a stranger
+  nothing. Neither the Worker nor the page may distinguish the two, and the
+  page's copy must not hint at which occurred. Do not add a more specific
+  error here.
+
+### The cancellation outcome
+
+`/submit/timeoff-cancel` is projected (`projectTimeOffCancel`) rather than
+wrapped, because the flow reports **which** of two things happened and the page
+has to say the right one:
+
+- `Canceled` — done. The hours are already back.
+- `Cancellation requested` — a supervisor still has to confirm, and the time
+  off stays in effect until they do.
+
+The flow decides: cancelling time that has not started yet is immediate, while
+cancelling time already taken is a real decision and needs approval. An
+unrecognised value is reported as `Cancellation requested` — being wrong in
+that direction is recoverable; telling somebody their vacation is cancelled
+when it is not sends them home on a workday.
 
 ### Still to build
 

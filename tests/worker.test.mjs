@@ -571,6 +571,15 @@ const VALID_SAFETY = {
     gone.status === 400 && (await gone.clone().json()).error === 'unknown_clock_number',
     `${gone.status}`);
 
+  // The built request flow actually answers 400 with {"found": false} and no
+  // error code, where the other three answer 404. Matching the body as well as
+  // the status is what stops that becoming "could not be delivered".
+  upstreamReply = withFlowReply(() => new Response(JSON.stringify({ found: false }), { status: 400 }));
+  const gone400 = await post('timeoff', VALID_TIMEOFF);
+  check('timeoff-flow-400-found-false-is-unknown-clock-number',
+    gone400.status === 400 && (await gone400.clone().json()).error === 'unknown_clock_number',
+    `${gone400.status} ${JSON.stringify(await gone400.clone().json())}`);
+
   // The flow echoes the _ref it was sent rather than minting its own.
   upstreamReply = withFlowReply(() => new Response(JSON.stringify({ referenceId: 'TMO-366331' }), { status: 200 }));
   const echoed = await post('timeoff', { ...VALID_TIMEOFF, referenceId: 'TMO-366331' });
@@ -606,6 +615,26 @@ const VALID_SAFETY = {
     res.status === 200 && body.balances[0].hours === 64 && body.requests[0].referenceId === 'TMO-100001',
     JSON.stringify(body));
 
+  // All four buckets come back every time, zeros included — they tell an
+  // employee the category exists. A zero must survive the projection, not be
+  // dropped as falsy.
+  upstreamReply = () => new Response(JSON.stringify({
+    found: true, displayName: 'Albiar A.',
+    balances: [
+      { leaveType: 'Vacation', hours: 64 },
+      { leaveType: 'Floating Holiday', hours: 8 },
+      { leaveType: 'LSK CarryOver', hours: 0 },
+      { leaveType: 'Perfect Attendance Reward', hours: 0 },
+    ],
+    requests: [],
+  }), { status: 200 });
+  const zeros = await post('timeoff-lookup', { clockNumber: '048213' });
+  const zerosBody = await zeros.clone().json();
+  check('timeoff-lookup-keeps-zero-balances',
+    zerosBody.balances.length === 4 && zerosBody.balances[2].hours === 0 &&
+    zerosBody.balances[3].hours === 0,
+    JSON.stringify(zerosBody.balances));
+
   check('timeoff-lookup-projects-away-internal-fields',
     !('hrNotes' in body) && !('accrualCode' in body.balances[0]) &&
     !('approverEmail' in body.requests[0]),
@@ -615,10 +644,69 @@ const VALID_SAFETY = {
     ? new Response(JSON.stringify({ found: true, displayName: 'Albiar A.' }), { status: 200 })
     : new Response('{}', { status: 200 });
 
-  const cancelled = await post('timeoff-cancel', {
-    referenceId: 'TMO-100001', clockNumber: '048213', reason: 'Plans changed.',
-  });
-  check('timeoff-cancel-accepts-valid', cancelled.status === 200, `${cancelled.status}`);
+  const CANCEL = { referenceId: 'TMO-100001', clockNumber: '048213', reason: 'Plans changed.' };
+  const rosterThen = reply => (url =>
+    url.includes('/validate')
+      ? new Response(JSON.stringify({ found: true, displayName: 'Albiar A.' }), { status: 200 })
+      : reply());
+
+  // The flow decides whether a cancellation is immediate or needs a
+  // supervisor, and the page has to say the right one. Telling somebody their
+  // vacation is cancelled when it is not would be worse than the name dropdown
+  // this page replaced.
+  upstreamReply = rosterThen(() => new Response(JSON.stringify({
+    status: 'Canceled', referenceId: 'TMO-100001',
+  }), { status: 200 }));
+  const cancelled = await post('timeoff-cancel', CANCEL);
+  const cancelledBody = await cancelled.clone().json();
+  check('timeoff-cancel-reports-immediate',
+    cancelled.status === 200 && cancelledBody.status === 'Canceled' &&
+    cancelledBody.referenceId === 'TMO-100001',
+    JSON.stringify(cancelledBody));
+
+  upstreamReply = rosterThen(() => new Response(JSON.stringify({
+    status: 'Cancellation requested', referenceId: 'TMO-100001',
+  }), { status: 200 }));
+  const pendingCancel = await post('timeoff-cancel', CANCEL);
+  check('timeoff-cancel-reports-pending',
+    (await pendingCancel.clone().json()).status === 'Cancellation requested');
+
+  // Wrong in the safe direction: "still needs confirming" is recoverable,
+  // "already cancelled" when it is not sends somebody home on a workday.
+  upstreamReply = rosterThen(() => new Response(JSON.stringify({
+    status: 'Wat', referenceId: 'TMO-100001',
+  }), { status: 200 }));
+  const odd = await post('timeoff-cancel', CANCEL);
+  check('timeoff-cancel-unknown-outcome-is-pending',
+    (await odd.clone().json()).status === 'Cancellation requested',
+    (await odd.clone().json()).status);
+
+  upstreamReply = rosterThen(() => new Response(JSON.stringify({
+    error: 'not_cancellable',
+    message: "This request is already Rejected and can't be cancelled.",
+  }), { status: 409 }));
+  const notCancellable = await post('timeoff-cancel', CANCEL);
+  const ncBody = await notCancellable.clone().json();
+  check('timeoff-cancel-relays-not-cancellable',
+    notCancellable.status === 400 && ncBody.error === 'not_cancellable' &&
+    ncBody.message.includes('already Rejected'),
+    JSON.stringify(ncBody));
+
+  // The flow's 404 covers both "no such reference" and "not yours" on purpose,
+  // so that walking the TMO- range teaches a stranger nothing. It must not come
+  // back as a statement about the clock number, which is what the request
+  // route's 404 means.
+  upstreamReply = rosterThen(() => new Response(JSON.stringify({ error: 'not_found' }), { status: 404 }));
+  const missing = await post('timeoff-cancel', CANCEL);
+  const missingBody = await missing.clone().json();
+  check('timeoff-cancel-404-stays-ambiguous',
+    missingBody.error === 'request_not_found' &&
+    !JSON.stringify(missingBody).includes('clock'),
+    JSON.stringify(missingBody));
+
+  upstreamReply = rosterThen(() => new Response(JSON.stringify({
+    status: 'Canceled', referenceId: 'TMO-100001',
+  }), { status: 200 }));
 
   // A stranger with the Worker URL must not be able to cancel somebody's
   // vacation by guessing a TMO number alone.
