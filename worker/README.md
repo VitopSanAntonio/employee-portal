@@ -110,7 +110,10 @@ to nobody.
 > and the flow's own Switch. Change one and requests silently stop matching.
 
 `hours` is forwarded as a **number**, not a string. Everything is tracked in
-hours (8 hours = 1 day) and half days are real, so decimals are accepted.
+hours (8 hours = 1 day), and **whole hours only** — 4.5 is rejected with
+`not_whole_hours` rather than rounded, since rounding it either way books time
+the employee did not ask for. Enforced on the page and again here, because this
+route answers curl.
 
 The two lookup flows are **projected**, not passed through — `projectValidate`
 and `projectTimeOffLookup` name every field that reaches the browser. Both read

@@ -400,9 +400,16 @@ const VALID_SAFETY = {
     /^TMO-\d{6}$/.test((await ok.clone().json()).referenceId),
     (await ok.clone().json()).referenceId);
 
-  // Half days are real; everything is tracked in hours.
+  // Whole hours only. Rounding a 4.5 either way books time the employee did
+  // not ask for, so it is refused rather than tidied up.
   const half = await post('timeoff', { ...VALID_TIMEOFF, hours: 4.5 });
-  check('timeoff-accepts-fractional-hours', half.status === 200, `${half.status}`);
+  check('timeoff-rejects-fractional-hours',
+    half.status === 400 && (await half.clone().json()).error === 'not_whole_hours',
+    `${half.status} ${JSON.stringify(await half.clone().json())}`);
+
+  // A whole number that arrived with a decimal point is still whole.
+  const trailing = await post('timeoff', { ...VALID_TIMEOFF, hours: 8.0 });
+  check('timeoff-accepts-whole-hours-with-trailing-zero', trailing.status === 200, `${trailing.status}`);
 
   const strHours = await post('timeoff', { ...VALID_TIMEOFF, hours: '8' });
   check('timeoff-coerces-string-hours',

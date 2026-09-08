@@ -97,7 +97,8 @@ empty result instead of 404 would tell an employee their correct badge number
 is wrong.
 
 Everything is tracked in **hours**, not days. 8 hours = 1 day, and half days
-are real, so expect decimals like 4.5.
+are real in the schema — but the portal now sends whole hours only and
+rejects a 4.5 before it reaches you, so in practice this is always an integer.
 
 ---
 
