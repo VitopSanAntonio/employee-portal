@@ -70,7 +70,9 @@
     color: var(--text-primary);
     margin-bottom: var(--space-5);
   }
-  .season-halloween .seasonal-notice svg { color: var(--gourd); }
+  /* The leading emoji is the marker now — no icon to tint. Slightly larger
+     line height so a bat and a line of body text sit comfortably together. */
+  .season-halloween .seasonal-notice { line-height: 1.6; }
 
   .hero-cta { display: flex; flex-direction: column; gap: var(--space-5); }
   main.page-main {
@@ -165,9 +167,13 @@
   <main class="page-main">
 
     <div class="notice seasonal-notice">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-      <span data-en="Happy Halloween. If you are dressing up on shift: no loose sleeves, capes or masks near machinery, and keep your safety shoes on. Watch for trick-or-treat traffic in the lot after second shift." data-es="Feliz Halloween. Si te disfrazas en tu turno: nada de mangas sueltas, capas ni máscaras cerca de la maquinaria, y no te quites el calzado de seguridad. Ojo con el tráfico de pedir dulces en el estacionamiento después del segundo turno.">Happy Halloween. If you are dressing up on shift: no loose sleeves, capes or masks near machinery, and keep your safety shoes on. Watch for trick-or-treat traffic in the lot after second shift.</span>
+      <span data-en="🦇 Bumps in the night belong in haunted houses, not on the production floor. If you spot a hazard, need maintenance, have a great idea, or need time off, the portal is your spellbook for getting it done." data-es="🦇 Los ruidos extraños pertenecen a las casas embrujadas, no al piso de producción. Si detectas un peligro, necesitas mantenimiento, tienes una buena idea o necesitas tiempo libre, el portal es tu libro de hechizos para lograrlo.">🦇 Bumps in the night belong in haunted houses, not on the production floor. If you spot a hazard, need maintenance, have a great idea, or need time off, the portal is your spellbook for getting it done.</span>
     </div>
+
+    <!-- The alternative, if you prefer the sharper single idea over the one
+         that names all four services. Swap the two spans above and below.
+    <span data-en="🎃 The scariest thing in the plant isn't a ghost, it's an unreported problem. If you see it, hear it, or trip over it, let us know through the portal before it comes back to haunt us. 👻" data-es="🎃 Lo más aterrador de la planta no es un fantasma, es un problema que nadie reporta. Si lo ves, lo escuchas o te tropiezas con él, avísanos por el portal antes de que regrese a perseguirnos. 👻">🎃 The scariest thing in the plant isn't a ghost, it's an unreported problem. If you see it, hear it, or trip over it, let us know through the portal before it comes back to haunt us. 👻</span>
+    -->
 
     <a href="safety-concern.html" class="card-featured">
       <span class="icon-tile">
