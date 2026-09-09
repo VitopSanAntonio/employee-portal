@@ -114,11 +114,6 @@ for (const p of ['index', 'safety-concern', 'suggestion-form', 'maintenance-requ
 
   await page.goto(`${base}/time-off-request.html`);
 
-  // Unlinked from the portal until go-live, and marked noindex on top of that.
-  const noindex = await page.evaluate(() =>
-    (document.querySelector('meta[name="robots"]') || {}).content || '');
-  check('timeoff-preview-noindex', noindex.includes('noindex'), noindex);
-
   const gateHiddenAtRest = await page.locator('#gate').isVisible();
   check('timeoff-form-hidden-before-validation', gateHiddenAtRest === false);
 
@@ -189,6 +184,107 @@ for (const p of ['index', 'safety-concern', 'suggestion-form', 'maintenance-requ
     `${altEn} / ${altEs}`);
 
   await page.close();
+}
+
+// The rollback lever. Default is the portal page; flipping one constant in
+// time-off.html brings the Microsoft Forms back and hides the portal cards.
+{
+  const page = await browser.newPage();
+  await page.goto(`${base}/time-off.html`);
+  const links = () => page.evaluate(() =>
+    [...document.querySelectorAll('.grid-cards a')]
+      .filter(a => a.offsetParent !== null).map(a => a.getAttribute('href')));
+
+  const shipped = await links();
+  check('lever-default-is-the-portal-page',
+    shipped.length === 2 && shipped.every(h => h.startsWith('time-off-request.html')) &&
+    !shipped.some(h => h.includes('forms.cloud.microsoft')),
+    shipped.join(' '));
+
+  // Both card sets ship in the file either way — that is what makes the
+  // rollback one line rather than a rewrite.
+  const legacyPresent = await page.evaluate(() =>
+    document.querySelectorAll('.when-legacy a[href*="forms.cloud.microsoft"]').length);
+  check('lever-keeps-legacy-cards-in-the-file', legacyPresent === 2, `${legacyPresent}`);
+
+  await page.evaluate(() => document.documentElement.classList.add('legacy-timeoff'));
+  const rolledBack = await links();
+  check('lever-flipped-restores-microsoft-forms',
+    rolledBack.length === 2 && rolledBack.every(h => h.includes('forms.cloud.microsoft')),
+    rolledBack.join(' '));
+  await page.close();
+}
+
+// The portal's "My time off" card deep-links past the request tab.
+{
+  const page = await browser.newPage();
+  await page.route('**/submit/validate', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) }));
+  await page.route('**/submit/timeoff-lookup', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ found: true, displayName: 'Albiar A.', balances: [], requests: [] }) }));
+  await page.goto(`${base}/time-off-request.html?tab=mine`);
+  await page.fill('#clockNumber', '048213');
+  await waitFor(() => page.locator('#gate').isVisible());
+  check('tab-param-opens-my-time-off',
+    (await page.locator('#tab-mine').getAttribute('aria-selected')) === 'true');
+  await page.close();
+}
+
+// The page is live now — no preview banner, and indexable like the rest.
+{
+  const page = await browser.newPage();
+  await page.goto(`${base}/time-off-request.html`);
+  const robots = await page.evaluate(() =>
+    (document.querySelector('meta[name="robots"]') || {}).content || '');
+  check('timeoff-page-is-live',
+    robots === '' && (await page.locator('.preview-banner').count()) === 0, robots);
+  await page.close();
+}
+
+// Seasonal styling: on inside the window, off outside, and confined to the
+// home page — the forms carry injury reports and medical leave.
+for (const [when, iso, expect] of [
+  ['halloween', '2026-10-28T09:00:00', true],
+  ['november',  '2026-11-01T09:00:00', false],
+  ['july',      '2026-07-04T09:00:00', false],
+]) {
+  const page = await browser.newPage();
+  await page.addInitScript(t => {
+    const Real = Date;
+    window.Date = class extends Real {
+      constructor(...a) { super(...(a.length ? a : [t])); }
+      static now() { return new Real(t).getTime(); }
+    };
+  }, iso);
+  await page.goto(`${base}/index.html`);
+  const on = await page.evaluate(() => document.documentElement.classList.contains('season-halloween'));
+  check(`seasonal-gate-${when}`, on === expect, `${on}`);
+
+  if (expect) {
+    check('seasonal-notice-visible', await page.locator('.seasonal-notice').isVisible());
+    // Decoration must never sit between a finger and a card.
+    const inert = await page.evaluate(() =>
+      [...document.querySelectorAll('.web')].every(w => getComputedStyle(w).pointerEvents === 'none'));
+    check('seasonal-webs-are-inert', inert === true);
+  }
+  await page.close();
+
+  // Never on a form page.
+  const form = await browser.newPage();
+  await form.addInitScript(t => {
+    const Real = Date;
+    window.Date = class extends Real {
+      constructor(...a) { super(...(a.length ? a : [t])); }
+      static now() { return new Real(t).getTime(); }
+    };
+  }, iso);
+  await form.goto(`${base}/safety-concern.html`);
+  const onForm = await form.evaluate(() =>
+    document.documentElement.classList.contains('season-halloween'));
+  check(`seasonal-never-on-safety-form-${when}`, onForm === false);
+  await form.close();
 }
 
 await browser.close();

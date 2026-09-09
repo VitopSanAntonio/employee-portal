@@ -6,7 +6,7 @@ const BROWSER_GLOBALS = {
   window: 'readonly', document: 'readonly', localStorage: 'readonly',
   fetch: 'readonly', console: 'readonly', navigator: 'readonly',
   crypto: 'readonly', FileReader: 'readonly', DataTransfer: 'readonly',
-  URL: 'readonly', Image: 'readonly',
+  URL: 'readonly', URLSearchParams: 'readonly', Image: 'readonly',
   Event: 'readonly', CustomEvent: 'readonly', DOMException: 'readonly',
   AbortController: 'readonly',
   // form-utils.js publishes this on window; the page scripts that consume it
@@ -30,7 +30,7 @@ export default [
   },
   {
     // Browser-side shared modules, loaded via plain <script> tags.
-    files: ['lang.js', 'form-utils.js', 'photo-upload.js', 'time-off-request.js'],
+    files: ['lang.js', 'form-utils.js', 'photo-upload.js', 'time-off-request.js', 'seasonal.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
@@ -67,6 +67,7 @@ export default [
         setTimeout: 'readonly', clearTimeout: 'readonly',
         globalThis: 'readonly', process: 'readonly', Buffer: 'readonly',
         document: 'readonly', navigator: 'readonly', localStorage: 'readonly',
+        getComputedStyle: 'readonly',
         caches: 'readonly', performance: 'readonly', window: 'readonly',
         DOMException: 'readonly',
       },

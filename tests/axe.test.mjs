@@ -62,6 +62,28 @@ for (const lang of ['en', 'es']) {
   }
 }
 
+// Seasonal styling is date-gated, so a run outside late October would never
+// see it — and contrast is exactly what a seasonal palette gets wrong. Force
+// the class on and scan the home page in both languages.
+for (const lang of ['en', 'es']) {
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/index.html`);
+  if (lang === 'es') {
+    await page.evaluate(() => localStorage.setItem('portalLang', 'es'));
+    await page.reload();
+  }
+  await page.evaluate(() => document.documentElement.classList.add('season-halloween'));
+  const scan = await new AxeBuilder({ page }).analyze();
+  const blocking = scan.violations.filter(v => v.impact === 'serious' || v.impact === 'critical');
+  for (const v of blocking) {
+    console.log(`  index [${lang}] season-halloween ${v.id} (${v.impact}): ${v.help}`);
+    for (const node of v.nodes.slice(0, 3)) console.log(`    → ${node.target.join(' ')}`);
+  }
+  results.push({ page: 'index (halloween)', lang, pass: blocking.length === 0,
+    blocking: blocking.map(v => v.id).join(', ') || '—' });
+  await page.close();
+}
+
 await browser.close();
 server.close();
 report(results);

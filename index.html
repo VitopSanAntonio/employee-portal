@@ -28,6 +28,50 @@
 <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 <style>
+  /* ══ SEASONAL — Halloween ══════════════════════════════════════
+     Added by seasonal.js between 24 and 31 October and removed by
+     the calendar, not by a deploy. Delete this block and the script
+     tag to remove the feature.
+
+     Colour lands on borders, tags and a background only. Body text
+     keeps its palette: the accessibility suite fails the build on
+     contrast, and pumpkin on white does not clear AA at body size.
+  ═══════════════════════════════════════════════════════════════ */
+  :root { --gourd: #B8500A; --gourd-soft: #FDF1E7; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --gourd: #F0955A; --gourd-soft: #2A1710; }
+  }
+
+  .web { display: none; }
+  .season-halloween .web {
+    display: block;
+    position: fixed;
+    top: 0;
+    width: 108px;
+    height: 108px;
+    color: var(--white);
+    opacity: 0.22;
+    pointer-events: none;   /* never intercepts a tap meant for the page */
+    z-index: 1;
+  }
+  .season-halloween .web-l { left: 0; }
+  .season-halloween .web-r { right: 0; transform: scaleX(-1); }
+  /* The hero is deep blue and the header sits above it — below 900px the
+     webs would crowd the logo and the language button, so they stand down. */
+  @media (max-width: 900px) { .season-halloween .web { display: none; } }
+
+  .season-halloween .hero .eyebrow { color: var(--safety-yellow); }
+
+  .seasonal-notice { display: none; }
+  .season-halloween .seasonal-notice {
+    display: flex;
+    background: var(--gourd-soft);
+    border-color: var(--gourd);
+    color: var(--text-primary);
+    margin-bottom: var(--space-5);
+  }
+  .season-halloween .seasonal-notice svg { color: var(--gourd); }
+
   .hero-cta { display: flex; flex-direction: column; gap: var(--space-5); }
   main.page-main {
     max-width: 1080px;
@@ -84,6 +128,18 @@
 <body>
 <div class="shell">
 
+  <!-- Decorative only, and inline so it costs no request. aria-hidden keeps
+       it out of the reading order entirely. -->
+  <svg class="web web-l" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.1" aria-hidden="true" focusable="false">
+    <path d="M0 0 L100 100 M0 0 L70 100 M0 0 L100 70 M0 0 L40 100 M0 0 L100 40"/>
+    <path d="M22 0 Q11 11 0 22 M40 0 Q20 20 0 40 M58 0 Q29 29 0 58 M76 0 Q38 38 0 76 M94 0 Q47 47 0 94"/>
+  </svg>
+  <svg class="web web-r" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.1" aria-hidden="true" focusable="false">
+    <path d="M0 0 L100 100 M0 0 L70 100 M0 0 L100 70 M0 0 L40 100 M0 0 L100 40"/>
+    <path d="M22 0 Q11 11 0 22 M40 0 Q20 20 0 40 M58 0 Q29 29 0 58 M76 0 Q38 38 0 76 M94 0 Q47 47 0 94"/>
+  </svg>
+
+
   <header class="hero">
     <div class="wrap hero-inner">
       <div class="hero-top">
@@ -107,6 +163,11 @@
   </header>
 
   <main class="page-main">
+
+    <div class="notice seasonal-notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      <span data-en="Happy Halloween. If you are dressing up on shift: no loose sleeves, capes or masks near machinery, and keep your safety shoes on. Watch for trick-or-treat traffic in the lot after second shift." data-es="Feliz Halloween. Si te disfrazas en tu turno: nada de mangas sueltas, capas ni máscaras cerca de la maquinaria, y no te quites el calzado de seguridad. Ojo con el tráfico de pedir dulces en el estacionamiento después del segundo turno.">Happy Halloween. If you are dressing up on shift: no loose sleeves, capes or masks near machinery, and keep your safety shoes on. Watch for trick-or-treat traffic in the lot after second shift.</span>
+    </div>
 
     <a href="safety-concern.html" class="card-featured">
       <span class="icon-tile">
@@ -244,6 +305,7 @@
 </aside>
 
 <!-- Existing language script (unchanged) -->
+<script src="seasonal.js"></script>
 <script src="lang.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════
