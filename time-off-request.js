@@ -54,6 +54,10 @@
   // request — and now sees a balance — under the previous person's name.
   let identity = null;          // { clockNumber, displayName }
   let mine = null;              // { balances, requests } as last loaded
+  // Which tab to open once the badge clears. The portal links straight to
+  // "My time off", but nothing can be shown until an employee is identified,
+  // so the choice waits at the gate rather than being applied on load.
+  let pendingTab = new URLSearchParams(window.location.search).get('tab') === 'mine' ? 'mine' : 'request';
   let formOwner = null;        // clock number the request form was filled for
   let cancelOpenFor = null;     // referenceId whose cancel panel is expanded
   let cancelSentFor = null;     // referenceId that just had a cancellation sent
@@ -92,6 +96,7 @@
     renderWelcome();
     setIdState('id-ok');
     gate.classList.add('show');
+    if (pendingTab === 'mine') { pendingTab = 'request'; selectTab('mine'); }
   }
 
   function renderWelcome() {

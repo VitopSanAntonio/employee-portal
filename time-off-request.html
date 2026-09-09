@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Time Off Request — Employee Portal</title>
 
-<!-- Not linked from index.html or time-off.html, and kept out of the service
-     worker's precache list, until the switch-over from Microsoft Forms. The
-     noindex is belt and braces on top of the site-wide robots.txt: GitHub
-     Pages serves every file in the repo, so "hidden" here means unlinked, not
-     unreachable. -->
-<meta name="robots" content="noindex, nofollow">
-
 <!-- ═══════════ PWA: Web App Manifest ═══════════ -->
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="portal-icon-192.png">
@@ -57,20 +50,6 @@
   }
   .field.invalid input[type="date"] { border-color: var(--status-danger); }
   input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.6; cursor: pointer; }
-
-  /* ── Preview banner — goes away at go-live ── */
-  .preview-banner {
-    display: flex; align-items: center; gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-    color: var(--text-secondary);
-    font-size: var(--text-body-sm);
-    line-height: 1.5;
-    margin-bottom: var(--space-5);
-  }
-  .preview-banner svg { flex-shrink: 0; width: 16px; height: 16px; }
 
   /* ── Clock number gate ── */
   .clock-field { max-width: 280px; }
@@ -321,11 +300,6 @@
 
   <main class="page-main">
     <div class="wrap-narrow">
-
-      <div class="preview-banner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-        <span data-en="Preview — this replacement for the Microsoft Forms is not live yet and is not linked from the portal." data-es="Vista previa — este reemplazo de los formularios de Microsoft aún no está activo y no está enlazado en el portal.">Preview — this replacement for the Microsoft Forms is not live yet and is not linked from the portal.</span>
-      </div>
 
       <!-- ══════════ Clock number gate ══════════ -->
       <div class="form-card">
