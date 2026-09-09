@@ -19,7 +19,7 @@
   // before and closes when November starts, so November 1st is a
   // normal portal again without anyone touching it.
   const SEASONS = [
-    { name: 'halloween', from: [9, 24], to: [9, 31] }
+    { name: 'halloween', from: [8, 8], to: [9, 31] }
   ];
 
   const now = new Date();
