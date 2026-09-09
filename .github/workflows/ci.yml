@@ -77,6 +77,19 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # Both Playwright steps below shell out to `apt-get update`, which
+      # refreshes *every* apt source on the runner image — including Google's
+      # Chrome repository, which this project never installs from: Playwright
+      # ships its own Chromium. When that mirror serves a package index whose
+      # hash disagrees with its Release file, apt exits non-zero and the whole
+      # job dies before a single test runs. It happened twice in a row on
+      # 2026-09-09 and had nothing to do with the commit under test.
+      #
+      # Removing the source drops a dependency on a repository we do not use.
+      # The runner is a throwaway VM, so this affects nothing beyond this job.
+      - name: Drop the unused Google Chrome apt source
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+                        /etc/apt/sources.list.d/google-chrome.sources
       - run: npx playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
       - run: npx playwright install-deps chromium
