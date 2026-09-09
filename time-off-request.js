@@ -444,6 +444,8 @@
   }
 
   function resetRequestForm() {
+    // form.reset() puts the type back to the placeholder, so the question
+    // belongs on screen again.
     // The pending reference belongs to the form's unsent contents, so it dies
     // with them. Leaving it alive was a real hazard on a shared kiosk: after a
     // failed submit the idle timer clears the screen, the next person fills the
@@ -458,6 +460,7 @@
     document.querySelectorAll('#panel-request .field').forEach(f => f.classList.remove('invalid'));
     document.getElementById('submit-error').classList.remove('show');
     PortalForm.restoreSubmitButton();
+    syncFmlaQuestion();
     formCard.style.display   = 'block';
     successScr.style.display = 'none';
   }
@@ -466,6 +469,29 @@
     resetRequestForm();
     window.scrollTo(0, 0);
   });
+
+  /**
+   * "Is this vacation covering an FMLA-protected absence?" is a question about
+   * vacation, so it goes away once the leave type is FMLA itself.
+   *
+   * The answer is cleared on the way out, not just hidden: a Yes picked before
+   * switching would otherwise still be in the payload, describing FMLA leave as
+   * vacation that covers FMLA. The flow's FMLA branch does not read the field
+   * at all, so this is about the request being coherent rather than about what
+   * SharePoint stores.
+   */
+  const leaveTypeSelect = document.getElementById('leaveType');
+
+  function syncFmlaQuestion() {
+    const isFmla = leaveTypeSelect.value === 'FMLA';
+    form.classList.toggle('leave-fmla', isFmla);
+    if (isFmla) {
+      document.querySelectorAll('input[name="vacationCoversFMLA"]').forEach(r => { r.checked = false; });
+    }
+  }
+
+  leaveTypeSelect.addEventListener('change', syncFmlaQuestion);
+  syncFmlaQuestion();
 
   PortalForm.clearInvalidOnInput();
 

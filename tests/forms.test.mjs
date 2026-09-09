@@ -930,6 +930,60 @@ for (const [outcome, lang, expect, reject] of [
   await page.close();
 }
 
+// The FMLA question is about vacation, so it disappears once the leave type is
+// FMLA — and the answer goes with it, or the payload describes FMLA leave as
+// vacation covering FMLA.
+{
+  const page = await browser.newPage();
+  let sent = null;
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    sent = JSON.parse(route.request().postData() || '{}');
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ referenceId: 'TMO-004242' }) });
+  });
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+
+  await page.selectOption('#leaveType', 'Vacation');
+  const shownForVacation = await page.locator('#fmla-block').isVisible();
+  await page.click('label[for="fmla-yes"]');
+
+  await page.selectOption('#leaveType', 'FMLA');
+  const hiddenForFmla = await page.locator('#fmla-block').isVisible();
+  results.push({
+    page: 'time-off-request', mode: 'fmla-question-hidden-for-fmla',
+    pass: shownForVacation === true && hiddenForFmla === false,
+    detail: `vacation:${shownForVacation} fmla:${hiddenForFmla}`
+  });
+
+  // Switching back must not silently restore the old Yes.
+  await page.selectOption('#leaveType', 'Vacation');
+  results.push({
+    page: 'time-off-request', mode: 'fmla-answer-cleared-on-switch',
+    pass: (await page.locator('#fmla-block').isVisible()) === true &&
+      (await page.locator('#fmla-yes').isChecked()) === false
+  });
+
+  await page.selectOption('#leaveType', 'FMLA');
+  await page.fill('#startDate', '2026-10-01');
+  await page.fill('#endDate', '2026-10-01');
+  await page.fill('#hours', '8');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#success-screen', { state: 'visible' });
+  results.push({
+    page: 'time-off-request', mode: 'fmla-payload-carries-no-answer',
+    pass: sent && sent.leaveType === 'FMLA' && sent.vacationCoversFMLA === '',
+    detail: JSON.stringify(sent && { t: sent.leaveType, f: sent.vacationCoversFMLA })
+  });
+  await page.close();
+}
+
 // ── Time off: the reference must not outlive its submission ──
 {
   const page = await browser.newPage();
