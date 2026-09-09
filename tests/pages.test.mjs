@@ -1,6 +1,8 @@
 // Page-level suite: PWA tag parity, service worker activation, language
 // toggle (html lang + option translations), aria wiring, placeholders.
-import { startServer, launchBrowser, waitFor, report } from './helpers.mjs';
+import { startServer, launchBrowser, waitFor, report, ROOT } from './helpers.mjs';
+import fs from 'fs';
+import path from 'path';
 
 const PORT = 4175;
 const server = await startServer(PORT);
@@ -186,32 +188,42 @@ for (const p of ['index', 'safety-concern', 'suggestion-form', 'maintenance-requ
   await page.close();
 }
 
-// The rollback lever. Default is the portal page; flipping one constant in
-// time-off.html brings the Microsoft Forms back and hides the portal cards.
+// The rollback lever.
+//
+// These assert the mechanism, never which way the lever is currently set. An
+// earlier version pinned the committed value, which meant that flipping the
+// lever — the one thing it exists for, done under pressure — failed the build.
+// A switch you cannot throw without going red is not a switch.
 {
   const page = await browser.newPage();
   await page.goto(`${base}/time-off.html`);
-  const links = () => page.evaluate(() =>
+  const visible = () => page.evaluate(() =>
     [...document.querySelectorAll('.grid-cards a')]
       .filter(a => a.offsetParent !== null).map(a => a.getAttribute('href')));
+  const isPortal = hs => hs.length === 2 && hs.every(h => h.startsWith('time-off-request.html'));
+  const isLegacy = hs => hs.length === 2 && hs.every(h => h.includes('forms.cloud.microsoft'));
 
-  const shipped = await links();
-  check('lever-default-is-the-portal-page',
-    shipped.length === 2 && shipped.every(h => h.startsWith('time-off-request.html')) &&
-    !shipped.some(h => h.includes('forms.cloud.microsoft')),
-    shipped.join(' '));
+  // Whichever way it is set, employees see exactly one set of cards. Both at
+  // once, or neither, is the failure worth catching.
+  const shipped = await visible();
+  check('lever-shows-exactly-one-card-set',
+    isPortal(shipped) || isLegacy(shipped),
+    `${isLegacy(shipped) ? 'legacy' : 'portal'}: ${shipped.join(' ')}`);
 
-  // Both card sets ship in the file either way — that is what makes the
-  // rollback one line rather than a rewrite.
-  const legacyPresent = await page.evaluate(() =>
-    document.querySelectorAll('.when-legacy a[href*="forms.cloud.microsoft"]').length);
-  check('lever-keeps-legacy-cards-in-the-file', legacyPresent === 2, `${legacyPresent}`);
+  // Both sets ship in the file either way — that is what makes rolling back
+  // one line rather than a rewrite.
+  const counts = await page.evaluate(() => ({
+    portal: document.querySelectorAll('.when-new a[href^="time-off-request.html"]').length,
+    legacy: document.querySelectorAll('.when-legacy a[href*="forms.cloud.microsoft"]').length
+  }));
+  check('lever-keeps-both-card-sets-in-the-file',
+    counts.portal === 2 && counts.legacy === 2, JSON.stringify(counts));
 
+  // And it swaps them, in both directions, from whatever state it shipped in.
   await page.evaluate(() => document.documentElement.classList.add('legacy-timeoff'));
-  const rolledBack = await links();
-  check('lever-flipped-restores-microsoft-forms',
-    rolledBack.length === 2 && rolledBack.every(h => h.includes('forms.cloud.microsoft')),
-    rolledBack.join(' '));
+  check('lever-on-shows-microsoft-forms', isLegacy(await visible()));
+  await page.evaluate(() => document.documentElement.classList.remove('legacy-timeoff'));
+  check('lever-off-shows-portal-page', isPortal(await visible()));
   await page.close();
 }
 
@@ -245,10 +257,30 @@ for (const p of ['index', 'safety-concern', 'suggestion-form', 'maintenance-requ
 
 // Seasonal styling: on inside the window, off outside, and confined to the
 // home page — the forms carry injury reports and medical leave.
+//
+// The probe dates are read out of seasonal.js rather than written here. The
+// window is configuration and is meant to move — it was widened the day after
+// it shipped — so hardcoding it would turn an ordinary edit into a build
+// failure, which is exactly what the lever test used to do. Reading it also
+// buys better coverage: these land on the window's own edges.
+const seasonSrc = fs.readFileSync(path.join(ROOT, 'seasonal.js'), 'utf8');
+const win = seasonSrc.match(/from:\s*\[\s*(\d+)\s*,\s*(\d+)\s*\][\s\S]*?to:\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]/);
+if (!win) throw new Error('tests/pages: could not read the season window out of seasonal.js');
+const [fromM, fromD, toM, toD] = win.slice(1).map(Number);
+
+// Day arithmetic via Date, so stepping off either end crosses months correctly.
+const probe = (m, d, shift = 0) => {
+  const dt = new Date(2026, m, d + shift, 9);
+  const pad = n => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T09:00:00`;
+};
+
+let seasonalDetailsChecked = false;
 for (const [when, iso, expect] of [
-  ['halloween', '2026-10-28T09:00:00', true],
-  ['november',  '2026-11-01T09:00:00', false],
-  ['july',      '2026-07-04T09:00:00', false],
+  ['first-day-in-window', probe(fromM, fromD),     true],
+  ['last-day-in-window',  probe(toM, toD),         true],
+  ['day-before-window',   probe(fromM, fromD, -1), false],
+  ['day-after-window',    probe(toM, toD, 1),      false],
 ]) {
   const page = await browser.newPage();
   await page.addInitScript(t => {
@@ -262,7 +294,8 @@ for (const [when, iso, expect] of [
   const on = await page.evaluate(() => document.documentElement.classList.contains('season-halloween'));
   check(`seasonal-gate-${when}`, on === expect, `${on}`);
 
-  if (expect) {
+  if (expect && !seasonalDetailsChecked) {
+    seasonalDetailsChecked = true;
     check('seasonal-notice-visible', await page.locator('.seasonal-notice').isVisible());
     // Decoration must never sit between a finger and a card.
     const inert = await page.evaluate(() =>
