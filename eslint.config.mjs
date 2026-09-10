@@ -13,6 +13,7 @@ const BROWSER_GLOBALS = {
   // see it as a bare global.
   PortalForm: 'readonly',
   setTimeout: 'readonly', clearTimeout: 'readonly',
+  setInterval: 'readonly', clearInterval: 'readonly',
   requestAnimationFrame: 'readonly', matchMedia: 'readonly',
 };
 
@@ -30,7 +31,7 @@ export default [
   },
   {
     // Browser-side shared modules, loaded via plain <script> tags.
-    files: ['lang.js', 'form-utils.js', 'photo-upload.js', 'time-off-request.js', 'seasonal.js'],
+    files: ['lang.js', 'form-utils.js', 'photo-upload.js', 'time-off-request.js', 'seasonal.js', 'announce.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',

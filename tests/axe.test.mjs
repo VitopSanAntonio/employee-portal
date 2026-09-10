@@ -84,6 +84,24 @@ for (const lang of ['en', 'es']) {
   await page.close();
 }
 
+// The announcement is the first thing on the page and traps focus, so it is
+// worth scanning in its own right rather than only behind the backdrop.
+for (const lang of ['en', 'es']) {
+  const page = await context.newPage();
+  if (lang === 'es') await page.addInitScript(() => localStorage.setItem('portalLang', 'es'));
+  await page.goto(`http://localhost:${PORT}/index.html`);
+  await page.waitForSelector('#announce:not([hidden])');
+  const scan = await new AxeBuilder({ page }).analyze();
+  const blocking = scan.violations.filter(v => v.impact === 'serious' || v.impact === 'critical');
+  for (const v of blocking) {
+    console.log(`  index [${lang}] announce ${v.id} (${v.impact}): ${v.help}`);
+    for (const node of v.nodes.slice(0, 3)) console.log(`    → ${node.target.join(' ')}`);
+  }
+  results.push({ page: 'index (announce)', lang, pass: blocking.length === 0,
+    blocking: blocking.map(v => v.id).join(', ') || '—' });
+  await page.close();
+}
+
 await browser.close();
 server.close();
 report(results);

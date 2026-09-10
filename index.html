@@ -28,6 +28,81 @@
 <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
 <style>
+  /* ══ COMING-SOON ANNOUNCEMENT ══════════════════════════════════
+     Delete this block, announce.js, its <script> tag, the #announce
+     markup and the two preview PNGs to remove the feature.
+  ═══════════════════════════════════════════════════════════════ */
+  #announce[hidden] { display: none; }
+  #announce {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0,32,91,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    overflow-y: auto;
+  }
+  .announce:focus { outline: none; }   /* focused on open to announce the title, not to draw a ring */
+  .announce {
+    position: relative;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 18px 48px rgba(0,32,91,0.28);
+    max-width: 520px;
+    width: 100%;
+    padding: var(--space-6);
+    margin: auto;
+  }
+  @media (max-width: 560px) { .announce { padding: var(--space-5) var(--space-4); } }
+  .announce-close {
+    position: absolute;
+    top: var(--space-3); right: var(--space-3);
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; border-radius: var(--radius-circle);
+    color: var(--text-secondary); cursor: pointer;
+  }
+  .announce-close:hover { background: var(--surface-sunken); color: var(--text-primary); }
+  .announce-close svg { width: 18px; height: 18px; }
+  .announce-tag {
+    font-size: var(--text-body-sm); font-weight: var(--weight-semibold);
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--blue-03);
+    margin-bottom: var(--space-2);
+  }
+  .announce h2 { font-size: var(--text-h4); font-weight: var(--weight-bold); line-height: 1.2; }
+  .announce > p { font-size: var(--text-t3); color: var(--text-secondary); line-height: 1.6; margin-top: var(--space-3); }
+
+  /* Fixed aspect from the real capture size (760x700), so the frame is the
+     right height before either image has loaded and the dialog does not jump. */
+  .announce-shots {
+    position: relative;
+    margin-top: var(--space-5);
+    aspect-ratio: 760 / 700;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .announce-shot {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+    opacity: 0;
+    transition: opacity var(--duration-slow, 0.45s) var(--ease-standard, ease);
+  }
+  .announce-shot.on { opacity: 1; }
+  .announce-dots { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-3); }
+  .announce-dot {
+    width: 30px; height: 4px; padding: 0;
+    border: none; border-radius: var(--radius-pill);
+    background: var(--border-default); cursor: pointer;
+  }
+  .announce-dot.on { background: var(--blue-03); }
+  .announce-dot:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 3px; }
+  .announce .btn-primary { margin-top: var(--space-5); }
+
   /* ══ SEASONAL — Halloween ══════════════════════════════════════
      Added by seasonal.js between 24 and 31 October and removed by
      the calendar, not by a deploy. Delete this block and the script
@@ -223,6 +298,34 @@
   </svg>
 
 
+  <div id="announce" hidden>
+    <div class="announce" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="announce-title" aria-describedby="announce-body">
+      <button type="button" class="announce-close" id="announce-close" aria-label="Close" data-en-aria-label="Close" data-es-aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+      <p class="announce-tag" data-en="Coming soon" data-es="Muy pronto">Coming soon</p>
+      <h2 id="announce-title" data-en="Time off is moving into the portal" data-es="El tiempo libre se muda al portal">Time off is moving into the portal</h2>
+      <p id="announce-body" data-en="Ask for time off, see how many hours you have left, and look back at every request you have made — all here, with your time clock number. No more Microsoft Forms." data-es="Solicita tiempo libre, consulta cuántas horas te quedan y revisa todas tus solicitudes anteriores — todo aquí, con tu número de reloj checador. Se acabaron los formularios de Microsoft.">Ask for time off, see how many hours you have left, and look back at every request you have made — all here, with your time clock number. No more Microsoft Forms.</p>
+
+      <div class="announce-shots">
+        <img class="announce-shot on" src="timeoff-preview-request.png" width="760" height="700" decoding="async"
+          alt="The new request form, with time off type, dates and hours filled in."
+          data-en-alt="The new request form, with time off type, dates and hours filled in."
+          data-es-alt="El nuevo formulario de solicitud, con el tipo de tiempo libre, las fechas y las horas.">
+        <img class="announce-shot" src="timeoff-preview-mine.png" width="760" height="700" loading="lazy" decoding="async"
+          alt="Your balance in hours for each type, and a list of your requests with their status."
+          data-en-alt="Your balance in hours for each type, and a list of your requests with their status."
+          data-es-alt="Tu saldo en horas por cada tipo y la lista de tus solicitudes con su estado.">
+      </div>
+      <div class="announce-dots" role="tablist" aria-label="Preview">
+        <button type="button" class="announce-dot on" role="tab" aria-selected="true" aria-label="Requesting time off" data-en-aria-label="Requesting time off" data-es-aria-label="Solicitar tiempo libre"></button>
+        <button type="button" class="announce-dot" role="tab" aria-selected="false" aria-label="Your balance and requests" data-en-aria-label="Your balance and requests" data-es-aria-label="Tu saldo y tus solicitudes"></button>
+      </div>
+
+      <button type="button" class="btn btn-primary" id="announce-ok" data-en="Got it" data-es="Entendido">Got it</button>
+    </div>
+  </div>
+
   <header class="hero">
 
     <!-- Seasonal, decorative, and out of the reading order entirely. Inline
@@ -410,6 +513,7 @@
 <!-- Existing language script (unchanged) -->
 <script src="seasonal.js"></script>
 <script src="lang.js"></script>
+<script src="announce.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      PWA SCRIPTS: iOS Install Banner

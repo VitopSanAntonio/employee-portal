@@ -357,6 +357,10 @@ Worker's half can be verified with no flow at all.
    the two `forms.cloud.microsoft` URLs.
 3. Remove the preview banner and the `noindex` meta from
    `time-off-request.html`.
+3b. **Set `ANNOUNCE = false` in `announce.js`.** The coming-soon popup on the
+   home page stops being true the moment the portal cards go live — it would
+   be advertising the page directly behind it. It also expires on its own at
+   the `ENDS` date, but that is a backstop, not the plan.
 4. Add `time-off-request.html`, `time-off-request.js` and
    `timeclock-card-example.png` to `SHELL` in `sw.js` and bump
    `CACHE_VERSION`, so the page works offline like the rest. The photo matters

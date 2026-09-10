@@ -338,6 +338,73 @@ for (const [when, iso, expect] of [
   await form.close();
 }
 
+// The coming-soon announcement. It is only truthful while employees are still
+// being sent to the Microsoft Forms, so it carries its own switch and its own
+// expiry — and it has to be dismissible, escapable and readable in both
+// languages, because it is the first thing anyone meets.
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(`${base}/index.html`);
+  await page.waitForSelector('#announce:not([hidden])');
+
+  const dialog = page.locator('#announce .announce');
+  check('announce-is-a-real-dialog',
+    (await dialog.getAttribute('role')) === 'dialog' &&
+    (await dialog.getAttribute('aria-modal')) === 'true' &&
+    (await dialog.getAttribute('aria-labelledby')) === 'announce-title');
+
+  // Focus must land inside, or a keyboard reader is left on the page behind.
+  check('announce-takes-focus',
+    await page.evaluate(() => document.querySelector('#announce').contains(document.activeElement)));
+
+  // Both previews ship, and the second one is real rather than a placeholder.
+  const shots = await page.evaluate(() =>
+    [...document.querySelectorAll('.announce-shot')].map(i => i.complete && i.naturalWidth > 0));
+  check('announce-previews-load', shots.length === 2 && shots[0] === true, JSON.stringify(shots));
+
+  await page.locator('.announce-dot').nth(1).click();
+  check('announce-dots-switch-the-preview',
+    (await page.locator('.announce-shot').nth(1).getAttribute('class')).includes('on'));
+
+  await page.keyboard.press('Escape');
+  check('announce-escape-closes', (await page.locator('#announce').isVisible()) === false);
+
+  // Dismissal is remembered, so it does not greet the same person every visit.
+  await page.reload();
+  await page.waitForTimeout(400);
+  check('announce-stays-closed-once-seen',
+    (await page.locator('#announce').isVisible()) === false);
+  await ctx.close();
+}
+
+// It belongs on the landing page and nowhere else — the forms are where people
+// go to report an injury, not to read an advert.
+{
+  const page = await browser.newPage();
+  await page.goto(`${base}/safety-concern.html`);
+  check('announce-only-on-the-home-page',
+    (await page.locator('#announce').count()) === 0);
+  await page.close();
+}
+
+// The dialog's controls are named only by aria-label, so those labels are the
+// whole name for the one reader who depends on them — lang.js learned to
+// translate them for this.
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript(() => localStorage.setItem('portalLang', 'es'));
+  await page.goto(`${base}/index.html`);
+  await page.waitForSelector('#announce:not([hidden])');
+  check('announce-aria-labels-translate',
+    (await page.locator('#announce-close').getAttribute('aria-label')) === 'Cerrar',
+    await page.locator('#announce-close').getAttribute('aria-label'));
+  check('announce-body-translates',
+    (await page.locator('#announce-title').textContent()).includes('se muda al portal'));
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 report(results);
