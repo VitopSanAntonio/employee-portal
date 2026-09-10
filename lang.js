@@ -66,6 +66,14 @@ window.PortalStorage = window.PortalStorage || {
       el.alt = el.getAttribute('data-' + lang + '-alt') || el.getAttribute('data-en-alt');
     });
 
+    // Same for aria-label. A control whose only name is an aria-label — a
+    // close button, a slideshow dot — is otherwise stuck in English for the
+    // one reader who depends on that name entirely.
+    document.querySelectorAll('[data-en-aria-label]').forEach(el => {
+      el.setAttribute('aria-label',
+        el.getAttribute('data-' + lang + '-aria-label') || el.getAttribute('data-en-aria-label'));
+    });
+
     // Update toggle button — label shows the language you'd switch TO
     const btn = document.getElementById('lang-toggle');
     if (btn) {

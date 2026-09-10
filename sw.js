@@ -5,7 +5,7 @@
    Bump CACHE_VERSION when shell assets change to evict old caches.
 ──────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'portal-v6';
+const CACHE_VERSION = 'portal-v7';
 
 // How long to wait for the network before serving the cached copy. Without a
 // bound, a weak signal is worse than no signal: fetch() does not reject on a
@@ -30,6 +30,9 @@ const SHELL = [
   'photo-upload.js',
   'time-off-request.js',
   'seasonal.js',
+  'announce.js',
+  'timeoff-preview-request.png',
+  'timeoff-preview-mine.png',
   // "Where do I find my number?" is exactly the question an employee has
   // while standing somewhere with no signal.
   'timeclock-card-example.png',
