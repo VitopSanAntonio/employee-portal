@@ -8,7 +8,7 @@ const BROWSER_GLOBALS = {
   crypto: 'readonly', FileReader: 'readonly', DataTransfer: 'readonly',
   URL: 'readonly', URLSearchParams: 'readonly', Image: 'readonly',
   Event: 'readonly', CustomEvent: 'readonly', DOMException: 'readonly',
-  AbortController: 'readonly',
+  AbortController: 'readonly', MutationObserver: 'readonly',
   // form-utils.js publishes this on window; the page scripts that consume it
   // see it as a bare global.
   PortalForm: 'readonly',

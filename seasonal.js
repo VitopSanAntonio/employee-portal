@@ -38,9 +38,44 @@
    */
   const BAT_FLIGHT_MS = 12000;
 
-  function retireTheBats() {
+  function launchTheBats() {
     const bats = document.querySelector('.bats');
-    if (bats) setTimeout(() => bats.remove(), BAT_FLIGHT_MS);
+    if (!bats) return;
+    bats.classList.add('fly');
+    setTimeout(() => bats.remove(), BAT_FLIGHT_MS);
+  }
+
+  /**
+   * Waits for nothing to be covering the page.
+   *
+   * The home page can open a coming-soon dialog on load. Bats launched at the
+   * same moment cross the hero behind it and are removed before it is
+   * dismissed, so the one animation an employee was meant to see is over
+   * before they can see it.
+   *
+   * Waits for DOMContentLoaded rather than a timer. This file runs before
+   * announce.js, so asking now would always find the dialog hidden — and a
+   * setTimeout(0) is no better: announce.js is fetched over the network, and
+   * while the parser blocks on that fetch the event loop is free to run
+   * timers, so the callback can land before the dialog has opened. That is
+   * exactly what it did. DOMContentLoaded cannot fire until every
+   * parser-inserted script has run, which is the guarantee needed here.
+   */
+  function whenTheViewIsClear(run) {
+    const check = () => {
+      const modal = document.getElementById('announce');
+      if (!modal || modal.hidden) { run(); return; }
+      const watch = new MutationObserver(() => {
+        if (modal.hidden) { watch.disconnect(); run(); }
+      });
+      watch.observe(modal, { attributes: true, attributeFilter: ['hidden'] });
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', check, { once: true });
+    } else {
+      check();
+    }
   }
 
   const now = new Date();
@@ -52,7 +87,7 @@
     const beforeEnd  = month < s.to[0]   || (month === s.to[0]   && day <= s.to[1]);
     if (afterStart && beforeEnd) {
       document.documentElement.classList.add('season-' + s.name);
-      retireTheBats();
+      whenTheViewIsClear(launchTheBats);
       break;
     }
   }
