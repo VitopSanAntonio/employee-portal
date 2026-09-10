@@ -50,7 +50,7 @@
     width: 108px;
     height: 108px;
     color: var(--white);
-    opacity: 0.22;
+    opacity: 0.3;
     pointer-events: none;   /* never intercepts a tap meant for the page */
     z-index: 1;
   }
@@ -61,6 +61,87 @@
   @media (max-width: 900px) { .season-halloween .web { display: none; } }
 
   .season-halloween .hero .eyebrow { color: var(--safety-yellow); }
+
+  /* The hero already carried a blue glow and a ring in its ::before/::after.
+     Retinting them amber turns the corner light into a harvest moon for the
+     cost of two gradient stops — the biggest change in the whole theme, and
+     it animates nothing. */
+  .season-halloween .hero::after {
+    /* Peach, not yellow. Yellow at low alpha over a navy hero composites to
+       olive — blue plus yellow — and reads as a green smudge rather than a
+       moon. A warmer hue at higher luminance sits on top of the blue instead
+       of mixing into it. */
+    background: radial-gradient(circle at 30% 30%, rgba(255,206,134,0.36), rgba(255,138,48,0.08) 68%);
+  }
+  .season-halloween .hero::before { border-color: rgba(252,227,0,0.30); }
+
+  /* Decorations paint behind the hero's own content, never over it. */
+  .season-halloween .hero-inner { position: relative; z-index: 2; }
+  .spider, .bats { display: none; }
+  .season-halloween .spider,
+  .season-halloween .bats { pointer-events: none; z-index: 1; }
+
+  /* ── The spider ──────────────────────────────────────────────
+     Drops in on a thread, then sways. The resting position is the
+     CSS position and the drop animates *from* an offset, so when
+     theme.css kills animations under prefers-reduced-motion the
+     spider is simply hanging there rather than parked off-screen.
+     Pale, like the cobwebs, because a black silhouette disappears
+     against a deep blue hero. */
+  .season-halloween .spider {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 6%;
+    width: 34px;
+    height: 150px;
+    color: rgba(255,255,255,0.82);
+    transform-origin: 50% 0;      /* swings from where the thread is pinned */
+    animation: spider-drop 1.6s cubic-bezier(.28,1.25,.56,1) both,
+               spider-sway 7s ease-in-out 1.6s infinite;
+  }
+  /* It hangs on the right, where the language button and the heading are on a
+     narrow screen. Below 900px it stands down, same as the cobwebs. */
+  @media (max-width: 900px) { .season-halloween .spider { display: none; } }
+
+  @keyframes spider-drop { from { transform: translateY(-108%); } to { transform: translateY(0); } }
+  @keyframes spider-sway { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+
+  /* ── The bats ────────────────────────────────────────────────
+     One pass across the hero, then seasonal.js takes them out of
+     the document: a kiosk left open all shift should not still be
+     compositing decorations. Shown only where motion is welcome —
+     a bat frozen mid-air reads as a rendering bug, not a bat. */
+  @media (prefers-reduced-motion: no-preference) {
+    .season-halloween .bats {
+      display: block;
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+  }
+  .season-halloween .bat {
+    position: absolute;
+    left: 0;
+    animation: bat-cross 8s linear forwards;
+  }
+  .season-halloween .bat-bob { display: block; animation: bat-bob 1.6s ease-in-out infinite; }
+  .season-halloween .bat svg {
+    display: block;
+    width: 26px;
+    height: 26px;
+    color: rgba(255,255,255,0.62);
+    animation: bat-flap 0.34s ease-in-out infinite;
+  }
+  .season-halloween .bat-1 { top: 18%; animation-delay: 0.3s; }
+  .season-halloween .bat-2 { top: 44%; animation-delay: 1.9s; }
+  .season-halloween .bat-2 svg { width: 18px; height: 18px; color: rgba(255,255,255,0.46); }
+  .season-halloween .bat-3 { top: 9%;  animation-delay: 3.4s; }
+  .season-halloween .bat-3 svg { width: 32px; height: 32px; }
+
+  @keyframes bat-cross { from { transform: translateX(-14vw); } to { transform: translateX(114vw); } }
+  @keyframes bat-bob   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+  @keyframes bat-flap  { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.5); } }
 
   .seasonal-notice { display: none; }
   .season-halloween .seasonal-notice {
@@ -143,6 +224,22 @@
 
 
   <header class="hero">
+
+    <!-- Seasonal, decorative, and out of the reading order entirely. Inline
+         so they cost no request; inside the hero so its overflow:hidden
+         clips anything that strays. -->
+    <svg class="spider" viewBox="0 0 40 150" fill="none" aria-hidden="true" focusable="false">
+      <line x1="20" y1="0" x2="20" y2="97" stroke="currentColor" stroke-width="1"/>
+      <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M14 108 L3 99 M14 112.5 L1 113 M14 117 L3 127 M15 121 L8 133"/>
+        <path d="M26 108 L37 99 M26 112.5 L39 113 M26 117 L37 127 M25 121 L32 133"/>
+      </g>
+      <ellipse cx="20" cy="115" rx="7.5" ry="9.5" fill="currentColor"/>
+      <circle cx="20" cy="103.5" r="4.8" fill="currentColor"/>
+      <circle cx="18.2" cy="102.6" r="1.15" fill="#FCE300"/>
+      <circle cx="21.8" cy="102.6" r="1.15" fill="#FCE300"/>
+    </svg>
+    <span class="bats" aria-hidden="true"><span class="bat bat-1"><span class="bat-bob"><svg viewBox="0 0 64 32" fill="currentColor" aria-hidden="true" focusable="false"><path d="M32 9c2-4 5-6 8-6 1 3 0 5-1 6 4-4 9-6 14-5-3 2-4 5-4 8 0 4 2 7 6 9-6 1-11 0-15-3-2 2-5 4-8 4s-6-2-8-4c-4 3-9 4-15 3 4-2 6-5 6-9 0-3-1-6-4-8 5-1 10 1 14 5-1-1-2-3-1-6 3 0 6 2 8 6z"/></svg></span></span><span class="bat bat-2"><span class="bat-bob"><svg viewBox="0 0 64 32" fill="currentColor" aria-hidden="true" focusable="false"><path d="M32 9c2-4 5-6 8-6 1 3 0 5-1 6 4-4 9-6 14-5-3 2-4 5-4 8 0 4 2 7 6 9-6 1-11 0-15-3-2 2-5 4-8 4s-6-2-8-4c-4 3-9 4-15 3 4-2 6-5 6-9 0-3-1-6-4-8 5-1 10 1 14 5-1-1-2-3-1-6 3 0 6 2 8 6z"/></svg></span></span><span class="bat bat-3"><span class="bat-bob"><svg viewBox="0 0 64 32" fill="currentColor" aria-hidden="true" focusable="false"><path d="M32 9c2-4 5-6 8-6 1 3 0 5-1 6 4-4 9-6 14-5-3 2-4 5-4 8 0 4 2 7 6 9-6 1-11 0-15-3-2 2-5 4-8 4s-6-2-8-4c-4 3-9 4-15 3 4-2 6-5 6-9 0-3-1-6-4-8 5-1 10 1 14 5-1-1-2-3-1-6 3 0 6 2 8 6z"/></svg></span></span></span>
     <div class="wrap hero-inner">
       <div class="hero-top">
         <span class="hero-logo-chip">

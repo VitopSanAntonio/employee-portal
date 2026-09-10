@@ -297,10 +297,28 @@ for (const [when, iso, expect] of [
   if (expect && !seasonalDetailsChecked) {
     seasonalDetailsChecked = true;
     check('seasonal-notice-visible', await page.locator('.seasonal-notice').isVisible());
-    // Decoration must never sit between a finger and a card.
+
+    // Decoration must never sit between a finger and a card, and must never
+    // reach a screen reader.
     const inert = await page.evaluate(() =>
-      [...document.querySelectorAll('.web')].every(w => getComputedStyle(w).pointerEvents === 'none'));
-    check('seasonal-webs-are-inert', inert === true);
+      [...document.querySelectorAll('.web, .spider, .bats')].every(el =>
+        getComputedStyle(el).pointerEvents === 'none' &&
+        (el.getAttribute('aria-hidden') === 'true' || el.closest('[aria-hidden="true"]'))));
+    check('seasonal-decoration-is-inert-and-silent', inert === true);
+
+    check('seasonal-spider-hangs-in-the-hero',
+      (await page.locator('.hero .spider').isVisible()) === true);
+    check('seasonal-bats-take-flight',
+      (await page.locator('.hero .bats .bat').count()) === 3);
+
+    // The reason the decoration is affordable at all: the kiosk stays open all
+    // shift, so the bats must stop existing rather than loop. Worth pinning —
+    // it is the difference between a nine-second entrance and hours of
+    // compositing on a machine nobody is looking at.
+    const retired = await waitFor(
+      () => page.locator('.bats').count().then(n => n === 0),
+      { timeout: 20000, interval: 500 });
+    check('seasonal-bats-are-removed-after-one-pass', retired === true);
   }
   await page.close();
 
