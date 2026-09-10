@@ -175,9 +175,13 @@
     animation: spider-drop 1.6s cubic-bezier(.28,1.25,.56,1) both,
                spider-sway 7s ease-in-out 1.6s infinite;
   }
-  /* It hangs on the right, where the language button and the heading are on a
-     narrow screen. Below 900px it stands down, same as the cobwebs. */
-  @media (max-width: 900px) { .season-halloween .spider { display: none; } }
+  /* On a narrow screen it moves rather than leaving: shorter thread and a
+     little smaller, so it hangs in the empty blue to the right of the
+     language button and well above the heading. Hiding it was why a phone had
+     nothing seasonal left once the bats had flown. */
+  @media (max-width: 900px) {
+    .season-halloween .spider { right: 5%; width: 24px; height: 108px; }
+  }
 
   @keyframes spider-drop { from { transform: translateY(-108%); } to { transform: translateY(0); } }
   @keyframes spider-sway { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
@@ -200,6 +204,16 @@
     left: 0;
     animation: bat-cross 8s linear forwards;
   }
+  /* Held until seasonal.js says the view is clear. Launched on load they fly
+     behind the coming-soon dialog and are gone before anybody dismisses it —
+     which on a phone, where the spider and cobwebs stand down, left nothing
+     seasonal on screen at all. */
+  .season-halloween .bat,
+  .season-halloween .bat-bob,
+  .season-halloween .bat svg { animation-play-state: paused; }
+  .season-halloween .bats.fly .bat,
+  .season-halloween .bats.fly .bat-bob,
+  .season-halloween .bats.fly .bat svg { animation-play-state: running; }
   .season-halloween .bat-bob { display: block; animation: bat-bob 1.6s ease-in-out infinite; }
   .season-halloween .bat svg {
     display: block;

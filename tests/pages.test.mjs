@@ -308,13 +308,37 @@ for (const [when, iso, expect] of [
 
     check('seasonal-spider-hangs-in-the-hero',
       (await page.locator('.hero .spider').isVisible()) === true);
+
+    // It moves on a narrow screen rather than leaving. Hiding it was half of
+    // why a phone ended up with no decoration at all.
+    await page.setViewportSize({ width: 360, height: 780 });
+    check('seasonal-spider-survives-a-phone',
+      (await page.locator('.hero .spider').isVisible()) === true);
+    await page.setViewportSize({ width: 1280, height: 800 });
     check('seasonal-bats-take-flight',
       (await page.locator('.hero .bats .bat').count()) === 3);
 
-    // The reason the decoration is affordable at all: the kiosk stays open all
-    // shift, so the bats must stop existing rather than loop. Worth pinning —
-    // it is the difference between a nine-second entrance and hours of
-    // compositing on a machine nobody is looking at.
+    // Regression: the bats used to launch on load, cross the hero behind the
+    // coming-soon dialog, and be removed before anybody had dismissed it — so
+    // the one animation an employee was meant to see was over before they
+    // could see it. On a phone, where the cobwebs stand down, that left
+    // nothing seasonal on screen at all.
+    //
+    // Asserted through the class rather than by waiting out the twelve-second
+    // flight: the question is whether they are being held, and that is
+    // answerable immediately.
+    const dialogUp = await page.locator('#announce').isVisible();
+    if (dialogUp) {
+      check('seasonal-bats-wait-for-a-clear-view',
+        ((await page.locator('.bats').getAttribute('class')) || '').indexOf('fly') === -1);
+      await page.click('#announce-ok');
+    }
+    const launched = await waitFor(() => page.locator('.bats.fly').count().then(n => n === 1));
+    check('seasonal-bats-launch-once-the-view-is-clear', launched === true);
+
+    // And then stop existing: the kiosk stays open all shift, so this is the
+    // difference between a short entrance and hours of compositing on a
+    // machine nobody is looking at.
     const retired = await waitFor(
       () => page.locator('.bats').count().then(n => n === 0),
       { timeout: 20000, interval: 500 });
