@@ -255,6 +255,12 @@
   // Whole hours only. Digits and nothing else, so "4.5" and "4,5" are both
   // rejected outright rather than parsed — parseFloat would read "4,5" as 4
   // and quietly book half the time off the employee meant to ask for.
+  // Must stay in step with the Worker's own check on the timeoff-cancel route.
+  // Note 4- and 5-digit references are deliberately inside it: makeRef only
+  // ever mints six digits, so the shorter forms are a band that can be
+  // assigned by hand without ever colliding with a real one.
+  const CANCELLABLE_REF = /^TMO-\d{4,6}$/;
+
   const WHOLE_HOURS = /^\d+$/;
   // Close enough to a number to be worth a specific complaint rather than the
   // generic "enter the hours" message.
@@ -683,7 +689,15 @@
     mine.requests.forEach(r => {
       const meta = statusMeta(r.status);
       const isOpen = cancelOpenFor === r.referenceId;
-      const cancellable = (meta.cls === 'status-pending' || meta.cls === 'status-done') && !isOpen;
+      // A row with no usable reference is a record, not something you can act
+      // on: the cancel route rejects anything but TMO-nnnn(nn), so a button
+      // here could only ever fail. The Worker returns '' rather than dropping
+      // the field, so status alone does not tell you the row is actionable —
+      // the requests written by the old Microsoft Form have no reference at
+      // all. Keyed state (cancelOpenFor, cancelSentFor, the textarea id) is
+      // keyed by reference too, so several '' rows would open as one panel.
+      const cancellable = (meta.cls === 'status-pending' || meta.cls === 'status-done')
+        && CANCELLABLE_REF.test(r.referenceId || '') && !isOpen;
 
       const row = document.createElement('div');
       row.className = 'req-row' + (isOpen ? ' selected' : '');
