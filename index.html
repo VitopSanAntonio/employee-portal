@@ -118,6 +118,10 @@
   }
 
   .web { display: none; }
+  /* pointer-events out here rather than in the season rule below: that one only
+     matches while Halloween is on, which left these hidden but grabbing taps
+     for the other eleven months. */
+  .web, .spider, .bats { pointer-events: none; }
   .season-halloween .web {
     display: block;
     position: fixed;
@@ -126,7 +130,6 @@
     height: 108px;
     color: var(--white);
     opacity: 0.3;
-    pointer-events: none;   /* never intercepts a tap meant for the page */
     z-index: 1;
   }
   .season-halloween .web-l { left: 0; }
@@ -159,7 +162,7 @@
   .season-christmas .hero-inner { position: relative; z-index: 2; }
   .spider, .bats { display: none; }
   .season-halloween .spider,
-  .season-halloween .bats { pointer-events: none; z-index: 1; }
+  .season-halloween .bats { z-index: 1; }
 
   /* ── The spider ──────────────────────────────────────────────
      Drops in on a thread, then sways. The resting position is the
@@ -346,7 +349,7 @@
      matches the season that is currently on, which left the other five
      flocks hidden but grabbing taps. */
   .flock { display: none; }
-  .flock, .flyer { pointer-events: none; }
+  .flock { pointer-events: none; }   /* inherited by every flyer */
   @media (prefers-reduced-motion: no-preference) {
     .season-stpatrick    .flock-stpatrick,
     .season-fiesta       .flock-fiesta,
