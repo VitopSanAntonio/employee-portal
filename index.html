@@ -118,6 +118,10 @@
   }
 
   .web { display: none; }
+  /* pointer-events out here rather than in the season rule below: that one only
+     matches while Halloween is on, which left these hidden but grabbing taps
+     for the other eleven months. */
+  .web, .spider, .bats { pointer-events: none; }
   .season-halloween .web {
     display: block;
     position: fixed;
@@ -126,7 +130,6 @@
     height: 108px;
     color: var(--white);
     opacity: 0.3;
-    pointer-events: none;   /* never intercepts a tap meant for the page */
     z-index: 1;
   }
   .season-halloween .web-l { left: 0; }
@@ -151,10 +154,15 @@
   .season-halloween .hero::before { border-color: rgba(252,227,0,0.30); }
 
   /* Decorations paint behind the hero's own content, never over it. */
-  .season-halloween .hero-inner { position: relative; z-index: 2; }
+  .season-halloween .hero-inner,
+  .season-stpatrick .hero-inner,
+  .season-fiesta .hero-inner,
+  .season-pride .hero-inner,
+  .season-thanksgiving .hero-inner,
+  .season-christmas .hero-inner { position: relative; z-index: 2; }
   .spider, .bats { display: none; }
   .season-halloween .spider,
-  .season-halloween .bats { pointer-events: none; z-index: 1; }
+  .season-halloween .bats { z-index: 1; }
 
   /* ── The spider ──────────────────────────────────────────────
      Drops in on a thread, then sways. The resting position is the
@@ -232,17 +240,236 @@
   @keyframes bat-bob   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
   @keyframes bat-flap  { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.5); } }
 
-  .seasonal-notice { display: none; }
-  .season-halloween .seasonal-notice {
-    display: flex;
-    background: var(--gourd-soft);
-    border-color: var(--gourd);
+  /* One notice per season, all hidden until their class is on. The leading
+     emoji is the marker — no icon to tint. Slightly larger line height so an
+     emoji and a line of body text sit comfortably together. */
+  .seasonal-notice {
+    display: none;
     color: var(--text-primary);
+    line-height: 1.6;
     margin-bottom: var(--space-5);
   }
-  /* The leading emoji is the marker now — no icon to tint. Slightly larger
-     line height so a bat and a line of body text sit comfortably together. */
-  .season-halloween .seasonal-notice { line-height: 1.6; }
+  .season-halloween    .notice-halloween,
+  .season-stpatrick    .notice-stpatrick,
+  .season-fiesta       .notice-fiesta,
+  .season-pride        .notice-pride,
+  .season-thanksgiving .notice-thanksgiving,
+  .season-christmas    .notice-christmas { display: flex; }
+
+  .notice-halloween    { background: var(--gourd-soft);   border-color: var(--gourd); }
+  .notice-stpatrick    { background: var(--clover-soft);  border-color: var(--clover); }
+  .notice-fiesta       { background: var(--papel-soft);   border-color: var(--papel); }
+  .notice-pride        { background: var(--pride-soft);   border-color: var(--pride); }
+  .notice-thanksgiving { background: var(--harvest-soft); border-color: var(--harvest); }
+  .notice-christmas    { background: var(--holly-soft);   border-color: var(--holly); }
+
+
+  /* ══ SEASONAL — the rest of the calendar ═══════════════════════
+     Five more seasons built on the shape Halloween established: a
+     still ornament that stays, a flight of something that crosses
+     the page once and is then removed, a retinted hero glow, and a
+     notice. seasonal.js owns the dates; this owns the look.
+
+     The still ornament is the part that matters. Flyers never
+     render at all under prefers-reduced-motion, and in every case
+     seasonal.js takes them out after one pass — so a season built
+     only of flyers is blank most of the time, which is exactly what
+     a phone showed us in October.
+
+     Colour lands on borders, tags, glows and backgrounds. Body text
+     keeps its palette: the accessibility suite fails the build on
+     contrast, and none of these clear AA at body size.
+  ═══════════════════════════════════════════════════════════════ */
+  :root {
+    --clover:  #0F7A3D; --clover-soft:  #EAF6EF;
+    --papel:   #A3176B; --papel-soft:   #FDECF5;
+    --pride:   #6B21A8; --pride-soft:   #F4ECFC;
+    --harvest: #A1480C; --harvest-soft: #FBF0E5;
+    --holly:   #12683A; --holly-soft:   #EDF6F0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --clover:  #6FD79B; --clover-soft:  #0D2318;
+      --papel:   #F58FC2; --papel-soft:   #2A0C1C;
+      --pride:   #C89BF0; --pride-soft:   #1C0F2B;
+      --harvest: #EFA267; --harvest-soft: #261509;
+      --holly:   #63CE92; --holly-soft:   #0C1F15;
+    }
+  }
+
+  /* A sprite, not a picture: zero-sized so it never touches layout. */
+  .seasonal-art { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+  /* ── The still ornaments ─────────────────────────────────────
+     One slot, five ornaments, hanging where the spider hangs —
+     the one patch of hero that stays clear of the logo and the
+     language button at 1280px, at 390px and at 320px.
+
+     The resting position is the CSS position and the drop animates
+     *from* an offset, so when theme.css kills animations under
+     prefers-reduced-motion the ornament is simply hanging there
+     rather than parked off-screen. */
+  .hanger { display: none; }
+  .season-stpatrick    .hanger-stpatrick,
+  .season-fiesta       .hanger-fiesta,
+  .season-pride        .hanger-pride,
+  .season-thanksgiving .hanger-thanksgiving,
+  .season-christmas    .hanger-christmas { display: block; }
+
+  .hanger {
+    position: absolute;
+    top: 0;
+    right: 6%;
+    width: 40px;
+    height: 150px;
+    color: rgba(255,255,255,0.75);   /* the thread, not the ornament */
+    pointer-events: none;            /* never intercepts a tap meant for the page */
+    z-index: 1;
+    transform-origin: 50% 0;         /* swings from where the thread is pinned */
+    animation: hang-drop 1.6s cubic-bezier(.28,1.25,.56,1) both,
+               hang-sway 7s ease-in-out 1.6s infinite;
+  }
+  /* It moves on a narrow screen rather than leaving. Hiding the spider was
+     half of why a phone ended up with no decoration at all. */
+  @media (max-width: 900px) {
+    .hanger { right: 5%; width: 30px; height: 112px; }
+  }
+  @keyframes hang-drop { from { transform: translateY(-108%); } to { transform: translateY(0); } }
+  @keyframes hang-sway { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+
+  /* ── The flights ─────────────────────────────────────────────
+     Fixed to the viewport rather than pinned inside the hero, so
+     things that fall fall the whole page instead of a 300px band.
+     Below the announcement dialog (200) and the install banner
+     (9999), and untouchable either way.
+
+     Shown only where motion is welcome — a snowflake stopped in
+     mid-air reads as a rendering bug, not as snow. */
+  /* pointer-events out here rather than in the rule below: that one only
+     matches the season that is currently on, which left the other five
+     flocks hidden but grabbing taps. */
+  .flock { display: none; }
+  .flock { pointer-events: none; }   /* inherited by every flyer */
+  @media (prefers-reduced-motion: no-preference) {
+    .season-stpatrick    .flock-stpatrick,
+    .season-fiesta       .flock-fiesta,
+    .season-pride        .flock-pride,
+    .season-thanksgiving .flock-thanksgiving,
+    .season-christmas    .flock-christmas {
+      display: block;
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: 3;
+    }
+  }
+  /* --x where it starts across the page, --d when it is released,
+     --s how big, --c what colour. All four come off the element. */
+  .flyer { position: absolute; top: 0; left: var(--x); }
+  .flyer .drift, .flyer svg, .flyer .bit { display: block; }
+
+  /* Held until seasonal.js says the view is clear. Launched on load they
+     cross the page behind the coming-soon dialog and are gone before anybody
+     dismisses it. */
+  .flyer, .flyer * { animation-play-state: paused; }
+  .flock.fly .flyer, .flock.fly .flyer * { animation-play-state: running; }
+
+  @keyframes flyer-fall   { from { transform: translateY(-22vh); } to { transform: translateY(118vh); } }
+  @keyframes flyer-rise   { from { transform: translateY(108vh); } to { transform: translateY(-22vh); } }
+  @keyframes flyer-drift  { 0%, 100% { transform: translateX(-16px); } 50% { transform: translateX(16px); } }
+  @keyframes flyer-spin   { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes flyer-tumble { 0%, 100% { transform: rotate(-20deg); } 50% { transform: rotate(22deg); } }
+
+  /* ── St Patrick's — 1 to 17 March ────────────────────────────
+     Shamrocks, falling and spinning. 9s each, last released at 3.6s,
+     so seasonal.js holds the flight open for 13s. */
+  .season-stpatrick .hero .eyebrow { color: #9BEFC0; }
+  .season-stpatrick .hero::after {
+    background: radial-gradient(circle at 30% 30%, rgba(150,240,190,0.30), rgba(30,180,110,0.07) 68%);
+  }
+  .season-stpatrick .hero::before { border-color: rgba(150,240,190,0.32); }
+  .flock-stpatrick .flyer { animation: flyer-fall 9s linear var(--d) forwards; }
+  .flock-stpatrick .drift { animation: flyer-drift 3.2s ease-in-out var(--d) infinite; }
+  .flock-stpatrick svg {
+    width: calc(22px * var(--s)); height: calc(22px * var(--s));
+    color: #1E9E57;
+    animation: flyer-spin 4s linear var(--d) infinite;
+  }
+
+  /* ── Fiesta San Antonio — 15 to 30 April ─────────────────────
+     The dates move every year (2026 runs 16–26 April); the window is
+     deliberately a little wider than any single year's parade schedule.
+     Confetti, falling and spinning. 8s each, last released at 5s → 15s. */
+  .season-fiesta .hero .eyebrow { color: #FFC7E6; }
+  .season-fiesta .hero::after {
+    background: radial-gradient(circle at 30% 30%, rgba(255,150,205,0.30), rgba(0,214,214,0.10) 68%);
+  }
+  .season-fiesta .hero::before { border-color: rgba(255,170,215,0.34); }
+  .flock-fiesta .flyer { animation: flyer-fall 8s linear var(--d) forwards; }
+  .flock-fiesta .drift { animation: flyer-drift 2.4s ease-in-out var(--d) infinite; }
+  .flock-fiesta .bit {
+    width: calc(9px * var(--s)); height: calc(15px * var(--s));
+    border-radius: 1px;
+    background: var(--c);
+    animation: flyer-spin 1.6s linear var(--d) infinite;
+  }
+
+  /* ── Pride — June ────────────────────────────────────────────
+     Hearts, rising. 9s each, last released at 4s → 14s. The flag is a
+     band across the top edge of the page: still, so it is what survives
+     reduced motion and the end of the flight, and the one edge of the hero
+     nothing else sits on — the notice card is pulled up over the bottom one
+     and covered all but the ends of it. */
+  .season-pride .hero .eyebrow { color: #EBD4FF; }
+  .season-pride .hero::after {
+    background: radial-gradient(circle at 30% 30%, rgba(255,190,140,0.26), rgba(170,130,255,0.16) 70%);
+  }
+  .season-pride .hero::before { border-color: rgba(220,180,255,0.34); }
+  .season-pride .hero {
+    border-top: 6px solid transparent;
+    border-image: linear-gradient(90deg,
+      #E40303 0 16.67%, #FF8C00 0 33.33%, #FFED00 0 50%,
+      #008026 0 66.67%, #004DFF 0 83.33%, #750787 0) 1;
+  }
+  .flock-pride .flyer { animation: flyer-rise 9s linear var(--d) forwards; }
+  .flock-pride .drift { animation: flyer-drift 3.6s ease-in-out var(--d) infinite; }
+  .flock-pride svg {
+    width: calc(20px * var(--s)); height: calc(20px * var(--s));
+    color: var(--c);                 /* one heart per stripe of the flag */
+    animation: flyer-tumble 3s ease-in-out var(--d) infinite;
+  }
+
+  /* ── Thanksgiving — November ─────────────────────────────────
+     Leaves, falling and tumbling. 10s each, last released at 3.4s → 14s. */
+  .season-thanksgiving .hero .eyebrow { color: #FFD9A8; }
+  .season-thanksgiving .hero::after {
+    background: radial-gradient(circle at 30% 30%, rgba(255,186,110,0.32), rgba(196,84,20,0.10) 66%);
+  }
+  .season-thanksgiving .hero::before { border-color: rgba(255,196,130,0.30); }
+  .flock-thanksgiving .flyer { animation: flyer-fall 10s linear var(--d) forwards; }
+  .flock-thanksgiving .drift { animation: flyer-drift 3.8s ease-in-out var(--d) infinite; }
+  .flock-thanksgiving svg {
+    width: calc(24px * var(--s)); height: calc(24px * var(--s));
+    color: var(--c);
+    animation: flyer-tumble 2.6s ease-in-out var(--d) infinite;
+  }
+
+  /* ── Christmas — December ────────────────────────────────────
+     Snow, falling and drifting. 11s each, last released at 4.2s → 16s. */
+  .season-christmas .hero .eyebrow { color: #BFEBD3; }
+  .season-christmas .hero::after {
+    background: radial-gradient(circle at 30% 30%, rgba(214,238,255,0.34), rgba(120,190,255,0.08) 68%);
+  }
+  .season-christmas .hero::before { border-color: rgba(214,238,255,0.34); }
+  .flock-christmas .flyer { animation: flyer-fall 11s linear var(--d) forwards; }
+  .flock-christmas .drift { animation: flyer-drift 4.2s ease-in-out var(--d) infinite; }
+  .flock-christmas svg {
+    width: calc(16px * var(--s)); height: calc(16px * var(--s));
+    /* Pale blue-grey, not white: most of the fall happens over a near-white
+       page, where white snow is invisible. */
+    color: #93C5E8;
+    animation: flyer-spin 8s linear var(--d) infinite;
+  }
 
   .hero-cta { display: flex; flex-direction: column; gap: var(--space-5); }
   main.page-main {
@@ -311,6 +538,88 @@
     <path d="M22 0 Q11 11 0 22 M40 0 Q20 20 0 40 M58 0 Q29 29 0 58 M76 0 Q38 38 0 76 M94 0 Q47 47 0 94"/>
   </svg>
 
+  <!-- Seasonal flyer art, defined once and stamped out by <use> below. Kept
+       out of the reading order and out of the layout: a sprite, not a picture. -->
+  <svg class="seasonal-art" aria-hidden="true" focusable="false">
+    <symbol id="art-shamrock" viewBox="0 0 24 24">
+      <path d="M12 13c-.4 3-.2 6 .2 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="12" cy="6.2" r="4.2" fill="currentColor"/>
+      <circle cx="6.6" cy="12" r="4.2" fill="currentColor"/>
+      <circle cx="17.4" cy="12" r="4.2" fill="currentColor"/>
+    </symbol>
+    <symbol id="art-leaf" viewBox="0 0 24 24">
+      <path d="M21 3C10 3 3 9 3 17c0 2 .9 4 .9 4s1.9-1 3.9-1c8.4 0 13.2-7.6 13.2-17z" fill="currentColor"/>
+      <path d="M18.5 5.5C13 9 9 13.5 6.5 19" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="1.1" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="art-flake" viewBox="0 0 24 24">
+      <path d="M12 1.5v21M3 6.8l18 10.4M21 6.8 3 17.2M12 6 9.2 3.2M12 6l2.8-2.8M12 18l-2.8 2.8M12 18l2.8 2.8"
+        fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="art-heart" viewBox="0 0 24 24">
+      <path d="M12 21.2S3.8 15.9 3.8 10.3A4.6 4.6 0 0 1 12 7.1a4.6 4.6 0 0 1 8.2 3.2c0 5.6-8.2 10.9-8.2 10.9z" fill="currentColor"/>
+    </symbol>
+  </svg>
+
+  <!-- Shamrocks, falling and spinning. 9s each, last one released at 3.6s. -->
+  <span class="flock flock-stpatrick" aria-hidden="true">
+    <span class="flyer" style="--x:4.0%;--d:0s;--s:1"><span class="drift"><svg><use href="#art-shamrock"/></svg></span></span>
+    <span class="flyer" style="--x:27.0%;--d:1.1s;--s:.75"><span class="drift"><svg><use href="#art-shamrock"/></svg></span></span>
+    <span class="flyer" style="--x:50.0%;--d:2.2s;--s:1.15"><span class="drift"><svg><use href="#art-shamrock"/></svg></span></span>
+    <span class="flyer" style="--x:73.0%;--d:2.9s;--s:.85"><span class="drift"><svg><use href="#art-shamrock"/></svg></span></span>
+    <span class="flyer" style="--x:96.0%;--d:3.6s;--s:1"><span class="drift"><svg><use href="#art-shamrock"/></svg></span></span>
+  </span>
+
+  <!-- Confetti — plain colour, no artwork. 8s each, last one released at 5s. -->
+  <span class="flock flock-fiesta" aria-hidden="true">
+    <span class="flyer" style="--x:4.0%;--d:0s;--s:1;--c:#E5177B"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:12.4%;--d:.5s;--s:.8;--c:#00B2B8"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:20.7%;--d:.9s;--s:1.2;--c:#F5B301"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:29.1%;--d:1.4s;--s:.9;--c:#7A2BC0"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:37.5%;--d:1.9s;--s:1;--c:#12A150"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:45.8%;--d:2.4s;--s:.8;--c:#F05A22"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:54.2%;--d:2.9s;--s:1.2;--c:#E5177B"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:62.5%;--d:3.4s;--s:.9;--c:#00B2B8"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:70.9%;--d:3.9s;--s:1;--c:#F5B301"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:79.3%;--d:4.3s;--s:.8;--c:#7A2BC0"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:87.6%;--d:4.7s;--s:1.2;--c:#12A150"><span class="drift"><span class="bit"></span></span></span>
+    <span class="flyer" style="--x:96.0%;--d:5s;--s:.9;--c:#F05A22"><span class="drift"><span class="bit"></span></span></span>
+  </span>
+
+  <!-- Hearts, rising. 9s each, last one released at 4s. -->
+  <span class="flock flock-pride" aria-hidden="true">
+    <span class="flyer" style="--x:4.0%;--d:0s;--s:1;--c:#E40303"><span class="drift"><svg><use href="#art-heart"/></svg></span></span>
+    <span class="flyer" style="--x:22.4%;--d:.8s;--s:.75;--c:#F07800"><span class="drift"><svg><use href="#art-heart"/></svg></span></span>
+    <span class="flyer" style="--x:40.8%;--d:1.6s;--s:1.2;--c:#D9A400"><span class="drift"><svg><use href="#art-heart"/></svg></span></span>
+    <span class="flyer" style="--x:59.2%;--d:2.4s;--s:.85;--c:#008026"><span class="drift"><svg><use href="#art-heart"/></svg></span></span>
+    <span class="flyer" style="--x:77.6%;--d:3.2s;--s:1.05;--c:#004DFF"><span class="drift"><svg><use href="#art-heart"/></svg></span></span>
+    <span class="flyer" style="--x:96.0%;--d:4s;--s:.9;--c:#750787"><span class="drift"><svg><use href="#art-heart"/></svg></span></span>
+  </span>
+
+  <!-- Leaves, falling and tumbling. 10s each, last one released at 3.4s. -->
+  <span class="flock flock-thanksgiving" aria-hidden="true">
+    <span class="flyer" style="--x:4.0%;--d:0s;--s:1;--c:#C2410C"><span class="drift"><svg><use href="#art-leaf"/></svg></span></span>
+    <span class="flyer" style="--x:22.4%;--d:.9s;--s:.8;--c:#B45309"><span class="drift"><svg><use href="#art-leaf"/></svg></span></span>
+    <span class="flyer" style="--x:40.8%;--d:1.7s;--s:1.2;--c:#9A3412"><span class="drift"><svg><use href="#art-leaf"/></svg></span></span>
+    <span class="flyer" style="--x:59.2%;--d:2.4s;--s:.9;--c:#CA8A04"><span class="drift"><svg><use href="#art-leaf"/></svg></span></span>
+    <span class="flyer" style="--x:77.6%;--d:2.9s;--s:1.1;--c:#7C2D12"><span class="drift"><svg><use href="#art-leaf"/></svg></span></span>
+    <span class="flyer" style="--x:96.0%;--d:3.4s;--s:.75;--c:#D97706"><span class="drift"><svg><use href="#art-leaf"/></svg></span></span>
+  </span>
+
+  <!-- Snow, falling and drifting. 11s each, last one released at 4.2s. -->
+  <span class="flock flock-christmas" aria-hidden="true">
+    <span class="flyer" style="--x:4.0%;--d:0s;--s:1"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:12.4%;--d:.5s;--s:.7"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:20.7%;--d:1s;--s:1.25"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:29.1%;--d:1.4s;--s:.85"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:37.5%;--d:1.9s;--s:1.1"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:45.8%;--d:2.3s;--s:.6"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:54.2%;--d:2.7s;--s:1"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:62.5%;--d:3.1s;--s:.7"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:70.9%;--d:3.5s;--s:1.25"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:79.3%;--d:3.8s;--s:.85"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:87.6%;--d:4s;--s:1.1"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+    <span class="flyer" style="--x:96.0%;--d:4.2s;--s:.6"><span class="drift"><svg><use href="#art-flake"/></svg></span></span>
+  </span>
 
   <div id="announce" hidden>
     <div class="announce" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="announce-title" aria-describedby="announce-body">
@@ -356,6 +665,52 @@
       <circle cx="18.2" cy="102.6" r="1.15" fill="#FCE300"/>
       <circle cx="21.8" cy="102.6" r="1.15" fill="#FCE300"/>
     </svg>
+
+    <!-- The other five seasons hang in the same slot the spider uses. One at
+         a time; the rest are display:none until their month comes round. -->
+    <svg class="hanger hanger-stpatrick" viewBox="0 0 40 150" aria-hidden="true" focusable="false">
+      <line x1="20" y1="0" x2="20" y2="100" stroke="currentColor" stroke-width="1"/>
+      <path d="M20 120v18" fill="none" stroke="#4FB97A" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="20" cy="106" r="8.5" fill="#7FD8A0"/>
+      <circle cx="11" cy="119" r="8.5" fill="#7FD8A0"/>
+      <circle cx="29" cy="119" r="8.5" fill="#7FD8A0"/>
+    </svg>
+
+    <svg class="hanger hanger-fiesta" viewBox="0 0 40 150" aria-hidden="true" focusable="false">
+      <line x1="20" y1="0" x2="20" y2="92" stroke="currentColor" stroke-width="1"/>
+      <path d="M6 92h28v30l-14 18-14-18z" fill="#E5177B"/>
+      <path d="M5 92h30v4H5z" fill="#F5B301"/>
+      <circle cx="20" cy="105" r="4.2" fill="var(--surface-deep)"/>
+      <circle cx="12" cy="116" r="2.6" fill="var(--surface-deep)"/>
+      <circle cx="28" cy="116" r="2.6" fill="var(--surface-deep)"/>
+      <circle cx="20" cy="124" r="2.2" fill="var(--surface-deep)"/>
+    </svg>
+
+    <svg class="hanger hanger-pride" viewBox="0 0 40 150" aria-hidden="true" focusable="false">
+      <line x1="20" y1="0" x2="20" y2="94" stroke="currentColor" stroke-width="1"/>
+      <path d="M6 94h28v7H6z"   fill="#E40303"/>
+      <path d="M6 101h28v7H6z"  fill="#FF8C00"/>
+      <path d="M6 108h28v7H6z"  fill="#FFED00"/>
+      <path d="M6 115h28v7H6z"  fill="#008026"/>
+      <path d="M6 122h28v7H6z"  fill="#004DFF"/>
+      <path d="M6 129h28v7H6z"  fill="#750787"/>
+    </svg>
+
+    <svg class="hanger hanger-thanksgiving" viewBox="0 0 40 150" aria-hidden="true" focusable="false">
+      <line x1="20" y1="0" x2="20" y2="94" stroke="currentColor" stroke-width="1"/>
+      <path d="M20 94v44" fill="none" stroke="#A9662B" stroke-width="2" stroke-linecap="round"/>
+      <g transform="translate(-2 94) rotate(-10 12 12)" fill="#E8822B"><path d="M21 3C10 3 3 9 3 17c0 2 .9 4 .9 4s1.9-1 3.9-1c8.4 0 13.2-7.6 13.2-17z"/></g>
+      <g transform="translate(14 114) rotate(170 12 12)" fill="#C9451B"><path d="M21 3C10 3 3 9 3 17c0 2 .9 4 .9 4s1.9-1 3.9-1c8.4 0 13.2-7.6 13.2-17z"/></g>
+    </svg>
+
+    <svg class="hanger hanger-christmas" viewBox="0 0 40 150" aria-hidden="true" focusable="false">
+      <line x1="20" y1="0" x2="20" y2="98" stroke="currentColor" stroke-width="1"/>
+      <rect x="16" y="96" width="8" height="8" rx="1.5" fill="#D9B44A"/>
+      <circle cx="20" cy="119" r="15" fill="#C02434"/>
+      <path d="M6 119h28" fill="none" stroke="#D9B44A" stroke-width="2.6"/>
+      <circle cx="14.5" cy="112" r="3.4" fill="rgba(255,255,255,0.45)"/>
+    </svg>
+
     <span class="bats" aria-hidden="true"><span class="bat bat-1"><span class="bat-bob"><svg viewBox="0 0 64 32" fill="currentColor" aria-hidden="true" focusable="false"><path d="M32 9c2-4 5-6 8-6 1 3 0 5-1 6 4-4 9-6 14-5-3 2-4 5-4 8 0 4 2 7 6 9-6 1-11 0-15-3-2 2-5 4-8 4s-6-2-8-4c-4 3-9 4-15 3 4-2 6-5 6-9 0-3-1-6-4-8 5-1 10 1 14 5-1-1-2-3-1-6 3 0 6 2 8 6z"/></svg></span></span><span class="bat bat-2"><span class="bat-bob"><svg viewBox="0 0 64 32" fill="currentColor" aria-hidden="true" focusable="false"><path d="M32 9c2-4 5-6 8-6 1 3 0 5-1 6 4-4 9-6 14-5-3 2-4 5-4 8 0 4 2 7 6 9-6 1-11 0-15-3-2 2-5 4-8 4s-6-2-8-4c-4 3-9 4-15 3 4-2 6-5 6-9 0-3-1-6-4-8 5-1 10 1 14 5-1-1-2-3-1-6 3 0 6 2 8 6z"/></svg></span></span><span class="bat bat-3"><span class="bat-bob"><svg viewBox="0 0 64 32" fill="currentColor" aria-hidden="true" focusable="false"><path d="M32 9c2-4 5-6 8-6 1 3 0 5-1 6 4-4 9-6 14-5-3 2-4 5-4 8 0 4 2 7 6 9-6 1-11 0-15-3-2 2-5 4-8 4s-6-2-8-4c-4 3-9 4-15 3 4-2 6-5 6-9 0-3-1-6-4-8 5-1 10 1 14 5-1-1-2-3-1-6 3 0 6 2 8 6z"/></svg></span></span></span>
     <div class="wrap hero-inner">
       <div class="hero-top">
@@ -380,7 +735,7 @@
 
   <main class="page-main">
 
-    <div class="notice seasonal-notice">
+    <div class="notice seasonal-notice notice-halloween">
       <span data-en="🦇 Bumps in the night belong in haunted houses, not on the production floor. If you spot a hazard, need maintenance, have a great idea, or need time off, the portal is your spellbook for getting it done." data-es="🦇 Los ruidos extraños pertenecen a las casas embrujadas, no al piso de producción. Si detectas un peligro, necesitas mantenimiento, tienes una buena idea o necesitas tiempo libre, el portal es tu libro de hechizos para lograrlo.">🦇 Bumps in the night belong in haunted houses, not on the production floor. If you spot a hazard, need maintenance, have a great idea, or need time off, the portal is your spellbook for getting it done.</span>
     </div>
 
@@ -388,6 +743,27 @@
          that names all four services. Swap the two spans above and below.
     <span data-en="🎃 The scariest thing in the plant isn't a ghost, it's an unreported problem. If you see it, hear it, or trip over it, let us know through the portal before it comes back to haunt us. 👻" data-es="🎃 Lo más aterrador de la planta no es un fantasma, es un problema que nadie reporta. Si lo ves, lo escuchas o te tropiezas con él, avísanos por el portal antes de que regrese a perseguirnos. 👻">🎃 The scariest thing in the plant isn't a ghost, it's an unreported problem. If you see it, hear it, or trip over it, let us know through the portal before it comes back to haunt us. 👻</span>
     -->
+
+
+    <div class="notice seasonal-notice notice-stpatrick">
+      <span data-en="🍀 Safety isn't luck. Report the hazard, ask for the repair, speak up with the idea — that is how we keep our record green." data-es="🍀 La seguridad no es cuestión de suerte. Reporta el peligro, pide la reparación, comparte la idea — así mantenemos nuestro récord en verde.">🍀 Safety isn't luck. Report the hazard, ask for the repair, speak up with the idea — that is how we keep our record green.</span>
+    </div>
+
+    <div class="notice seasonal-notice notice-fiesta">
+      <span data-en="🎉 ¡Viva Fiesta! San Antonio is celebrating and so are we. Taking time off for the parades? Request it here — and keep the hazards, repairs and ideas coming all week long." data-es="🎉 ¡Viva la Fiesta! San Antonio está de celebración y nosotros también. ¿Vas a tomar tiempo libre para los desfiles? Solicítalo aquí — y sigue reportando peligros, reparaciones e ideas toda la semana.">🎉 ¡Viva Fiesta! San Antonio is celebrating and so are we. Taking time off for the parades? Request it here — and keep the hazards, repairs and ideas coming all week long.</span>
+    </div>
+
+    <div class="notice seasonal-notice notice-pride">
+      <span data-en="🏳️‍🌈 Everyone on this floor deserves to feel safe and respected. Whatever you need — a hazard reported, a repair, an idea heard, or time off — the portal is here for all of us." data-es="🏳️‍🌈 Todos en este piso merecen sentirse seguros y respetados. Lo que necesites — reportar un peligro, una reparación, que se escuche una idea o tiempo libre — el portal está aquí para todos.">🏳️‍🌈 Everyone on this floor deserves to feel safe and respected. Whatever you need — a hazard reported, a repair, an idea heard, or time off — the portal is here for all of us.</span>
+    </div>
+
+    <div class="notice seasonal-notice notice-thanksgiving">
+      <span data-en="🍁 This year we are thankful for a crew that looks out for each other. Keep it up — report a hazard, ask for maintenance, share an idea, or book your holiday time right here." data-es="🍁 Este año agradecemos tener un equipo que se cuida entre sí. Sigue así — reporta un peligro, solicita mantenimiento, comparte una idea o pide tus días de fiesta aquí mismo.">🍁 This year we are thankful for a crew that looks out for each other. Keep it up — report a hazard, ask for maintenance, share an idea, or book your holiday time right here.</span>
+    </div>
+
+    <div class="notice seasonal-notice notice-christmas">
+      <span data-en="🎄 Season's greetings from the Bag-in-Box crew. Heading out for the holidays? Request your time off early — and if you spot a hazard before you go, the portal is open around the clock." data-es="🎄 Felices fiestas de parte del equipo de Bag-in-Box. ¿Te vas de vacaciones? Solicita tu tiempo libre con anticipación — y si ves un peligro antes de irte, el portal está abierto las 24 horas.">🎄 Season's greetings from the Bag-in-Box crew. Heading out for the holidays? Request your time off early — and if you spot a hazard before you go, the portal is open around the clock.</span>
+    </div>
 
     <a href="safety-concern.html" class="card-featured">
       <span class="icon-tile">

@@ -2,6 +2,7 @@
 // Fails the build on serious or critical violations.
 import { AxeBuilder } from '@axe-core/playwright';
 import { startServer, launchBrowser, report } from './helpers.mjs';
+import fs from 'fs';
 
 const PORT = 4177;
 const server = await startServer(PORT);
@@ -62,26 +63,39 @@ for (const lang of ['en', 'es']) {
   }
 }
 
-// Seasonal styling is date-gated, so a run outside late October would never
-// see it — and contrast is exactly what a seasonal palette gets wrong. Force
-// the class on and scan the home page in both languages.
-for (const lang of ['en', 'es']) {
-  const page = await context.newPage();
-  await page.goto(`http://localhost:${PORT}/index.html`);
-  if (lang === 'es') {
-    await page.evaluate(() => localStorage.setItem('portalLang', 'es'));
-    await page.reload();
+// Seasonal styling is date-gated, so a run in any given week would see at most
+// one season — and contrast is exactly what a seasonal palette gets wrong.
+// Force each one on in turn and scan the home page in both languages. The list
+// comes out of seasonal.js so a new season cannot ship unscanned.
+const seasonNames = [...fs.readFileSync(new URL('../seasonal.js', import.meta.url), 'utf8')
+  .matchAll(/\{\s*name:\s*'(\w+)'/g)].map(m => m[1]);
+if (!seasonNames.length) throw new Error('tests/axe: could not read the calendar out of seasonal.js');
+
+for (const season of seasonNames) {
+  for (const lang of ['en', 'es']) {
+    const page = await context.newPage();
+    await page.goto(`http://localhost:${PORT}/index.html`);
+    if (lang === 'es') {
+      await page.evaluate(() => localStorage.setItem('portalLang', 'es'));
+      await page.reload();
+    }
+    // Whatever today's season is has already been applied; clear it so the
+    // scan sees exactly one.
+    await page.evaluate(n => {
+      const root = document.documentElement;
+      root.className = root.className.replace(/season-\S+/g, '');
+      root.classList.add('season-' + n);
+    }, season);
+    const scan = await new AxeBuilder({ page }).analyze();
+    const blocking = scan.violations.filter(v => v.impact === 'serious' || v.impact === 'critical');
+    for (const v of blocking) {
+      console.log(`  index [${lang}] season-${season} ${v.id} (${v.impact}): ${v.help}`);
+      for (const node of v.nodes.slice(0, 3)) console.log(`    → ${node.target.join(' ')}`);
+    }
+    results.push({ page: `index (${season})`, lang, pass: blocking.length === 0,
+      blocking: blocking.map(v => v.id).join(', ') || '—' });
+    await page.close();
   }
-  await page.evaluate(() => document.documentElement.classList.add('season-halloween'));
-  const scan = await new AxeBuilder({ page }).analyze();
-  const blocking = scan.violations.filter(v => v.impact === 'serious' || v.impact === 'critical');
-  for (const v of blocking) {
-    console.log(`  index [${lang}] season-halloween ${v.id} (${v.impact}): ${v.help}`);
-    for (const node of v.nodes.slice(0, 3)) console.log(`    → ${node.target.join(' ')}`);
-  }
-  results.push({ page: 'index (halloween)', lang, pass: blocking.length === 0,
-    blocking: blocking.map(v => v.id).join(', ') || '—' });
-  await page.close();
 }
 
 // The announcement is the first thing on the page and traps focus, so it is

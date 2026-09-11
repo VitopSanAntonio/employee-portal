@@ -1047,6 +1047,77 @@ for (const [outcome, lang, expect, reject] of [
   await page.close();
 }
 
+// A row with no usable reference is a record, not something to act on.
+//
+// The requests written by the old Microsoft Form carry no ReferenceId, and the
+// Worker returns '' for a missing one rather than dropping the field — so the
+// row arrives looking ordinary. Before the guard, "cancellable" was decided by
+// status alone: a legacy Pending row got a real cancel button that could only
+// ever 400, several of them shared the key '' so opening one panel opened them
+// all, and they shared a textarea id besides.
+//
+// Five-digit references are in the accepted set on purpose: makeRef only ever
+// mints six digits, so the shorter forms can be assigned by hand to old rows
+// without ever colliding with a real one. They must stay cancellable.
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({
+        found: true, displayName: 'Albiar A.',
+        balances: [{ leaveType: 'Vacation', hours: 64 }],
+        requests: [
+          // Two legacy rows, both Pending, both reference-less.
+          { referenceId: '', leaveType: 'Vacation', startDate: '2026-08-03',
+            endDate: '2026-08-04', hours: 16, status: 'Pending' },
+          { referenceId: '', leaveType: 'Vacation', startDate: '2026-08-10',
+            endDate: '2026-08-11', hours: 16, status: 'Pending' },
+          // A hand-assigned five-digit reference of the kind a backfill mints.
+          { referenceId: 'TMO-90001', leaveType: 'Vacation', startDate: '2026-09-01',
+            endDate: '2026-09-02', hours: 16, status: 'Pending' },
+          // And one the portal itself issued.
+          { referenceId: 'TMO-100001', leaveType: 'Vacation', startDate: '2026-09-15',
+            endDate: '2026-09-17', hours: 24, status: 'Approved' }
+        ]
+      }) });
+  });
+
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.click('#tab-mine');
+  await page.waitForSelector('#req-list .req-row');
+
+  const rows = await page.locator('#req-list .req-row').count();
+  const buttons = await page.locator('.req-action button').count();
+  results.push({
+    page: 'time-off-request', mode: 'reference-less-rows-are-records-not-actions',
+    pass: rows === 4 && buttons === 2,
+    detail: `${rows} rows, ${buttons} cancel buttons`
+  });
+
+  // The hand-assigned five-digit one opens a panel like any other. Identified
+  // by the textarea id rather than by the rendered date: the row does not show
+  // its reference, and matching on a formatted date is a trap — hasText is a
+  // substring match, so 'Sep 1' also matches 'Sep 15, 2026' and the assertion
+  // would have been passing on DOM order rather than on the row it names.
+  await page.locator('.req-action button').first().click();
+  await page.waitForSelector('.cancel-panel');
+  const panels = await page.locator('.cancel-panel').count();
+  const openedFor = await page.locator('.cancel-panel textarea').getAttribute('id');
+  results.push({
+    page: 'time-off-request', mode: 'five-digit-reference-is-cancellable',
+    pass: panels === 1 && openedFor === 'cancel-reason-TMO-90001',
+    detail: `${panels} panel(s), ${openedFor}`
+  });
+  await page.close();
+}
+
 await browser.close();
 server.close();
 report(results);
