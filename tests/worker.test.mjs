@@ -727,4 +727,50 @@ const VALID_SAFETY = {
   upstreamReply = () => new Response('{}', { status: 200 });
 }
 
+// ── The reference number is a shape, not just a length ───────
+//
+// `referenceId` is not an ordinary field: it becomes `_ref`, the key the flow
+// upserts on and the number written into the reference column. It used to be a
+// bare 20-character cap, which meant a direct POST could set it to anything —
+// including a prefix belonging to a different form.
+//
+// It also escaped the spreadsheet-formula guard. `_ref` is assembled from
+// clean.referenceId *before* sanitizePayload runs over the rest of the body, so
+// `=cmd|calc` arrived at the workbook with its leading `=` intact while the
+// same string in notesToManager was correctly quoted.
+{
+  const TO = { clockNumber: '048213', leaveType: 'Vacation',
+               startDate: '2026-10-01', endDate: '2026-10-02', hours: 8 };
+
+  upstreamReply = () => new Response('{}', { status: 200 });
+
+  for (const [name, ref, expect] of [
+    ['own-prefix reference is accepted', 'TMO-100001', 200],
+    // The band assigned by hand to the rows the Microsoft Form left without
+    // one. makeRef only ever mints six digits, so five-digit references cannot
+    // collide with a real one — and must keep working.
+    ['hand-assigned five-digit reference', 'TMO-90001', 200],
+    ['a formula is refused', '=cmd|calc', 400],
+    ["another form's prefix is refused", 'SAF-000001', 400],
+    ['lowercase is refused', 'tmo-100001', 400],
+  ]) {
+    const res = await post('timeoff', { ...TO, referenceId: ref });
+    check(`timeoff-reference-shape: ${name}`, res.status === expect, `${res.status}`);
+  }
+
+  // And the guard now covers _ref, not just the field it came from.
+  const res = await post('timeoff', { ...TO, referenceId: 'TMO-100001', notesToManager: '=cmd|calc' });
+  check('timeoff-notes-are-guarded', res.status === 200 && forwarded.body.notesToManager === "'=cmd|calc",
+    JSON.stringify(forwarded && forwarded.body.notesToManager));
+
+  // Every write form states its own prefix.
+  for (const [formKey, payload, ref, expect] of [
+    ['safety', VALID_SAFETY, 'SAF-100001', 200],
+    ['safety', VALID_SAFETY, 'TMO-100001', 400],
+  ]) {
+    const r = await post(formKey, { ...payload, referenceId: ref });
+    check(`${formKey}-reference-shape-${ref}`, r.status === expect, `${r.status}`);
+  }
+}
+
 report(results);

@@ -252,15 +252,15 @@
   // accepted is the worse failure.
   const VACATION_MIN_HOURS = 4;
 
-  // Whole hours only. Digits and nothing else, so "4.5" and "4,5" are both
-  // rejected outright rather than parsed — parseFloat would read "4,5" as 4
-  // and quietly book half the time off the employee meant to ask for.
   // Must stay in step with the Worker's own check on the timeoff-cancel route.
   // Note 4- and 5-digit references are deliberately inside it: makeRef only
   // ever mints six digits, so the shorter forms are a band that can be
   // assigned by hand without ever colliding with a real one.
   const CANCELLABLE_REF = /^TMO-\d{4,6}$/;
 
+  // Whole hours only. Digits and nothing else, so "4.5" and "4,5" are both
+  // rejected outright rather than parsed — parseFloat would read "4,5" as 4
+  // and quietly book half the time off the employee meant to ask for.
   const WHOLE_HOURS = /^\d+$/;
   // Close enough to a number to be worth a specific complaint rather than the
   // generic "enter the hours" message.
