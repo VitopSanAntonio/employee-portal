@@ -61,12 +61,18 @@ window.PortalForm = (function () {
       prompt:  'Enter your employee access code:',
       badCode: 'That access code is not correct. Check with your supervisor.',
       rate:    'Too many submissions. Please wait a minute and try again.',
+      // Lookups get their own wording. Badge validation fires while somebody is
+      // still typing, and the lookup ceiling is shared by everyone on one
+      // network — so this is reachable by an employee who has submitted
+      // nothing at all, and "too many submissions" reads as an accusation.
+      rateLookup: 'Too many checks right now. Please wait a minute and try again.',
       offline: 'No connection. Check your signal and try again.'
     },
     es: {
       prompt:  'Ingresa tu código de acceso de empleado:',
       badCode: 'Ese código de acceso no es correcto. Consulta con tu supervisor.',
       rate:    'Demasiados envíos. Espera un minuto e inténtalo de nuevo.',
+      rateLookup: 'Demasiadas consultas en este momento. Espera un minuto e inténtalo de nuevo.',
       offline: 'Sin conexión. Revisa tu señal e inténtalo de nuevo.'
     }
   };
@@ -286,7 +292,7 @@ window.PortalForm = (function () {
       }
 
       if (res.status === 429) {
-        return { ok: false, data: null, message: t('rate'), cancelled: false };
+        return { ok: false, data: null, message: t('rateLookup'), cancelled: false };
       }
 
       if (res.ok || res.status === 404) {

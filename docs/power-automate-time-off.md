@@ -352,18 +352,76 @@ Worker's half can be verified with no flow at all.
 
 ## Go-live
 
-1. All four flows built and their secrets set.
-2. Point both cards on `time-off.html` at `time-off-request.html` instead of
-   the two `forms.cloud.microsoft` URLs.
-3. Remove the preview banner and the `noindex` meta from
-   `time-off-request.html`.
-3b. **Set `ANNOUNCE = false` in `announce.js`.** The coming-soon popup on the
-   home page stops being true the moment the portal cards go live — it would
-   be advertising the page directly behind it. It also expires on its own at
-   the `ENDS` date, but that is a backstop, not the plan.
-4. Add `time-off-request.html`, `time-off-request.js` and
-   `timeclock-card-example.png` to `SHELL` in `sw.js` and bump
-   `CACHE_VERSION`, so the page works offline like the rest. The photo matters
-   here: "where do I find my number" is exactly the question an employee has
-   when they are standing somewhere with no signal.
-5. Turn off the Microsoft Forms so nothing arrives by two routes at once.
+The steps that were here described work that is now done — the cards already
+point at the portal page, the preview banner and `noindex` are gone, and the
+service worker already precaches the new files. What replaced them is a single
+switch, and it is the one thing that actually moves the plant onto the portal.
+
+1. **All four flows built and their secrets set.** `wrangler secret list` should
+   show `VALIDATE_FLOW_URL`, `VALIDATE_SECRET`, `TIMEOFF_FLOW_URL`,
+   `TIMEOFF_LOOKUP_FLOW_URL`, `TIMEOFF_CANCEL_FLOW_URL` and `TIMEOFF_SECRET`.
+
+2. **Set `LEGACY_FALLBACK = false` in `time-off.html`.** This is the switch.
+   `time-off.html` carries both sets of cards — the two portal cards and the two
+   Microsoft Forms links — and this lever picks which set is visible. Until it
+   is flipped, employees still land on the Microsoft Forms no matter what else
+   has shipped. Flipping it back is the rollback, and it is one line either way.
+
+3. **Set `ANNOUNCE = false` in `announce.js`.** The coming-soon popup on the
+   home page stops being true the moment the cards switch — it would be
+   advertising the page directly behind it. It expires on its own at `ENDS`,
+   but that is a backstop, not the plan.
+
+   Steps 2 and 3 must ship together. Either one alone is visibly wrong: the
+   popup still promising a page that is already live, or the popup gone while
+   the cards still send people to Forms.
+
+4. **Bump `CACHE_VERSION` in `sw.js`.** The shell is cached, so without a bump
+   a returning phone can keep serving the pre-go-live `time-off.html` — with
+   `LEGACY_FALLBACK` still `true` inside it — for as long as the old cache
+   lives. The file list itself is already complete.
+
+5. **Turn off the two Microsoft Forms** so nothing arrives by two routes at
+   once. Do this *after* confirming step 2 is live, not before.
+
+### Every January — the leave year
+
+Requests are confined to one calendar year, currently **2026**. A request with
+either date outside it is refused with `outside_leave_year`. This exists because
+balances are loaded per year: a request against a year SharePoint has no
+balances for has nothing to draw on, and because it stops a mistyped year (a
+slip in a date picker) booking time off decades out.
+
+**It has a cliff.** At 00:00 on 1 January 2027 every request starts failing
+until the window is moved. That is a hard stop for the whole feature, not a
+degradation — so move it together with the new year's balances, before the
+year turns rather than after.
+
+The window is written in three places and all three must move together:
+
+| File | What to change |
+| --- | --- |
+| `worker/index.js` | `const LEAVE_YEAR = { from: …, to: … }` — the one that enforces it |
+| `time-off-request.js` | `const LEAVE_YEAR = { from: …, to: … }` — so the field says so before a submission fails |
+| `time-off-request.html` | `min` / `max` on both `<input type="date">`, and the "dates in 2026" wording in the two `data-*-year` messages and the `SUBMIT_ERRORS.outside_leave_year` copy |
+
+A test reads the window out of `worker/index.js` and fails if the page script or
+either date picker disagrees, so a half-done rollover is caught by the build
+rather than by an employee. The wording is not checked — prose is the one part
+still worth reading yourself.
+
+### Known at go-live
+
+- **Requests made on the old Microsoft Form cannot be cancelled in the portal.**
+  They carry neither a `ClockNumber` (so they never appear under My time off)
+  nor a `ReferenceId` (so the cancel route would refuse them). Those go through
+  the old cancellation form or the supervisor until the backlog ages out. The
+  portal shows such a row, if one ever appears, as a record with no cancel
+  button rather than a button that cannot work.
+
+- **A backfill is possible but needs both columns at once.** `ClockNumber`
+  alone makes the rows visible with no way to act on them. References assigned
+  by hand should be five digits (`TMO-90001` and up): `makeRef` only ever mints
+  six, so the shorter band cannot collide with a real one. The cancellation
+  flow's "does this reference belong to this clock number" check is what keeps
+  backfilled rows safe — confirm it is really in the built flow first.

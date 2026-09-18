@@ -250,17 +250,35 @@
   // local HR rule from the design copy, not part of the flow's contract, and a
   // Worker that rejected a legitimate two-hour request the flow would have
   // accepted is the worse failure.
+  //
+  // FMLA is exempt. Intermittent FMLA is routinely taken in short blocks — an
+  // hour for an appointment — and a four-hour floor would force an employee to
+  // over-report protected leave to get it recorded at all. FMLA as the leave
+  // type never reached the floor anyway, since it only applies to Vacation;
+  // what changes here is vacation *covering* FMLA, which is the same time off
+  // under a different heading.
   const VACATION_MIN_HOURS = 4;
 
-  // Whole hours only. Digits and nothing else, so "4.5" and "4,5" are both
-  // rejected outright rather than parsed — parseFloat would read "4,5" as 4
-  // and quietly book half the time off the employee meant to ask for.
+  function coversFMLA(leaveType) {
+    if (leaveType === 'FMLA') return true;
+    const answer = document.querySelector('input[name="vacationCoversFMLA"]:checked');
+    return !!answer && answer.value === 'Yes';
+  }
+
+  // Must match LEAVE_YEAR in worker/index.js and the min/max on the two date
+  // inputs. The Worker is what actually enforces it; this is so an employee
+  // hears it from the field rather than from a failed submission.
+  const LEAVE_YEAR = { from: '2026-01-01', to: '2026-12-31' };
+
   // Must stay in step with the Worker's own check on the timeoff-cancel route.
   // Note 4- and 5-digit references are deliberately inside it: makeRef only
   // ever mints six digits, so the shorter forms are a band that can be
   // assigned by hand without ever colliding with a real one.
   const CANCELLABLE_REF = /^TMO-\d{4,6}$/;
 
+  // Whole hours only. Digits and nothing else, so "4.5" and "4,5" are both
+  // rejected outright rather than parsed — parseFloat would read "4,5" as 4
+  // and quietly book half the time off the employee meant to ask for.
   const WHOLE_HOURS = /^\d+$/;
   // Close enough to a number to be worth a specific complaint rather than the
   // generic "enter the hours" message.
@@ -279,7 +297,19 @@
 
     const startDate = document.getElementById('startDate').value;
     const endDate   = document.getElementById('endDate').value;
-    valid = PortalForm.validateField('startDate', !!startDate) && valid;
+
+    // The picker's own min/max stops most of this, but a typed date gets past
+    // it in some browsers and the Worker would then reject the whole
+    // submission — better to say so at the field.
+    if (!startDate) {
+      showFieldError('startDate-error', null);
+      valid = PortalForm.validateField('startDate', false) && valid;
+    } else if (startDate < LEAVE_YEAR.from || startDate > LEAVE_YEAR.to) {
+      showFieldError('startDate-error', 'year');
+      valid = PortalForm.validateField('startDate', false) && valid;
+    } else {
+      PortalForm.validateField('startDate', true);
+    }
 
     if (!endDate) {
       showFieldError('endDate-error', null);
@@ -288,6 +318,9 @@
       // ISO dates sort lexicographically, so this is a correct comparison and
       // not a shortcut around parsing.
       showFieldError('endDate-error', 'order');
+      valid = PortalForm.validateField('endDate', false) && valid;
+    } else if (endDate < LEAVE_YEAR.from || endDate > LEAVE_YEAR.to) {
+      showFieldError('endDate-error', 'year');
       valid = PortalForm.validateField('endDate', false) && valid;
     } else {
       PortalForm.validateField('endDate', true);
@@ -298,7 +331,7 @@
     if (!(hours > 0)) {
       showFieldError('hours-error', DECIMALISH.test(rawHours) ? 'whole' : null);
       valid = PortalForm.validateField('hours', false) && valid;
-    } else if (leaveType === 'Vacation' && hours < VACATION_MIN_HOURS) {
+    } else if (leaveType === 'Vacation' && !coversFMLA(leaveType) && hours < VACATION_MIN_HOURS) {
       showFieldError('hours-error', 'min');
       valid = PortalForm.validateField('hours', false) && valid;
     } else {
@@ -393,6 +426,10 @@
         '. To change it, cancel it under My time off and submit a new one.',
       es: ref => 'Esta solicitud ya fue enviada como ' + ref +
         '. Para cambiarla, cancélala en Mi tiempo libre y envía una nueva.'
+    },
+    outside_leave_year: {
+      en: () => 'Time off can only be requested for dates in 2026.',
+      es: () => 'El tiempo libre solo se puede solicitar para fechas de 2026.'
     },
     // Only reachable from a page cached before the whole-hours rule shipped;
     // the current one blocks it before submitting.

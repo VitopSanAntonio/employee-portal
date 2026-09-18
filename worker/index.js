@@ -49,6 +49,17 @@ const REQUIRE_ACCESS_CODE = false;
  */
 const TEXT = max => ({ max });
 
+/**
+ * A reference number, in the one shape every page mints: PREFIX-nnnnnn.
+ *
+ * Declared rather than left as a bare length cap because `referenceId` is not
+ * an ordinary field — it becomes `_ref`, the key the flow upserts on and the
+ * number written into the reference column. A direct POST could otherwise set
+ * it to any twenty characters it liked, including a prefix belonging to a
+ * different form.
+ */
+const REF = prefix => ({ max: 20, re: new RegExp(`^${prefix}-\\d{4,6}$`) });
+
 /** Cap on one photo's base64 text. Must match maxEncodedBytes in
  *  photo-upload.js, or the page accepts a photo the Worker then rejects. */
 const MAX_PHOTO_B64 = 7 * 1024 * 1024;
@@ -201,7 +212,7 @@ const FORMS = {
   suggestion: {
     secret: 'FLOW_SUGGESTION', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SUG',
     fields: {
-      referenceId: TEXT(20),
+      referenceId: REF('SUG'),
       department:  { max: 100,  required: true },
       category:    { max: 100,  required: true },
       suggestion:  { max: 4000, required: true, min: 20 },
@@ -213,7 +224,7 @@ const FORMS = {
   safety: {
     secret: 'FLOW_SAFETY', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'SAF',
     fields: {
-      referenceId: TEXT(20),
+      referenceId: REF('SAF'),
       // 'Safety' | 'Food safety'. Deliberately NOT required: the page enforces
       // the choice, and a cached page submitting without it must never have a
       // safety report rejected over a field added after it was cached. The
@@ -230,7 +241,7 @@ const FORMS = {
   maintenance: {
     secret: 'FLOW_MAINTENANCE', requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'MNT',
     fields: {
-      referenceId: TEXT(20),
+      referenceId: REF('MNT'),
       department:  { max: 100,  required: true },
       location:    { max: 200,  required: true },
       issueType:   { max: 120,  required: true },
@@ -245,7 +256,7 @@ const FORMS = {
   // data.found and the record fields directly).
   status: {
     secret: 'FLOW_STATUS', requiresCode: false, passthrough: true,
-    fields: { referenceId: { max: 20, required: true } },
+    fields: { referenceId: { max: 20, required: true, re: /^(MNT|SAF|SUG)-\d{4,6}$/ } },
   },
 
   // ── Time off ────────────────────────────────────────────────
@@ -294,7 +305,7 @@ const FORMS = {
     upstreamErrors: TIMEOFF_UPSTREAM_ERRORS,
     upstream404: { status: 400, body: { error: 'unknown_clock_number', message: UNKNOWN_CLOCK_MESSAGE } },
     fields: {
-      referenceId:        TEXT(20),
+      referenceId:        REF('TMO'),
       clockNumber:        CLOCK_NUMBER,
       leaveType:          { max: 60, required: true, oneOf: LEAVE_TYPES },
       startDate:          { max: 10, required: true, date: true },
@@ -619,15 +630,39 @@ function isCalendarDate(value) {
 }
 
 /**
- * Cross-field rule for a time-off request. `fields` can only see one key at a
- * time, and "ends before it starts" needs two.
+ * The leave year requests may fall in. Both dates must be inside it.
  *
- * A plain string compare is correct here and a date compare would not be
- * clearer: both values already passed isCalendarDate, and ISO-8601 dates sort
+ * ── READ THIS BEFORE NEW YEAR ──────────────────────────────────────────
+ * This window is deliberately a fixed year rather than "the current year",
+ * because balances are loaded per year and 2027's are not in SharePoint yet.
+ * It therefore has a cliff: at 00:00 on 1 January 2027 every request starts
+ * failing with `outside_leave_year` until these two lines are changed. That
+ * is a hard stop for the whole feature, not a degradation.
+ *
+ * Change both values together with the 2027 balances, and update the matching
+ * `min`/`max` on the two date inputs in time-off-request.html. Tests read the
+ * window out of this constant rather than hardcoding it, so moving it is an
+ * ordinary edit and not a build failure.
+ * ──────────────────────────────────────────────────────────────────────
+ */
+const LEAVE_YEAR = { from: '2026-01-01', to: '2026-12-31' };
+
+/**
+ * Cross-field rules for a time-off request. `fields` can only see one key at a
+ * time, and both of these need to compare two values.
+ *
+ * Plain string compares are correct here and date compares would not be
+ * clearer: every value involved is a validated ISO-8601 date, and those sort
  * lexicographically.
  */
 function checkTimeOffDates(clean) {
   if (clean.endDate < clean.startDate) return 'end_before_start';
+  // Catches the mistyped year. Before this, 1999 and 2099 were both accepted
+  // and a slip in a date picker booked time off decades out, where it sat in
+  // the employee's list for good.
+  if (clean.startDate < LEAVE_YEAR.from || clean.endDate > LEAVE_YEAR.to) {
+    return 'outside_leave_year';
+  }
   return null;
 }
 
@@ -962,7 +997,13 @@ export default {
     // gives the flow a stable key to upsert on instead of writing a second row
     // for what the employee experienced as one report. (The flow has to
     // actually upsert on it — see worker/README.md.)
-    const ref = clean.referenceId || makeRef(form.refPrefix);
+    // sanitizeForSpreadsheet, not the raw value: `_ref` is assembled here rather
+    // than inside sanitizePayload(clean) below, so it was the one string in the
+    // forwarded body that reached the workbook unguarded. The `re` on each
+    // form's referenceId should already make this unreachable — this is the
+    // belt to that pair of braces, and it costs one call.
+    const sent = clean.referenceId ? sanitizeForSpreadsheet(clean.referenceId) : '';
+    const ref = sent || makeRef(form.refPrefix);
     const body = form.passthrough
       ? { ...clean }
       : {

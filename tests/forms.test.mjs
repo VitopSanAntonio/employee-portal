@@ -1118,6 +1118,64 @@ for (const [outcome, lang, expect, reject] of [
   await page.close();
 }
 
+// Vacation's four-hour floor does not apply to time that covers FMLA.
+//
+// Intermittent FMLA is routinely taken in short blocks — an hour for an
+// appointment — and a four-hour floor would force an employee to over-report
+// protected leave just to get it recorded. FMLA as the leave type never met the
+// floor anyway (it only applies to Vacation); what this pins is vacation
+// *covering* FMLA, which is the same time off under a different heading.
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ found: true, displayName: 'Albiar A.', ok: true, referenceId: 'TMO-100001' }) }));
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+
+  const fill = async hours => {
+    await page.selectOption('#leaveType', 'Vacation');
+    await page.fill('#startDate', '2026-07-06');
+    await page.fill('#endDate', '2026-07-06');
+    await page.fill('#hours', hours);
+  };
+  const blocked = () => page.locator('#f-hours.invalid').count().then(n => n === 1);
+
+  // Two hours of ordinary vacation is still below the floor.
+  await fill('2');
+  await page.click('#submit-btn');
+  results.push({ page: 'time-off-request', mode: 'vacation-floor-still-applies',
+    pass: await blocked(), detail: '2h vacation' });
+
+  // The same two hours, once it is covering FMLA, goes through.
+  await page.click('label[for="fmla-yes"]');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#success-screen', { state: 'visible' });
+  results.push({ page: 'time-off-request', mode: 'fmla-cover-lifts-the-floor',
+    pass: (await page.locator('#success-screen').isVisible()) === true, detail: '2h covering FMLA' });
+  await page.close();
+}
+
+// And a date outside the leave year is refused at the field, not by the Worker.
+{
+  const page = await browser.newPage();
+  await page.route(isProxy, route => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) }));
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.selectOption('#leaveType', 'Vacation');
+  await page.fill('#startDate', '2062-07-06');
+  await page.fill('#endDate', '2062-07-06');
+  await page.fill('#hours', '8');
+  await page.click('#submit-btn');
+  const marked = await page.locator('#f-startDate.invalid').count();
+  const said = (await page.locator('#startDate-error').textContent()) || '';
+  results.push({ page: 'time-off-request', mode: 'leave-year-refused-at-the-field',
+    pass: marked === 1 && said.includes('2026'), detail: said.trim() });
+  await page.close();
+}
+
 await browser.close();
 server.close();
 report(results);

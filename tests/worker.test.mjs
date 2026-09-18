@@ -7,6 +7,7 @@
 // rules it enforces are worth pinning down.
 import worker from '../worker/index.js';
 import { report } from './helpers.mjs';
+import fs from 'fs';
 
 const ORIGIN = 'https://vitopsanantonio.github.io';
 const ENV = {
@@ -725,6 +726,107 @@ const VALID_SAFETY = {
   check('timeoff-cancel-rejects-malformed-reference', badRef.status === 400, `${badRef.status}`);
 
   upstreamReply = () => new Response('{}', { status: 200 });
+}
+
+// ── The reference number is a shape, not just a length ───────
+//
+// `referenceId` is not an ordinary field: it becomes `_ref`, the key the flow
+// upserts on and the number written into the reference column. It used to be a
+// bare 20-character cap, which meant a direct POST could set it to anything —
+// including a prefix belonging to a different form.
+//
+// It also escaped the spreadsheet-formula guard. `_ref` is assembled from
+// clean.referenceId *before* sanitizePayload runs over the rest of the body, so
+// `=cmd|calc` arrived at the workbook with its leading `=` intact while the
+// same string in notesToManager was correctly quoted.
+{
+  const TO = { clockNumber: '048213', leaveType: 'Vacation',
+               startDate: '2026-10-01', endDate: '2026-10-02', hours: 8 };
+
+  upstreamReply = () => new Response('{}', { status: 200 });
+
+  for (const [name, ref, expect] of [
+    ['own-prefix reference is accepted', 'TMO-100001', 200],
+    // The band assigned by hand to the rows the Microsoft Form left without
+    // one. makeRef only ever mints six digits, so five-digit references cannot
+    // collide with a real one — and must keep working.
+    ['hand-assigned five-digit reference', 'TMO-90001', 200],
+    ['a formula is refused', '=cmd|calc', 400],
+    ["another form's prefix is refused", 'SAF-000001', 400],
+    ['lowercase is refused', 'tmo-100001', 400],
+  ]) {
+    const res = await post('timeoff', { ...TO, referenceId: ref });
+    check(`timeoff-reference-shape: ${name}`, res.status === expect, `${res.status}`);
+  }
+
+  // And the guard now covers _ref, not just the field it came from.
+  const res = await post('timeoff', { ...TO, referenceId: 'TMO-100001', notesToManager: '=cmd|calc' });
+  check('timeoff-notes-are-guarded', res.status === 200 && forwarded.body.notesToManager === "'=cmd|calc",
+    JSON.stringify(forwarded && forwarded.body.notesToManager));
+
+  // Every write form states its own prefix.
+  for (const [formKey, payload, ref, expect] of [
+    ['safety', VALID_SAFETY, 'SAF-100001', 200],
+    ['safety', VALID_SAFETY, 'TMO-100001', 400],
+  ]) {
+    const r = await post(formKey, { ...payload, referenceId: ref });
+    check(`${formKey}-reference-shape-${ref}`, r.status === expect, `${r.status}`);
+  }
+}
+
+// ── Time off happens inside one leave year ───────────────────
+//
+// Balances are loaded per year, so a request outside the year the Worker knows
+// about has no balance to draw on. Before this, 1999, 2099 and a 36-year range
+// were all accepted, and a slip in a date picker booked time off decades out
+// where it sat in the employee's list for good.
+//
+// The window is read out of the Worker rather than written here. It is
+// configuration and it is *meant* to move — it has to, every January — so
+// hardcoding 2026 would turn next year's one-line edit into a failing build.
+// Reading it also buys better coverage: these land on its own edges.
+{
+  const src = fs.readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
+  const win = src.match(/const LEAVE_YEAR = \{ from: '(\d{4}-\d{2}-\d{2})', to: '(\d{4}-\d{2}-\d{2})' \}/);
+  if (!win) throw new Error('tests/worker: could not read LEAVE_YEAR out of worker/index.js');
+  const [, FROM, TO] = win;
+
+  // Day arithmetic through Date, so stepping off either end crosses years.
+  const shift = (iso, days) => {
+    const d = new Date(iso + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+
+  upstreamReply = () => new Response('{}', { status: 200 });
+  const TO_REQ = { clockNumber: '048213', leaveType: 'Vacation', hours: 8 };
+
+  for (const [name, startDate, endDate, expect] of [
+    ['first day in the window', FROM, FROM, 200],
+    ['last day in the window', TO, TO, 200],
+    ['spanning the whole window', FROM, TO, 200],
+    ['starting the day before', shift(FROM, -1), FROM, 400],
+    ['ending the day after', TO, shift(TO, 1), 400],
+    ['a mistyped year', '2062-10-01', '2062-10-02', 400],
+  ]) {
+    const res = await post('timeoff', { ...TO_REQ, startDate, endDate });
+    const body = await res.json();
+    check(`timeoff-leave-year: ${name}`,
+      res.status === expect && (expect === 200 || body.error === 'outside_leave_year'),
+      `${res.status} ${body.error || ''}`.trim());
+  }
+
+  // The page carries the same window in two more places. All three have to move
+  // together every January, and nothing else in the build would notice if they
+  // did not.
+  const page = fs.readFileSync(new URL('../time-off-request.js', import.meta.url), 'utf8');
+  const html = fs.readFileSync(new URL('../time-off-request.html', import.meta.url), 'utf8');
+  check('timeoff-leave-year: the page script agrees',
+    page.includes(`const LEAVE_YEAR = { from: '${FROM}', to: '${TO}' };`));
+  const pickers = [...html.matchAll(/<input type="date"[^>]*min="([^"]+)" max="([^"]+)"/g)];
+  check('timeoff-leave-year: both date pickers agree',
+    pickers.length === 2 && pickers.every(m => m[1] === FROM && m[2] === TO),
+    pickers.map(m => `${m[1]}..${m[2]}`).join(' '));
 }
 
 report(results);
