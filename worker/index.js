@@ -630,15 +630,39 @@ function isCalendarDate(value) {
 }
 
 /**
- * Cross-field rule for a time-off request. `fields` can only see one key at a
- * time, and "ends before it starts" needs two.
+ * The leave year requests may fall in. Both dates must be inside it.
  *
- * A plain string compare is correct here and a date compare would not be
- * clearer: both values already passed isCalendarDate, and ISO-8601 dates sort
+ * ── READ THIS BEFORE NEW YEAR ──────────────────────────────────────────
+ * This window is deliberately a fixed year rather than "the current year",
+ * because balances are loaded per year and 2027's are not in SharePoint yet.
+ * It therefore has a cliff: at 00:00 on 1 January 2027 every request starts
+ * failing with `outside_leave_year` until these two lines are changed. That
+ * is a hard stop for the whole feature, not a degradation.
+ *
+ * Change both values together with the 2027 balances, and update the matching
+ * `min`/`max` on the two date inputs in time-off-request.html. Tests read the
+ * window out of this constant rather than hardcoding it, so moving it is an
+ * ordinary edit and not a build failure.
+ * ──────────────────────────────────────────────────────────────────────
+ */
+const LEAVE_YEAR = { from: '2026-01-01', to: '2026-12-31' };
+
+/**
+ * Cross-field rules for a time-off request. `fields` can only see one key at a
+ * time, and both of these need to compare two values.
+ *
+ * Plain string compares are correct here and date compares would not be
+ * clearer: every value involved is a validated ISO-8601 date, and those sort
  * lexicographically.
  */
 function checkTimeOffDates(clean) {
   if (clean.endDate < clean.startDate) return 'end_before_start';
+  // Catches the mistyped year. Before this, 1999 and 2099 were both accepted
+  // and a slip in a date picker booked time off decades out, where it sat in
+  // the employee's list for good.
+  if (clean.startDate < LEAVE_YEAR.from || clean.endDate > LEAVE_YEAR.to) {
+    return 'outside_leave_year';
+  }
   return null;
 }
 

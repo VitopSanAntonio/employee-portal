@@ -7,6 +7,7 @@
 // rules it enforces are worth pinning down.
 import worker from '../worker/index.js';
 import { report } from './helpers.mjs';
+import fs from 'fs';
 
 const ORIGIN = 'https://vitopsanantonio.github.io';
 const ENV = {
@@ -771,6 +772,61 @@ const VALID_SAFETY = {
     const r = await post(formKey, { ...payload, referenceId: ref });
     check(`${formKey}-reference-shape-${ref}`, r.status === expect, `${r.status}`);
   }
+}
+
+// ── Time off happens inside one leave year ───────────────────
+//
+// Balances are loaded per year, so a request outside the year the Worker knows
+// about has no balance to draw on. Before this, 1999, 2099 and a 36-year range
+// were all accepted, and a slip in a date picker booked time off decades out
+// where it sat in the employee's list for good.
+//
+// The window is read out of the Worker rather than written here. It is
+// configuration and it is *meant* to move — it has to, every January — so
+// hardcoding 2026 would turn next year's one-line edit into a failing build.
+// Reading it also buys better coverage: these land on its own edges.
+{
+  const src = fs.readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
+  const win = src.match(/const LEAVE_YEAR = \{ from: '(\d{4}-\d{2}-\d{2})', to: '(\d{4}-\d{2}-\d{2})' \}/);
+  if (!win) throw new Error('tests/worker: could not read LEAVE_YEAR out of worker/index.js');
+  const [, FROM, TO] = win;
+
+  // Day arithmetic through Date, so stepping off either end crosses years.
+  const shift = (iso, days) => {
+    const d = new Date(iso + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+
+  upstreamReply = () => new Response('{}', { status: 200 });
+  const TO_REQ = { clockNumber: '048213', leaveType: 'Vacation', hours: 8 };
+
+  for (const [name, startDate, endDate, expect] of [
+    ['first day in the window', FROM, FROM, 200],
+    ['last day in the window', TO, TO, 200],
+    ['spanning the whole window', FROM, TO, 200],
+    ['starting the day before', shift(FROM, -1), FROM, 400],
+    ['ending the day after', TO, shift(TO, 1), 400],
+    ['a mistyped year', '2062-10-01', '2062-10-02', 400],
+  ]) {
+    const res = await post('timeoff', { ...TO_REQ, startDate, endDate });
+    const body = await res.json();
+    check(`timeoff-leave-year: ${name}`,
+      res.status === expect && (expect === 200 || body.error === 'outside_leave_year'),
+      `${res.status} ${body.error || ''}`.trim());
+  }
+
+  // The page carries the same window in two more places. All three have to move
+  // together every January, and nothing else in the build would notice if they
+  // did not.
+  const page = fs.readFileSync(new URL('../time-off-request.js', import.meta.url), 'utf8');
+  const html = fs.readFileSync(new URL('../time-off-request.html', import.meta.url), 'utf8');
+  check('timeoff-leave-year: the page script agrees',
+    page.includes(`const LEAVE_YEAR = { from: '${FROM}', to: '${TO}' };`));
+  const pickers = [...html.matchAll(/<input type="date"[^>]*min="([^"]+)" max="([^"]+)"/g)];
+  check('timeoff-leave-year: both date pickers agree',
+    pickers.length === 2 && pickers.every(m => m[1] === FROM && m[2] === TO),
+    pickers.map(m => `${m[1]}..${m[2]}`).join(' '));
 }
 
 report(results);

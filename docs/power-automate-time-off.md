@@ -384,6 +384,32 @@ switch, and it is the one thing that actually moves the plant onto the portal.
 5. **Turn off the two Microsoft Forms** so nothing arrives by two routes at
    once. Do this *after* confirming step 2 is live, not before.
 
+### Every January — the leave year
+
+Requests are confined to one calendar year, currently **2026**. A request with
+either date outside it is refused with `outside_leave_year`. This exists because
+balances are loaded per year: a request against a year SharePoint has no
+balances for has nothing to draw on, and because it stops a mistyped year (a
+slip in a date picker) booking time off decades out.
+
+**It has a cliff.** At 00:00 on 1 January 2027 every request starts failing
+until the window is moved. That is a hard stop for the whole feature, not a
+degradation — so move it together with the new year's balances, before the
+year turns rather than after.
+
+The window is written in three places and all three must move together:
+
+| File | What to change |
+| --- | --- |
+| `worker/index.js` | `const LEAVE_YEAR = { from: …, to: … }` — the one that enforces it |
+| `time-off-request.js` | `const LEAVE_YEAR = { from: …, to: … }` — so the field says so before a submission fails |
+| `time-off-request.html` | `min` / `max` on both `<input type="date">`, and the "dates in 2026" wording in the two `data-*-year` messages and the `SUBMIT_ERRORS.outside_leave_year` copy |
+
+A test reads the window out of `worker/index.js` and fails if the page script or
+either date picker disagrees, so a half-done rollover is caught by the build
+rather than by an employee. The wording is not checked — prose is the one part
+still worth reading yourself.
+
 ### Known at go-live
 
 - **Requests made on the old Microsoft Form cannot be cancelled in the portal.**
