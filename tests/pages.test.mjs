@@ -431,10 +431,17 @@ for (const s of seasons) {
 }
 
 // The coming-soon announcement. It is only truthful while employees are still
-// being sent to the Microsoft Forms, so it carries its own switch and its own
-// expiry — and it has to be dismissible, escapable and readable in both
-// languages, because it is the first thing anyone meets.
-{
+// being sent to the Microsoft Forms, so it carries its own switch — and, like
+// the rollback lever above, that switch has to be throwable without going red.
+// These read ANNOUNCE out of announce.js rather than assuming it: while it is
+// on they run the whole battery, and once go-live turns it off they check it is
+// genuinely off instead of timing out waiting for a dialog that will never
+// open. Getting this wrong would have failed the build on the one commit whose
+// entire purpose is to turn it off.
+const announceOn = /const ANNOUNCE = true;/.test(
+  fs.readFileSync(path.join(ROOT, 'announce.js'), 'utf8'));
+
+if (announceOn) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto(`${base}/index.html`);
@@ -468,6 +475,21 @@ for (const s of seasons) {
   check('announce-stays-closed-once-seen',
     (await page.locator('#announce').isVisible()) === false);
   await ctx.close();
+} else {
+  // Switched off. The markup still ships — turning it back on is one line, the
+  // same property the lever has — but nothing may open it, and the home page
+  // must not be left with a focus trap nobody can see.
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(`${base}/index.html`);
+  await page.waitForTimeout(400);
+  check('announce-off-stays-hidden',
+    (await page.locator('#announce').isVisible()) === false);
+  check('announce-off-keeps-its-markup',
+    (await page.locator('#announce .announce').count()) === 1);
+  check('announce-off-leaves-focus-on-the-page',
+    await page.evaluate(() => !document.querySelector('#announce').contains(document.activeElement)));
+  await ctx.close();
 }
 
 // It belongs on the landing page and nowhere else — the forms are where people
@@ -483,12 +505,17 @@ for (const s of seasons) {
 // The dialog's controls are named only by aria-label, so those labels are the
 // whole name for the one reader who depends on them — lang.js learned to
 // translate them for this.
+//
+// Deliberately does not wait for the dialog to open. lang.js walks the markup,
+// not the visible page, so these hold whether the announcement is switched on
+// or off — and waiting for a dialog that ANNOUNCE has turned off is how this
+// block failed the build on the go-live commit the first time round.
 {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.addInitScript(() => localStorage.setItem('portalLang', 'es'));
   await page.goto(`${base}/index.html`);
-  await page.waitForSelector('#announce:not([hidden])');
+  await page.waitForFunction(() => document.documentElement.lang === 'es');
   check('announce-aria-labels-translate',
     (await page.locator('#announce-close').getAttribute('aria-label')) === 'Cerrar',
     await page.locator('#announce-close').getAttribute('aria-label'));

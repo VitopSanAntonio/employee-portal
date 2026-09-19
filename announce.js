@@ -22,7 +22,7 @@
      remembers to take down is worse than one that never ran, so
      this one stops on its own whatever anybody forgets.
   ────────────────────────────────────────────────────────────── */
-  const ANNOUNCE = true;
+  const ANNOUNCE = false;
   const ENDS = new Date('2026-12-31T23:59:59');
 
   // Re-offered rather than dismissed forever. The floor kiosk is shared, so a
