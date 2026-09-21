@@ -416,6 +416,29 @@ either date picker disagrees, so a half-done rollover is caught by the build
 rather than by an employee. The wording is not checked — prose is the one part
 still worth reading yourself.
 
+#### Leave the old year open for a few weeks
+
+The plant has no sick days, so employees use Floating Holiday for them — often
+an hour or two at a time, and usually filed **after** the fact, once they are
+back. That is why there is no four-hour floor on anything but Vacation.
+
+It means the rollover is not a clean switch. Somebody out sick on 30 December
+who files on 2 January is filing 2026 dates against a 2027 window, and gets
+`outside_leave_year` for a request that is perfectly legitimate.
+
+So when you roll over, move `to` and leave `from` where it is for a few weeks:
+
+    from: '2026-01-01',  to: '2027-12-31'
+
+Both years are then bookable, the stragglers get in, and you narrow `from` to
+`'2027-01-01'` once they have. The only thing the wide window gives up in the
+meantime is some of the protection against a mistyped year, which is worth it
+for a fortnight.
+
+If you would rather not, the alternative is fine too — the handful of late
+January filings go in by hand. Just decide which before the year turns, rather
+than while somebody is standing at the kiosk.
+
 ### Known at go-live
 
 - **Requests made on the old Microsoft Form cannot be cancelled in the portal.**
