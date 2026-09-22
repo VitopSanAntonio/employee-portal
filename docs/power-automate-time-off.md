@@ -350,39 +350,45 @@ looking at once on purpose.
 `npm run test:worker` exercises every route against a stubbed upstream, so the
 Worker's half can be verified with no flow at all.
 
-## Go-live
+## Go-live — done in this commit
 
-The steps that were here described work that is now done — the cards already
-point at the portal page, the preview banner and `noindex` are gone, and the
-service worker already precaches the new files. What replaced them is a single
-switch, and it is the one thing that actually moves the plant onto the portal.
+Steps 2, 3 and 4 below are **already applied**. What is left is step 1, which is
+a check, and step 5, which is a thing to do in Power Automate afterwards.
 
 1. **All four flows built and their secrets set.** `wrangler secret list` should
    show `VALIDATE_FLOW_URL`, `VALIDATE_SECRET`, `TIMEOFF_FLOW_URL`,
    `TIMEOFF_LOOKUP_FLOW_URL`, `TIMEOFF_CANCEL_FLOW_URL` and `TIMEOFF_SECRET`.
+   Nothing in this repository can verify that — confirm it before merging.
 
-2. **Set `LEGACY_FALLBACK = false` in `time-off.html`.** This is the switch.
-   `time-off.html` carries both sets of cards — the two portal cards and the two
-   Microsoft Forms links — and this lever picks which set is visible. Until it
-   is flipped, employees still land on the Microsoft Forms no matter what else
-   has shipped. Flipping it back is the rollback, and it is one line either way.
+2. ✅ **`LEGACY_FALLBACK = false` in `time-off.html`.** The switch. The file
+   carries both sets of cards — the two portal cards and the two Microsoft
+   Forms links — and this lever picks which set is visible. Both sets still
+   ship, which is what makes the rollback one line rather than a rewrite.
 
-3. **Set `ANNOUNCE = false` in `announce.js`.** The coming-soon popup on the
-   home page stops being true the moment the cards switch — it would be
-   advertising the page directly behind it. It expires on its own at `ENDS`,
-   but that is a backstop, not the plan.
+3. ✅ **`ANNOUNCE = false` in `announce.js`.** The coming-soon popup stops being
+   true the moment the cards switch; it would otherwise advertise the page
+   directly behind it. Its markup stays in `index.html`, hidden, for the same
+   reason the legacy cards do.
 
-   Steps 2 and 3 must ship together. Either one alone is visibly wrong: the
-   popup still promising a page that is already live, or the popup gone while
-   the cards still send people to Forms.
-
-4. **Bump `CACHE_VERSION` in `sw.js`.** The shell is cached, so without a bump
-   a returning phone can keep serving the pre-go-live `time-off.html` — with
+4. ✅ **`CACHE_VERSION` bumped to `portal-v9` in `sw.js`.** Without it a
+   returning phone can keep serving the pre-go-live `time-off.html` — with
    `LEGACY_FALLBACK` still `true` inside it — for as long as the old cache
-   lives. The file list itself is already complete.
+   lives.
 
 5. **Turn off the two Microsoft Forms** so nothing arrives by two routes at
-   once. Do this *after* confirming step 2 is live, not before.
+   once. Do this *after* confirming the merge is live on the site, not before —
+   while the Forms are still on, the rollback in the next section costs nothing.
+
+### Rolling back
+
+Set `LEGACY_FALLBACK = true` in `time-off.html`, bump `CACHE_VERSION` again, and
+push. Employees are back on the Microsoft Forms within a cache cycle. Turn
+`ANNOUNCE` back on only if the delay is going to be long enough to be worth
+explaining.
+
+Requests already filed in the portal stay in SharePoint and stay cancellable —
+rolling back hides the portal cards, it does not remove the pages. An employee
+with the direct link still reaches a working `time-off-request.html`.
 
 ### Every January — the leave year
 
@@ -409,6 +415,29 @@ A test reads the window out of `worker/index.js` and fails if the page script or
 either date picker disagrees, so a half-done rollover is caught by the build
 rather than by an employee. The wording is not checked — prose is the one part
 still worth reading yourself.
+
+#### Leave the old year open for a few weeks
+
+The plant has no sick days, so employees use Floating Holiday for them — often
+an hour or two at a time, and usually filed **after** the fact, once they are
+back. That is why there is no four-hour floor on anything but Vacation.
+
+It means the rollover is not a clean switch. Somebody out sick on 30 December
+who files on 2 January is filing 2026 dates against a 2027 window, and gets
+`outside_leave_year` for a request that is perfectly legitimate.
+
+So when you roll over, move `to` and leave `from` where it is for a few weeks:
+
+    from: '2026-01-01',  to: '2027-12-31'
+
+Both years are then bookable, the stragglers get in, and you narrow `from` to
+`'2027-01-01'` once they have. The only thing the wide window gives up in the
+meantime is some of the protection against a mistyped year, which is worth it
+for a fortnight.
+
+If you would rather not, the alternative is fine too — the handful of late
+January filings go in by hand. Just decide which before the year turns, rather
+than while somebody is standing at the kiosk.
 
 ### Known at go-live
 

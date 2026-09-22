@@ -100,7 +100,14 @@ for (const season of seasonNames) {
 
 // The announcement is the first thing on the page and traps focus, so it is
 // worth scanning in its own right rather than only behind the backdrop.
-for (const lang of ['en', 'es']) {
+//
+// Skipped once go-live turns it off: there is then no dialog to open, and
+// waiting for one would fail the build on the commit that turns it off. The
+// home page itself is still scanned above either way.
+const announceOn = /const ANNOUNCE = true;/.test(
+  fs.readFileSync(new URL('../announce.js', import.meta.url), 'utf8'));
+
+for (const lang of announceOn ? ['en', 'es'] : []) {
   const page = await context.newPage();
   if (lang === 'es') await page.addInitScript(() => localStorage.setItem('portalLang', 'es'));
   await page.goto(`http://localhost:${PORT}/index.html`);
