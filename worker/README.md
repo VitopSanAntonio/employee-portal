@@ -16,7 +16,7 @@ and no way to tell what is running.
 | `POST /submit/safety`      | Safety concern → `FLOW_SAFETY`                             |
 | `POST /submit/suggestion`  | Employee suggestion → `FLOW_SUGGESTION`                    |
 | `POST /submit/maintenance` | Maintenance request → `FLOW_MAINTENANCE`                   |
-| `POST /submit/status`      | Status lookup → `FLOW_STATUS`, returns the flow's own JSON |
+| `POST /submit/status`      | Status lookup → `FLOW_STATUS`, projected by `projectStatus` |
 | `POST /submit/validate`        | Clock number → `VALIDATE_FLOW_URL`, returns `{ found, displayName }` |
 | `POST /submit/timeoff`         | Time-off request → `TIMEOFF_FLOW_URL`                    |
 | `POST /submit/timeoff-lookup`  | Balance + requests → `TIMEOFF_LOOKUP_FLOW_URL`           |
@@ -261,6 +261,20 @@ only validation that actually runs. The Worker is reachable by anyone who has
 its URL, so whatever the page checked can simply be skipped.
 
 Adding a field to a form means adding it here too, or it is silently dropped.
+
+`email` is shape-checked with the same pattern as `form-utils.js`, and the
+single `photo` field is base64-checked like each entry of `photos`.
+
+`/submit/status` needs no access code, so its answer is **projected**
+(`projectStatus`) to the six fields `status-check.html` renders. A passthrough
+handed anyone walking the reference range the flow's whole row.
+
+`/submit/timeoff` also refuses `too_many_hours` — more hours than the date range
+holds at 24 an hour. No genuine request reaches it; it catches 80 typed for 8.
+
+Every response carries `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff`: several carry an employee's name and leave
+history, and a shared kiosk's browser cache is no place for either.
 
 ## Photos
 

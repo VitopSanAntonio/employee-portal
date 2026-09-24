@@ -1176,6 +1176,102 @@ for (const [outcome, lang, expect, reject] of [
   await page.close();
 }
 
+// A shared kiosk must never show one employee's leave to the next.
+//
+// Hiding the gate used to be the whole of "forgetting" someone: the balances
+// and requests stayed rendered inside it, and the tab stayed selected. The
+// next badge opened the gate straight onto the previous employee's history
+// under the new name. The second half covers the slower version of the same
+// thing — a lookup for the first badge that lands after the second is in.
+{
+  const page = await browser.newPage();
+  let holdAlice = false;
+  let releaseAlice = null;
+  await page.route(isProxy, async route => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    const alice = body.clockNumber === '111';
+    const who = alice ? 'Alice A.' : 'Bob B.';
+    if (route.request().url().includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: who }) });
+    }
+    if (alice && holdAlice) await new Promise(r => { releaseAlice = r; });
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ found: true, displayName: who,
+        balances: [{ leaveType: 'Vacation', hours: alice ? 111 : 222 }], requests: [] }) });
+  });
+
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '111');
+  await page.waitForSelector('#gate.show');
+  await page.click('#tab-mine');
+  await page.waitForSelector('.balance-card');
+  await page.fill('#clockNumber', '222');
+  await page.waitForSelector('#gate.show');
+  await waitFor(async () => (await page.locator('.b-hours').allTextContents()).join().includes('222'));
+  const shown = (await page.locator('.b-hours').allTextContents()).join(', ');
+  results.push({ page: 'time-off-request', mode: 'next-badge-never-sees-previous-balance',
+    pass: shown.includes('222') && !shown.includes('111'), detail: shown });
+
+  // Alice's lookup is still in flight when Bob's badge clears.
+  await page.fill('#clockNumber', '');
+  await page.click('#tab-request').catch(() => {});
+  holdAlice = true;
+  await page.fill('#clockNumber', '111');
+  await page.waitForSelector('#gate.show');
+  await page.click('#tab-mine');
+  await waitFor(() => releaseAlice);
+  await page.fill('#clockNumber', '222');
+  await page.waitForSelector('#gate.show');
+  await waitFor(async () => (await page.locator('.b-hours').allTextContents()).join().includes('222'));
+  releaseAlice();
+  await page.waitForTimeout(300);
+  const after = (await page.locator('.b-hours').allTextContents()).join(', ');
+  results.push({ page: 'time-off-request', mode: 'late-lookup-for-previous-badge-dropped',
+    pass: after.includes('222') && !after.includes('111'), detail: after });
+  await page.close();
+}
+
+// More hours than the chosen dates hold is a slipped digit, not a request.
+{
+  const page = await browser.newPage();
+  let submitCalls = 0;
+  await page.route(isProxy, route => {
+    if (route.request().url().includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    submitCalls++;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.selectOption('#leaveType', 'Vacation');
+  await page.fill('#startDate', '2026-10-05');
+  await page.fill('#endDate', '2026-10-05');
+  await page.fill('#hours', '80');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#f-hours.invalid');
+  const said = (await page.locator('#hours-error').textContent()) || '';
+  results.push({ page: 'time-off-request', mode: 'hours-beyond-the-dates-refused',
+    pass: submitCalls === 0 && said.includes('more hours than the dates'), detail: said.trim() });
+
+  // Tabs answer the arrow keys, and only the active one is in the Tab order.
+  await page.focus('#tab-request');
+  await page.keyboard.press('ArrowRight');
+  const mineSelected = await page.getAttribute('#tab-mine', 'aria-selected');
+  const focused = await page.evaluate(() => document.activeElement.id);
+  const tabIdx = await page.evaluate(() => [
+    document.getElementById('tab-request').tabIndex, document.getElementById('tab-mine').tabIndex]);
+  await page.keyboard.press('Home');
+  const backHome = await page.getAttribute('#tab-request', 'aria-selected');
+  results.push({ page: 'time-off-request', mode: 'tabs-follow-arrow-keys',
+    pass: mineSelected === 'true' && focused === 'tab-mine' && tabIdx.join() === '-1,0' && backHome === 'true',
+    detail: `${mineSelected} ${focused} ${tabIdx} ${backHome}` });
+  await page.close();
+}
+
 await browser.close();
 server.close();
 report(results);

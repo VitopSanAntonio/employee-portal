@@ -64,7 +64,7 @@ export default [
       globals: {
         console: 'readonly', fetch: 'readonly', crypto: 'readonly',
         Request: 'readonly', Response: 'readonly', URL: 'readonly',
-        AbortController: 'readonly', TextDecoder: 'readonly',
+        AbortController: 'readonly', TextDecoder: 'readonly', TextEncoder: 'readonly',
         setTimeout: 'readonly', clearTimeout: 'readonly',
         globalThis: 'readonly', process: 'readonly', Buffer: 'readonly',
         document: 'readonly', navigator: 'readonly', localStorage: 'readonly',

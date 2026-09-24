@@ -62,6 +62,10 @@
   let cancelOpenFor = null;     // referenceId whose cancel panel is expanded
   let cancelSentFor = null;     // referenceId that just had a cancellation sent
   let cancelSentOutcome = null; // and which of the two outcomes came back
+  // Bumped whenever the "My time off" data stops belonging to whoever is at
+  // the screen, so a lookup still in flight for the previous badge is dropped
+  // on arrival instead of painted under the next person's name.
+  let mineToken = 0;
 
   // Guarded rather than assumed: lang.js defines PortalStorage but loads after
   // this file.
@@ -83,11 +87,22 @@
     });
   }
 
+  /**
+   * Forgets the employee at the screen — everything of theirs, not just the
+   * variable. Hiding the gate is not enough on a shared kiosk: the balances
+   * and requests stayed rendered inside it, and when the next badge opened the
+   * gate on the tab left selected, that person saw the previous employee's
+   * leave history under their own name.
+   */
   function closeGate() {
     identity = null;
     mine = null;
     cancelOpenFor = null;
     cancelSentFor = null;
+    cancelSentOutcome = null;
+    mineToken++;                          // orphan any lookup still in flight
+    balanceGrid.textContent = '';
+    reqList.textContent = '';
     gate.classList.remove('show');
   }
 
@@ -97,6 +112,9 @@
     setIdState('id-ok');
     gate.classList.add('show');
     if (pendingTab === 'mine') { pendingTab = 'request'; selectTab('mine'); }
+    // Opened on the tab the previous employee left selected: load this
+    // employee's own list rather than leaving the panel blank.
+    else if (!panelMine.hidden) loadMine();
   }
 
   function renderWelcome() {
@@ -229,6 +247,10 @@
     const isRequest = which === 'request';
     tabRequest.setAttribute('aria-selected', isRequest ? 'true' : 'false');
     tabMine.setAttribute('aria-selected', isRequest ? 'false' : 'true');
+    // Roving tabindex, per the WAI-ARIA tabs pattern: Tab reaches the active
+    // tab only and then moves on into its panel; the arrow keys below switch.
+    tabRequest.tabIndex = isRequest ? 0 : -1;
+    tabMine.tabIndex = isRequest ? -1 : 0;
     panelRequest.hidden = !isRequest;
     panelMine.hidden = isRequest;
     if (!isRequest && !mine) loadMine();
@@ -236,6 +258,20 @@
 
   tabRequest.addEventListener('click', () => selectTab('request'));
   tabMine.addEventListener('click', () => selectTab('mine'));
+
+  // role="tab" promises arrow-key navigation to a screen reader user; without
+  // it the second tab could only be reached by a pointer.
+  function onTabKey(e) {
+    const other = e.currentTarget === tabRequest ? tabMine : tabRequest;
+    const target = { ArrowRight: other, ArrowLeft: other, Home: tabRequest, End: tabMine }[e.key];
+    if (!target) return;
+    e.preventDefault();
+    selectTab(target === tabRequest ? 'request' : 'mine');
+    target.focus();
+  }
+  tabRequest.addEventListener('keydown', onTabKey);
+  tabMine.addEventListener('keydown', onTabKey);
+  selectTab('request');
 
   // ── Tab 1: the request form ─────────────────────────────────
 
@@ -283,6 +319,11 @@
   // Close enough to a number to be worth a specific complaint rather than the
   // generic "enter the hours" message.
   const DECIMALISH = /^\d*[.,]\d*$|^\d+[.,]\d*$/;
+
+  /** Calendar days from start to end, counting both — the Worker's own rule. */
+  function daysInclusive(start, end) {
+    return Math.round((Date.parse(end + 'T00:00:00Z') - Date.parse(start + 'T00:00:00Z')) / 864e5) + 1;
+  }
 
   function parseHours(raw) {
     const text = String(raw).trim();
@@ -333,6 +374,11 @@
       valid = PortalForm.validateField('hours', false) && valid;
     } else if (leaveType === 'Vacation' && !coversFMLA(leaveType) && hours < VACATION_MIN_HOURS) {
       showFieldError('hours-error', 'min');
+      valid = PortalForm.validateField('hours', false) && valid;
+    } else if (startDate && endDate && endDate >= startDate &&
+               hours > daysInclusive(startDate, endDate) * 24) {
+      // More hours than the dates hold — almost always 80 typed for 8.
+      showFieldError('hours-error', 'range');
       valid = PortalForm.validateField('hours', false) && valid;
     } else {
       PortalForm.validateField('hours', true);
@@ -436,6 +482,10 @@
     not_whole_hours: {
       en: () => 'Time off is requested in whole hours. Round to the nearest hour and try again.',
       es: () => 'El tiempo libre se solicita en horas completas. Redondea a la hora más cercana e inténtalo de nuevo.'
+    },
+    too_many_hours: {
+      en: () => 'That is more hours than the dates you picked. Check the hours and try again.',
+      es: () => 'Son más horas que las fechas que elegiste. Revisa las horas e inténtalo de nuevo.'
     },
     unknown_clock_number: {
       en: () => 'That time clock number was not recognized. Check your badge or see your supervisor.',
@@ -551,8 +601,6 @@
     );
     mineContent.style.display = which === null ? 'block' : 'none';
   }
-
-  let mineToken = 0;
 
   async function loadMine() {
     if (!identity) return;
@@ -871,11 +919,16 @@
       confirmText.textContent = es ? 'Enviando…' : 'Submitting…';
       failed.style.display = 'none';
 
+      const token = mineToken;
       const { ok, error, message, data, cancelled } = await PortalForm.submitJSON('timeoff-cancel', {
         referenceId: r.referenceId,
         clockNumber: identity.clockNumber,
         reason:      area.value.trim()
       });
+
+      // The screen changed hands while this was in flight; whatever came back
+      // belongs to someone no longer here.
+      if (token !== mineToken) return;
 
       if (!ok) {
         confirm.disabled = false;
