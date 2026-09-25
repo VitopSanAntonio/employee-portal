@@ -5,7 +5,7 @@
 // The Worker is the only server-side code in the repo and the only thing
 // standing between a stranger with curl and a row in SharePoint, so the
 // rules it enforces are worth pinning down.
-import worker from '../worker/index.js';
+import worker, { safeEqual } from '../worker/index.js';
 import { report } from './helpers.mjs';
 import fs from 'fs';
 
@@ -116,8 +116,8 @@ const VALID_SAFETY = {
   check('tab-lead-prefixed', forwarded.body.description.startsWith("'\t"));
 
   // Base64 image bytes must not be prefixed — that would corrupt the photo.
-  await post('safety', { ...VALID_SAFETY, photo: '+abc123', photoName: 'x.jpg' });
-  check('photo-not-prefixed', forwarded.body.photo === '+abc123', forwarded.body.photo);
+  await post('safety', { ...VALID_SAFETY, photo: '+abc1234', photoName: 'x.jpg' });
+  check('photo-not-prefixed', forwarded.body.photo === '+abc1234', forwarded.body && forwarded.body.photo);
 }
 
 // ── Photos ───────────────────────────────────────────────────
@@ -256,7 +256,60 @@ const VALID_SAFETY = {
   check('status-passthrough-body', (await res.clone().json()).found === true);
   check('status-forwards-only-ref',
     Object.keys(forwarded.body).join(',') === 'referenceId', Object.keys(forwarded.body).join(','));
+
+  // No access code guards this route, so the flow's row must not reach the
+  // browser whole — only what status-check.html renders.
+  upstreamReply = () => new Response(JSON.stringify({
+    found: true, status: 'Open', timestamp: 46000.5, maintenanceComments: 'On it',
+    email: 'reporter@example.com', description: 'secret detail', _sourceIp: '198.51.100.9',
+  }), { status: 200 });
+  const projected = await (await post('status', { referenceId: 'MNT-0001' })).json();
+  check('status-projected',
+    Object.keys(projected).sort().join(',') ===
+      'found,maintenanceComments,managerComments,safetyManagerComments,status,timestamp' &&
+    projected.timestamp === 46000.5 && projected.maintenanceComments === 'On it',
+    Object.keys(projected).join(','));
+
+  // A comment that is not a string used to reach the page, whose .trim() then threw.
+  upstreamReply = () => new Response(JSON.stringify({ found: true, managerComments: 42 }), { status: 200 });
+  const odd = await (await post('status', { referenceId: 'SUG-0001' })).json();
+  check('status-non-string-comment-is-empty', odd.managerComments === '', JSON.stringify(odd.managerComments));
   upstreamReply = () => new Response('{}', { status: 200 });
+}
+
+// ── Response headers ─────────────────────────────────────────
+{
+  const res = await post('safety', VALID_SAFETY);
+  check('responses-not-cached',
+    res.headers.get('Cache-Control') === 'no-store' &&
+    res.headers.get('X-Content-Type-Options') === 'nosniff',
+    `${res.headers.get('Cache-Control')} ${res.headers.get('X-Content-Type-Options')}`);
+}
+
+// ── Email and single-photo shape ─────────────────────────────
+{
+  const badEmail = await post('safety', { ...VALID_SAFETY, email: 'not-an-address' });
+  check('invalid-email-rejected', badEmail.status === 400 &&
+    (await badEmail.json()).error === 'invalid_email', `${badEmail.status}`);
+
+  const goodEmail = await post('safety', { ...VALID_SAFETY, email: 'a@b.co' });
+  check('valid-email-accepted', goodEmail.status === 200, `${goodEmail.status}`);
+
+  const badPhoto = await post('suggestion', {
+    department: 'Quality', category: 'Safety', anonymous: 'Yes',
+    suggestion: 'Put a second eyewash station by the corrugator exit.',
+    photo: 'not base64!', photoName: 'x.jpg',
+  });
+  check('single-photo-must-be-base64', badPhoto.status === 400 &&
+    (await badPhoto.json()).error === 'invalid_photo', `${badPhoto.status}`);
+}
+
+// ── Access code comparison ───────────────────────────────────
+{
+  check('safe-equal-matches', await safeEqual('TEST-CODE', 'TEST-CODE'));
+  check('safe-equal-rejects-other', !(await safeEqual('TEST-CODF', 'TEST-CODE')));
+  check('safe-equal-rejects-prefix', !(await safeEqual('TEST', 'TEST-CODE')));
+  check('safe-equal-rejects-empty', !(await safeEqual('', 'TEST-CODE')));
 }
 
 // ── Upstream failures ────────────────────────────────────────
@@ -827,6 +880,24 @@ const VALID_SAFETY = {
   check('timeoff-leave-year: both date pickers agree',
     pickers.length === 2 && pickers.every(m => m[1] === FROM && m[2] === TO),
     pickers.map(m => `${m[1]}..${m[2]}`).join(' '));
+}
+
+// ── Time off: hours against the date range ───────────────────
+{
+  const REQ = { clockNumber: '048213', leaveType: 'Vacation', hours: 8,
+                startDate: '2026-10-05', endDate: '2026-10-05' };
+  for (const [name, patch, expect] of [
+    ['a full day on one date', {}, 200],
+    ['every hour of one date', { hours: 24 }, 200],
+    ['a slipped digit on one date', { hours: 80 }, 400],
+    ['a week over seven dates', { hours: 40, endDate: '2026-10-11' }, 200],
+  ]) {
+    const res = await post('timeoff', { ...REQ, ...patch });
+    const body = await res.json();
+    check(`timeoff-hours-vs-days: ${name}`,
+      res.status === expect && (expect === 200 || body.error === 'too_many_hours'),
+      `${res.status} ${body.error || ''}`.trim());
+  }
 }
 
 report(results);

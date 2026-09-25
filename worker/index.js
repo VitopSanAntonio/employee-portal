@@ -65,8 +65,13 @@ const REF = prefix => ({ max: 20, re: new RegExp(`^${prefix}-\\d{4,6}$`) });
 const MAX_PHOTO_B64 = 7 * 1024 * 1024;
 
 const CONTACT_FIELDS = {
-  email:     TEXT(254),          // RFC 5321 practical maximum
-  photo:     { max: MAX_PHOTO_B64 },
+  // RFC 5321 practical maximum, and the same shape check the pages run. The
+  // flows reply to this address, so an unchecked value is a way to make the
+  // company's mailbox send to anything a direct POST likes.
+  email:     { max: 254, email: true },
+  // Base64-checked like each entry of `photos`: base64ToBinary() in the flow
+  // turns malformed input into an attachment that silently will not open.
+  photo:     { max: MAX_PHOTO_B64, base64: true },
   photoName: TEXT(255),
 };
 
@@ -100,6 +105,10 @@ const PHOTOS_FIELD = {
  * courtesy and this route is reachable with curl.
  */
 const CLOCK_NUMBER = { max: 10, required: true, re: /^\d{1,10}$/ };
+
+/** Must match EMAIL_RE in form-utils.js, or the page accepts an address the
+ *  Worker then rejects. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Matched by a Switch in the Power Automate flow. A value that is not exactly
@@ -256,6 +265,11 @@ const FORMS = {
   // data.found and the record fields directly).
   status: {
     secret: 'FLOW_STATUS', requiresCode: false, passthrough: true,
+    // Projected like the time-off lookups: this route needs no code at all,
+    // so whatever the flow's row carries — the reporter's email, the
+    // description, _sourceIp — would otherwise reach anyone who walks the
+    // six-digit reference range.
+    project: projectStatus,
     fields: { referenceId: { max: 20, required: true, re: /^(MNT|SAF|SUG)-\d{4,6}$/ } },
   },
 
@@ -425,20 +439,39 @@ function cors(origin) {
   };
 }
 
+/**
+ * Every answer from this Worker. no-store because several carry an
+ * employee's name and leave history, and a shared kiosk's browser cache is
+ * not a place for either; nosniff so a body is only ever read as JSON.
+ */
+const RESPONSE_HEADERS = {
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+};
+
 function json(body, status, origin) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...cors(origin) },
+    headers: { ...RESPONSE_HEADERS, ...cors(origin) },
   });
 }
 
-/** Constant-time-ish compare so the code can't be guessed byte by byte. */
-function safeEqual(a, b) {
-  const x = String(a ?? '');
-  const y = String(b ?? '');
-  if (x.length !== y.length) return false;
+/**
+ * Constant-time compare so the code can't be guessed byte by byte.
+ *
+ * Both sides are hashed first. Comparing the raw strings returned early on a
+ * length mismatch, which told a caller timing the 401 how long the real code
+ * is; two SHA-256 digests are always 32 bytes, so there is nothing to learn.
+ */
+async function safeEqual(a, b) {
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(String(a ?? ''))),
+    crypto.subtle.digest('SHA-256', enc.encode(String(b ?? ''))),
+  ]).then(ds => ds.map(d => new Uint8Array(d)));
   let diff = 0;
-  for (let i = 0; i < x.length; i++) diff |= x.charCodeAt(i) ^ y.charCodeAt(i);
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
   return diff === 0;
 }
 
@@ -547,6 +580,8 @@ function validatePayload(payload, fields) {
 
     if (rule.re && !rule.re.test(raw)) return { error: `invalid_${key}` };
     if (rule.date && !isCalendarDate(raw)) return { error: `invalid_${key}` };
+    if (rule.email && !EMAIL_RE.test(raw)) return { error: `invalid_${key}` };
+    if (rule.base64 && !isBase64(raw)) return { error: `invalid_${key}` };
 
     // An allowlist, not a length cap: see LEAVE_TYPES on why a near-miss is
     // worse here than a rejection.
@@ -663,7 +698,19 @@ function checkTimeOffDates(clean) {
   if (clean.startDate < LEAVE_YEAR.from || clean.endDate > LEAVE_YEAR.to) {
     return 'outside_leave_year';
   }
+  // A ceiling no genuine request can reach — every hour of every day in the
+  // range — so it only ever catches the slipped digit: 80 typed for a one-day
+  // request of 8. `hours`' own max (2000) cannot, because it has to clear a
+  // full year.
+  if (clean.hours > daysInclusive(clean.startDate, clean.endDate) * 24) {
+    return 'too_many_hours';
+  }
   return null;
+}
+
+/** Calendar days from start to end, counting both. Inputs are validated ISO dates. */
+function daysInclusive(start, end) {
+  return Math.round((Date.parse(end + 'T00:00:00Z') - Date.parse(start + 'T00:00:00Z')) / 864e5) + 1;
 }
 
 /**
@@ -677,6 +724,22 @@ function checkTimeOffDates(clean) {
  */
 const str = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '');
 const num = value => (Number.isFinite(Number(value)) ? Number(value) : null);
+
+/**
+ * What status-check.html renders, and nothing else. `timestamp` stays a
+ * number when the flow sends one: the page reads it as an Excel serial date.
+ */
+function projectStatus(data) {
+  const ts = data.timestamp;
+  return {
+    found: data.found === true,
+    status: str(data.status, 40),
+    timestamp: typeof ts === 'number' && Number.isFinite(ts) ? ts : str(ts, 40),
+    maintenanceComments:   str(data.maintenanceComments, 4000),
+    safetyManagerComments: str(data.safetyManagerComments, 4000),
+    managerComments:       str(data.managerComments, 4000),
+  };
+}
 
 function projectValidate(data) {
   return {
@@ -861,6 +924,10 @@ function tracksSourceIp(formKey, payload) {
   return String(payload.anonymous ?? '').trim().toLowerCase() !== 'yes';
 }
 
+// Exported for tests/worker.test.mjs only; the access code is off in the
+// committed config, so the route never reaches it under test.
+export { safeEqual };
+
 // ─────────────────────────────────────────────────────────────
 // Worker
 // ─────────────────────────────────────────────────────────────
@@ -943,7 +1010,7 @@ export default {
       if (!expected) {
         return json({ ok: false, error: 'server_misconfigured' }, 500, origin);
       }
-      if (!safeEqual(normaliseCode(payload.accessCode), expected)) {
+      if (!(await safeEqual(normaliseCode(payload.accessCode), expected))) {
         return json(
           { ok: false, error: 'bad_code', message: 'That access code is not correct. Check with your supervisor.' },
           401,
@@ -1089,7 +1156,7 @@ export default {
       if (form.passthrough) {
         return new Response(text || '{}', {
           status: 200,
-          headers: { 'Content-Type': 'application/json', ...cors(origin) },
+          headers: { ...RESPONSE_HEADERS, ...cors(origin) },
         });
       }
 
