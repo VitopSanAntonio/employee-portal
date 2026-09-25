@@ -38,3 +38,17 @@ workers_dev = true
 # only standard Web APIs (fetch, crypto, AbortController), so it needs no
 # compatibility_flags — in particular, not nodejs_compat.
 compatibility_date = "2026-07-30"
+
+# Workers Logs. Mirrors what was switched on in the dashboard, so the next
+# `wrangler deploy` keeps it rather than overwriting it with "off".
+#
+#   enabled          — console.log() output from the Worker is kept and
+#                      searchable in the dashboard
+#   invocation_logs  — one entry per request (route, status, duration),
+#                      recorded even when the Worker itself logs nothing
+#
+# The Worker never logs a payload, and must not start: bodies carry clock
+# numbers, leave history and free text about injuries.
+[observability.logs]
+enabled = true
+invocation_logs = true
