@@ -306,15 +306,17 @@ const FORMS = {
   /**
    * A new time-off request.
    *
-   * `revalidates` re-runs the clock-number check server-side before
-   * forwarding. The page will not let an employee submit an unrecognised
-   * number, but that is a UX affordance, not a control: this route answers
-   * curl too, and an orphan request is exactly what this work exists to stop.
+   * No `revalidates`: the request flow looks the clock number up in the
+   * roster itself, before it writes anything, and answers 404
+   * {"found": false} — mapped below by `upstream404`. The page will not let
+   * an employee submit an unrecognised number, but that is a UX affordance,
+   * not a control, so the flow's check is the server-side gate and must stay
+   * ahead of every write. A separate roster call here cost a second Power
+   * Automate run out of the same timeout and pushed the flow past it.
    */
   timeoff: {
     secret: 'TIMEOFF_FLOW_URL', secretHeader: 'TIMEOFF_SECRET',
     requiresCode: REQUIRE_ACCESS_CODE, refPrefix: 'TMO',
-    revalidates: 'clockNumber',
     check: checkTimeOffDates,
     upstreamErrors: TIMEOFF_UPSTREAM_ERRORS,
     upstream404: { status: 400, body: { error: 'unknown_clock_number', message: UNKNOWN_CLOCK_MESSAGE } },
@@ -391,10 +393,9 @@ const LIMITS = {
   // the ceiling has to clear that plus the rest of the JSON — anything lower
   // rejects the submission with a 413 before it is even parsed.
   maxBodyBytes: 14 * 1024 * 1024,
-  // Shared by the clock-number re-validation and the forward on the routes
-  // that revalidate, so the time-off request pays for two flow runs (each with
-  // its own Power Automate start-up delay) out of this one budget. 20s was too
-  // tight for that pair. Must stay below FETCH_TIMEOUT_MS in form-utils.js.
+  // Shared by the clock-number re-validation and the forward on routes that
+  // revalidate (timeoff-cancel), so those pay for two flow runs out of this
+  // one budget. Must stay below FETCH_TIMEOUT_MS in form-utils.js.
   flowTimeoutMs: 30_000,       // give up on a hanging flow
 };
 
