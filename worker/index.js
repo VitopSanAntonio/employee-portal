@@ -391,7 +391,11 @@ const LIMITS = {
   // the ceiling has to clear that plus the rest of the JSON — anything lower
   // rejects the submission with a 413 before it is even parsed.
   maxBodyBytes: 14 * 1024 * 1024,
-  flowTimeoutMs: 20_000,       // give up on a hanging flow
+  // Shared by the clock-number re-validation and the forward on the routes
+  // that revalidate, so the time-off request pays for two flow runs (each with
+  // its own Power Automate start-up delay) out of this one budget. 20s was too
+  // tight for that pair. Must stay below FETCH_TIMEOUT_MS in form-utils.js.
+  flowTimeoutMs: 30_000,       // give up on a hanging flow
 };
 
 // ─────────────────────────────────────────────────────────────

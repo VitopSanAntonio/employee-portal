@@ -152,10 +152,10 @@ returns a 409 when two attachments are added to the same item at once.
 
 This is the change worth making even if you were not adding photos.
 
-The Worker gives the flow **20 seconds** (`LIMITS.flowTimeoutMs`) and then
+The Worker gives the flow **30 seconds** (`LIMITS.flowTimeoutMs`) and then
 answers 504. The flow keeps running and still files the request, but the
 employee sees an error and submits again. Sending an email with three
-attachments is exactly the step that pushes a flow past 20 seconds.
+attachments is exactly the step that pushes a flow past 30 seconds.
 
 Order the actions:
 

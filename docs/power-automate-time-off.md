@@ -196,7 +196,7 @@ Worker's `timeoff-cancel` route rejects anything else.
 
 ### Upsert on `_ref`, do not insert
 
-When a flow takes longer than the Worker's 20-second timeout, the Worker gives
+When a flow takes longer than the Worker's 30-second timeout, the Worker gives
 up but the flow keeps running and still creates the record. The employee sees
 an error and submits again — with the **same** `_ref`, because the page holds
 one reference for the whole attempt.
