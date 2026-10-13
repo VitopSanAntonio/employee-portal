@@ -435,13 +435,16 @@ const VALID_SAFETY = {
 
   const ok = await post('timeoff', VALID_TIMEOFF);
   check('timeoff-accepts-valid-request', ok.status === 200, `${ok.status}`);
-  check('timeoff-revalidates-before-forwarding',
-    calls.length === 2 && calls[0].url.includes('/validate') && calls[1].url.includes('/timeoff'),
+  // One flow run, not two: the request flow checks the roster itself before
+  // it writes anything, and a separate validation call first spent part of
+  // the timeout on a second Power Automate start-up.
+  check('timeoff-forwards-without-separate-roster-call',
+    calls.length === 1 && calls[0].url.includes('/timeoff'),
     calls.map(c => c.url).join(' -> '));
 
   // The payload schema is a contract with the Power Automate flow — a Switch
   // matches leaveType exactly, and a renamed key is a silent drop.
-  const sent = calls[1].body;
+  const sent = calls[0].body;
   check('timeoff-forwards-contract-fields',
     sent.clockNumber === '048213' && sent.leaveType === 'Vacation' &&
     sent.startDate === '2026-09-15' && sent.endDate === '2026-09-17' &&
@@ -467,7 +470,7 @@ const VALID_SAFETY = {
 
   const strHours = await post('timeoff', { ...VALID_TIMEOFF, hours: '8' });
   check('timeoff-coerces-string-hours',
-    strHours.status === 200 && calls[1].body.hours === 8, `${calls[1] && calls[1].body.hours}`);
+    strHours.status === 200 && calls[0].body.hours === 8, `${calls[0] && calls[0].body.hours}`);
 
   const zero = await post('timeoff', { ...VALID_TIMEOFF, hours: 0 });
   check('timeoff-rejects-zero-hours', zero.status === 400, `${zero.status}`);
@@ -510,8 +513,10 @@ const VALID_SAFETY = {
   const noFmla = await post('timeoff', { ...VALID_TIMEOFF, vacationCoversFMLA: '' });
   check('timeoff-fmla-answer-is-optional', noFmla.status === 200, `${noFmla.status}`);
 
-  // The page will not let this happen; curl will.
-  upstreamReply = url => url.includes('/validate')
+  // The page will not let this happen; curl will. The flow's own roster check
+  // is the server-side gate, and its 404 {"found": false} has to read as a bad
+  // badge, not as an outage.
+  upstreamReply = url => url.includes('/timeoff')
     ? new Response(JSON.stringify({ found: false }), { status: 404 })
     : new Response('{}', { status: 200 });
   const orphan = await post('timeoff', { ...VALID_TIMEOFF, clockNumber: '999999' });
@@ -520,13 +525,11 @@ const VALID_SAFETY = {
     calls.length === 1,
     `${orphan.status}, ${calls.length} upstream calls`);
 
-  // "The roster service is down" and "you do not work here" are very different
-  // things to tell an employee, so a failed check must not read as a bad badge.
-  upstreamReply = url => url.includes('/validate')
-    ? new Response('boom', { status: 500 })
-    : new Response('{}', { status: 200 });
+  // "The system is down" and "you do not work here" are very different things
+  // to tell an employee, so a failed flow must not read as a bad badge.
+  upstreamReply = () => new Response('boom', { status: 500 });
   const rosterDown = await post('timeoff', VALID_TIMEOFF);
-  check('timeoff-roster-outage-is-502-not-400',
+  check('timeoff-flow-outage-is-502-not-400',
     rosterDown.status === 502 && calls.length === 1, `${rosterDown.status}`);
 
   upstreamReply = () => new Response('{}', { status: 200 });
@@ -625,7 +628,7 @@ const VALID_SAFETY = {
   check('timeoff-prototype-key-not-allowlisted',
     proto.status === 502 && !protoText.includes('should not be relayed'), `${proto.status}`);
 
-  // The flow's own roster check disagreeing with the one the Worker just ran.
+  // The flow's own roster check: the only server-side one on this route.
   upstreamReply = withFlowReply(() => new Response(JSON.stringify({ found: false }), { status: 404 }));
   const gone = await post('timeoff', VALID_TIMEOFF);
   check('timeoff-flow-404-is-unknown-clock-number',
@@ -646,15 +649,15 @@ const VALID_SAFETY = {
   const echoed = await post('timeoff', { ...VALID_TIMEOFF, referenceId: 'TMO-366331' });
   check('timeoff-echoed-reference-is-returned',
     (await echoed.clone().json()).referenceId === 'TMO-366331' &&
-    calls[1].body._ref === 'TMO-366331',
+    calls[0].body._ref === 'TMO-366331',
     JSON.stringify(await echoed.clone().json()));
 
   // Bare YYYY-MM-DD, never an ISO datetime: SharePoint reads a bare date as
   // midnight UTC and its columns are Date Only to match. A time component
   // would shift the booking by a day.
   check('timeoff-dates-forwarded-bare',
-    calls[1].body.startDate === '2026-09-15' && calls[1].body.endDate === '2026-09-17',
-    `${calls[1].body.startDate}..${calls[1].body.endDate}`);
+    calls[0].body.startDate === '2026-09-15' && calls[0].body.endDate === '2026-09-17',
+    `${calls[0].body.startDate}..${calls[0].body.endDate}`);
 
   upstreamReply = () => new Response('{}', { status: 200 });
 }
@@ -720,6 +723,10 @@ const VALID_SAFETY = {
   }), { status: 200 }));
   const cancelled = await post('timeoff-cancel', CANCEL);
   const cancelledBody = await cancelled.clone().json();
+  // Unlike the request route, cancellation still checks the roster first.
+  check('timeoff-cancel-revalidates-before-forwarding',
+    calls.length === 2 && calls[0].url.includes('/validate'),
+    calls.map(c => c.url).join(' -> '));
   check('timeoff-cancel-reports-immediate',
     cancelled.status === 200 && cancelledBody.status === 'Canceled' &&
     cancelledBody.referenceId === 'TMO-100001',

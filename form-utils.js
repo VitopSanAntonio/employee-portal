@@ -27,13 +27,13 @@ window.PortalForm = (function () {
    * dead zones are exactly this case; sw.js already guards page loads the same
    * way.
    *
-   * 30s is deliberately longer than the Worker's own flowTimeoutMs (20s), so
+   * 40s is deliberately longer than the Worker's own flowTimeoutMs (30s), so
    * this only ever fires when the Worker never answered at all. A shorter
    * timeout would abort requests the Worker was about to answer with a real,
    * more useful error — and, on a submission, abort one the flow had already
    * acted on.
    */
-  const FETCH_TIMEOUT_MS = 30_000;
+  const FETCH_TIMEOUT_MS = 40_000;
 
   function fetchWithTimeout(url, options) {
     const controller = new AbortController();

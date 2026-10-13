@@ -70,9 +70,12 @@ It is enforced in three places, and all three are load-bearing:
    employee name for every valid one. The separate bucket matters as much as
    the ceiling, because validation fires while the employee is still typing and
    would otherwise spend the allowance for the submission that follows.
-3. **Re-validation server-side** (`revalidates`) on `/submit/timeoff` and
-   `/submit/timeoff-cancel`. The page will not let an employee submit an
-   unrecognised number, but the page is a courtesy — these routes answer curl.
+3. **Re-validation server-side** (`revalidates`) on `/submit/timeoff-cancel`.
+   The page will not let an employee submit an unrecognised number, but the
+   page is a courtesy — these routes answer curl. `/submit/timeoff` does not
+   revalidate: the request flow looks the number up itself before it writes
+   anything, and a second flow run out of the same timeout pushed it past the
+   limit. **That lookup must stay ahead of every write in the flow.**
 
 A flow that answers **404** means "no such record", and that is passed through
 as `{ found: false }` with a 404 rather than being collapsed into an error. The
@@ -190,10 +193,9 @@ to its own EN/ES lead sentence and appends the flow's detail after it.
 A **404** means different things on different routes, so each declares its own
 `upstream404` rather than sharing one rule:
 
-- **request** → `unknown_clock_number`, the same answer the Worker gives from
-  its own roster check. Rare, since it re-validates before forwarding, but it
-  means the two checks disagreeing still produces an answer about the badge
-  rather than an outage.
+- **request** → `unknown_clock_number`. The flow's own roster check is the
+  only server-side one on this route, so this is the answer an unknown number
+  gets.
 - **cancellation** → `request_not_found`. The flow answers 404 both for a
   reference that does not exist and for one belonging to a different employee,
   **deliberately**, so that walking the `TMO-` range teaches a stranger

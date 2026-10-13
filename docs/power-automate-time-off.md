@@ -48,7 +48,8 @@ calling a flow whose declared secret is unset.
 
 **Built and tested already.** Documented here because the other three depend
 on it, and because the Worker calls it a second time on its own to
-re-validate before writing anything.
+re-validate before a cancellation. (The request route does not: the request
+flow checks the roster itself, before any write.)
 
 Receives:
 
@@ -109,7 +110,7 @@ connection closes. Its response contract:
 | 400 | `{"error": "insufficient_balance", "message": "…"}` | Not enough hours |
 | 409 | `{"error": "already_submitted", "message": "…"}` | `_ref` already on file **and the payload differs** |
 | 401 | `{"error": "unauthorized"}` | Shared secret missing or wrong |
-| 400 | `{"found": false}` | Clock number not on the roster — note **400**, not 404, and no `error` key. The other three flows answer 404 here; the Worker matches on the body as well as the status so both work. |
+| 404 | `{"found": false}` | Clock number not on the roster. Checked before any write — the Worker no longer runs its own roster check on this route, so this one must stay ahead of *Create item*. The Worker also accepts 400 with this body. |
 | 500 | `{"error": "internal_error"}` | Flow failure |
 
 `insufficient_balance` is the only one whose `message` reaches the browser —
@@ -196,7 +197,7 @@ Worker's `timeoff-cancel` route rejects anything else.
 
 ### Upsert on `_ref`, do not insert
 
-When a flow takes longer than the Worker's 20-second timeout, the Worker gives
+When a flow takes longer than the Worker's 30-second timeout, the Worker gives
 up but the flow keeps running and still creates the record. The employee sees
 an error and submits again — with the **same** `_ref`, because the page holds
 one reference for the whole attempt.

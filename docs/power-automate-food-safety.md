@@ -126,7 +126,7 @@ That keeps the KPI's incentive to report high while keeping the signal usable.
 ## Order of operations
 
 Same as the maintenance flow, and for the same reason — the Cloudflare Worker
-times out the flow after 20 seconds:
+times out the flow after 30 seconds:
 
 1. Create or update the record (upsert on `_ref`)
 2. **Response** with `_ref`
