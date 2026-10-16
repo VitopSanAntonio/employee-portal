@@ -115,6 +115,11 @@
     // Opened on the tab the previous employee left selected: load this
     // employee's own list rather than leaving the panel blank.
     else if (!panelMine.hidden) loadMine();
+    // Armed here, not only on interaction: every keystroke of the badge lands
+    // before the check answers, while there is no identity to time out, so an
+    // employee who typed their number and walked away left their name and
+    // leave history on the kiosk with no timer running at all.
+    resetIdleTimer();
   }
 
   function renderWelcome() {
@@ -428,6 +433,12 @@
     if (!ok) {
       if (cancelled) { PortalForm.restoreSubmitButton(); return; }
       PortalForm.showSubmitError(submitErrorText(error, message, refId));
+      // The flow has a row under this reference, so it is spent. Keeping it
+      // made the page's own instruction — cancel it, then submit a new one —
+      // impossible to follow: the "new" request went out under the same
+      // reference and was refused as already submitted again, or, if it
+      // matched the original, accepted as a retry of the row just cancelled.
+      if (error === 'already_submitted') PortalForm.clearRefId('TMO');
       return;
     }
 
