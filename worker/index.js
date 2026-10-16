@@ -963,7 +963,10 @@ export default {
       return json({ ok: false, error: 'not_found' }, 404, origin);
     }
     const formKey = match[1];
-    const form = FORMS[formKey];
+    // hasOwn, not a bare lookup: the route pattern admits "constructor", which
+    // a plain FORMS[formKey] finds on Object.prototype — and the function it
+    // returns has no `fields`, so validation threw an uncaught TypeError.
+    const form = Object.hasOwn(FORMS, formKey) ? FORMS[formKey] : null;
     if (!form) {
       return json({ ok: false, error: 'unknown_form' }, 404, origin);
     }

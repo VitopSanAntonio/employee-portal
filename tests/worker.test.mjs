@@ -322,6 +322,13 @@ const VALID_SAFETY = {
   const unknown = await post('nosuchform', VALID_SAFETY);
   check('unknown-form-404', unknown.status === 404, `${unknown.status}`);
 
+  // The route pattern admits this, and a bare FORMS[key] found it on
+  // Object.prototype and threw instead of answering.
+  let inherited;
+  try { inherited = await post('constructor', VALID_SAFETY); } catch (err) { inherited = err; }
+  check('prototype-key-is-unknown-form', inherited instanceof Response && inherited.status === 404 &&
+    (await inherited.clone().json()).error === 'unknown_form', String(inherited.status ?? inherited));
+
   const health = await worker.fetch(new Request('https://proxy.example/health', {
     method: 'GET', headers: { Origin: ORIGIN },
   }), ENV, {});

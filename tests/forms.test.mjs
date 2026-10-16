@@ -784,6 +784,22 @@ for (const lang of ['en', 'es']) {
       banner.indexOf('submitted') === banner.lastIndexOf('submitted'),
     detail: banner
   });
+
+  // Following that instruction — cancel, then submit a new one — has to send
+  // a new reference. Reusing the spent one was refused as already submitted
+  // again, every time, until the page was reloaded.
+  if (lang === 'en') {
+    const firstRef = sentRef;
+    await page.fill('#startDate', '2026-09-22');
+    await page.fill('#endDate', '2026-09-24');
+    await page.click('#submit-btn');
+    await waitFor(() => sentRef !== firstRef);
+    results.push({
+      page: 'time-off-request', mode: 'already-submitted-next-request-gets-new-ref',
+      pass: /^TMO-\d{6}$/.test(sentRef || '') && sentRef !== firstRef,
+      detail: `${firstRef} -> ${sentRef}`
+    });
+  }
   await page.close();
 }
 
@@ -1229,6 +1245,40 @@ for (const [outcome, lang, expect, reject] of [
   const after = (await page.locator('.b-hours').allTextContents()).join(', ');
   results.push({ page: 'time-off-request', mode: 'late-lookup-for-previous-badge-dropped',
     pass: after.includes('222') && !after.includes('111'), detail: after });
+  await page.close();
+}
+
+// The idle timeout has to start when the badge clears, not at the next touch.
+// Every keystroke of the badge lands before the check answers, so an employee
+// who typed their number and walked away used to leave their name and leave
+// history on screen with no timer running at all.
+{
+  const page = await browser.newPage();
+  await page.clock.install();
+  await page.route(isProxy, route => {
+    if (route.request().url().includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ found: true, displayName: 'Albiar A.',
+        balances: [{ leaveType: 'FMLA', hours: 40 }], requests: [] }) });
+  });
+  // The portal's own "My time off" link, so the leave history is what shows.
+  await page.goto(`http://localhost:${PORT}/time-off-request.html?tab=mine`);
+  await page.click('#clockNumber');
+  await page.keyboard.type('048213');
+  await page.clock.runFor(600);                    // past the input debounce
+  await page.waitForSelector('#gate.show');
+  await page.waitForSelector('.balance-card');
+  await page.clock.runFor(6 * 60 * 1000);          // past IDLE_MS, untouched
+  const left = await page.evaluate(() => ({
+    gate: document.getElementById('gate').classList.contains('show'),
+    balances: document.getElementById('balance-grid').textContent,
+    badge: document.getElementById('clockNumber').value
+  }));
+  results.push({ page: 'time-off-request', mode: 'idle-timeout-armed-when-badge-clears',
+    pass: !left.gate && !left.balances && !left.badge, detail: JSON.stringify(left) });
   await page.close();
 }
 
