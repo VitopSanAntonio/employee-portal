@@ -364,11 +364,12 @@ experienced as one report.
   stopping an apostrophe from reaching a flow that interpolates it into an
   OData filter. If `CLOCK_NUMBER.re` is ever loosened, that filter needs
   escaping first.
-- **`LOOKUP_EMAIL` is narrower than `EMAIL_RE` on purpose.** The status-email
-  flow builds an OData filter from the address, and the pattern keeps
-  apostrophes out of it. `status-check.html` carries the same pattern as
-  `LOOKUP_EMAIL_RE`; change both together, and add escaping to the flow first
-  if it is ever loosened.
+- **`LOOKUP_EMAIL` is narrower than `EMAIL_RE` on purpose.** The documented
+  status-email flow matches rows with *Filter array*, but if it is ever moved
+  to a Filter Query (Excel or SharePoint), the address becomes part of an
+  OData filter, and this pattern keeps apostrophes out of it.
+  `status-check.html` carries the same pattern as `LOOKUP_EMAIL_RE`; change
+  both together, and add escaping to the flow first if it is ever loosened.
 - **Rate limiting is per-isolate.** `hits` is an in-memory Map, and Cloudflare
   runs many isolates, so the real ceiling is `maxPerWindow × isolates` per
   minute. It is a speed bump against a stuck retry loop, not a defence against

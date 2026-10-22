@@ -6,6 +6,10 @@ until this flow exists and its URL is set as a Worker secret, the route answers
 `500 flow_not_configured` and the page shows "We couldn't send the summary
 right now".
 
+The requests live in **Excel tables** (Excel Online (Business)), one per form:
+the same tables the maintenance, safety and suggestion flows write to with
+*Add a row into a table*, and that the existing status flow reads.
+
 ## Why it emails instead of answering
 
 Employees asked to check their requests by email address instead of reference
@@ -26,6 +30,34 @@ Everything below follows from that. Three rules matter most:
    (`blind: true` in `worker/index.js`), but a flow that keeps its Response
    empty does not depend on that.
 
+## The tables and columns
+
+These are the same workbooks the existing **A4. Status Check - HTML Request**
+flow reads. Every one is on OneDrive for Business (Location: *OneDrive for
+Business*, the `me` source in that flow):
+
+| Table       | File                                                |
+| ----------- | --------------------------------------------------- |
+| Maintenance | `/1. PowerAutomate Workflows/Maintenance_Tracker.xlsx` |
+| Safety      | `/1. PowerAutomate Workflows/Safety_Tracker.xlsx`      |
+| Suggestions | `/SuggestionTracker.xlsx`                              |
+
+Pick the same table in each file that A4 uses. Column headers, taken from A4:
+
+| Holds          | Maintenance           | Safety                  | Suggestions       |
+| -------------- | --------------------- | ----------------------- | ----------------- |
+| Reference      | `ID`                  | `ID`                    | `ID`              |
+| Status         | `Status`              | `Status`                | `Status`          |
+| Submitted      | `Time`                | `Time`                  | `Date`            |
+| Team comments  | `MaintenanceComments` | `SafetyManagerComments` | `ManagerComments` |
+| Email          | `Email` ⚠️            | `Email` ⚠️              | `Email` ⚠️        |
+| Anonymous      | —                     | —                       | `Anonymous` ⚠️    |
+
+⚠️ A4 never reads the email or anonymous columns, so these two names are
+**not confirmed**. Check the header row in each workbook, and change `Email` /
+`Anonymous` in Steps 4 and 6 if they are spelled differently. Excel headers
+are matched exactly, including capitals and spaces.
+
 ## What the flow receives
 
 ```json
@@ -36,8 +68,8 @@ Everything below follows from that. Three rules matter most:
 ```
 
 - `email` is already trimmed, lowercased and checked by the Worker against
-  `LOOKUP_EMAIL`. The check allows only letters, digits and `. _ % + -` before
-  the `@`, so no apostrophe can reach an OData filter.
+  `LOOKUP_EMAIL`, which allows only letters, digits and `. _ % + -` before
+  the `@`.
 - `lang` is `en` or `es`, or absent (treat absent as `en`).
 
 Nothing else is forwarded: no source IP, no reference, no access code.
@@ -66,105 +98,173 @@ Add the **Response** action directly after the trigger:
 
 The Worker gives the flow 30 seconds and treats any 2xx (and a 404) as
 success. Because this response comes before any lookup, a slow or failing
-SharePoint search can neither time the employee out nor reveal anything about
-the address.
+Excel read can neither time the employee out nor reveal anything about the
+address.
 
-## Step 3 — Per-address limit
+## Step 3 — Read the three tables
 
-The Worker already limits each address to 3 requests an hour, but that counter
-lives in the memory of each Cloudflare isolate (see `worker/README.md`), so it
-slows a loop down without stopping it. The real limit belongs here, because
-only the flow can count across every request.
+Add one **List rows present in a table** (Excel Online (Business)) per table.
+Name them `List_maintenance`, `List_safety` and `List_suggestions`. Point each
+at the file and table listed in [The tables and columns](#the-tables-and-columns).
 
-Create a small SharePoint list, **Status email log**, with one text column,
-`Email`. Then:
+Set these on **each** of the three:
 
-- **Get items** on it with Filter Query:
-  `Email eq '@{outputs('Safe_email')}' and Created ge '@{addHours(utcNow(), -1)}'`
-  (define `Safe_email` in Step 4 first, or put this step after it)
-- **Condition**: `length(body('Get_items_log')?['value'])` is greater than or
-  equal to `3`
-  - Yes → **Terminate**, status *Succeeded*
-  - No → **Create item** in the log with `Email` set to the address
+- **Show advanced options → DateTime Format: `ISO 8601`.** Without it, dates
+  come back as Excel serial numbers like `46000.5`, and the email shows
+  numbers instead of dates.
+- **Settings (⋯ → Settings) → Pagination: On, Threshold `5000`** (or more
+  than the table will ever hold). **This setting is required.** Without
+  pagination the action returns only the **first 256 rows**. Excel adds new
+  rows at the bottom, so once a table passes 256 rows the newest requests are
+  silently left out, and those are the ones employees ask about.
+- **Leave Filter Query empty.** Excel's Filter Query takes only one condition,
+  and the suggestions table needs two (address *and* not anonymous). The
+  matching is done in Step 4 instead, which also ignores differences in
+  upper/lower case and spaces around the address.
 
-Add a retention policy or a monthly cleanup to the list. It only needs to hold
-the last hour.
+## Step 4 — Keep only this address's rows
 
-## Step 4 — Escape the address once
+One **Filter array** per table. Name them `Filter_maintenance`,
+`Filter_safety` and `Filter_suggestions`.
 
-**Compose** named `Safe_email`:
+- From: `body('List_maintenance')?['value']` (and so on for each table)
+- Click **Edit in advanced mode** and paste:
 
-```
-replace(triggerBody()?['email'], '''', '''''')
-```
-
-The Worker already rejects apostrophes, so this changes nothing today. It is
-here so that loosening the pattern later cannot quietly turn into a filter
-injection. Use `outputs('Safe_email')` in every filter below and never the
-raw trigger value.
-
-## Step 5 — Find the requests
-
-One **Get items** per list. `Email` below means the column each form's
-`email` field is written to; use that list's real internal column name.
-
-| List        | Filter Query                                                                      |
-| ----------- | --------------------------------------------------------------------------------- |
-| Maintenance | `Email eq '@{outputs('Safe_email')}'`                                             |
-| Safety      | `Email eq '@{outputs('Safe_email')}'`                                             |
-| Suggestions | `Email eq '@{outputs('Safe_email')}' and Anonymous ne 'Yes'`                      |
-
-On each one, set **Order By** to `Created desc` and **Top Count** to `25`.
-
-- SharePoint's `eq` on a text column ignores case, so `Ana.Lopez@…` stored on
-  the row still matches the lowercased address.
-- The suggestion form clears the email when "anonymous" is chosen, so
-  anonymous rows should have no address at all. The `Anonymous ne 'Yes'`
-  clause is a second safeguard: an anonymous suggestion must never be linked
-  to a person, even by mistake.
-- Safety rows written with `"Not given"` (see
-  `power-automate-food-safety.md`) cannot match a real address, so they need no
-  special handling.
-
-## Step 6 — Nothing found → stop
-
-**Condition**: all three `value` arrays are empty:
+Maintenance and safety:
 
 ```
-and(
-  empty(body('Get_items_maintenance')?['value']),
-  empty(body('Get_items_safety')?['value']),
-  empty(body('Get_items_suggestions')?['value'])
+@equals(toLower(trim(coalesce(item()?['Email'], ''))), triggerBody()?['email'])
+```
+
+Suggestions:
+
+```
+@and(
+  equals(toLower(trim(coalesce(item()?['Email'], ''))), triggerBody()?['email']),
+  not(equals(toLower(trim(coalesce(item()?['Anonymous'], ''))), 'yes'))
 )
 ```
 
-- Yes → **Terminate**, status *Succeeded*. Send no email (rule 2 above).
+- `toLower(trim(...))` is why `Ana.Lopez@…` typed on a form years ago still
+  matches. The Worker lowercases the address it forwards, so both sides are
+  compared the same way.
+- `coalesce(..., '')` stops rows with an empty email cell from failing the
+  action.
+- The suggestion form clears the email when "anonymous" is chosen, so
+  anonymous rows should have no address at all. The `Anonymous` check is a
+  second safeguard: an anonymous suggestion must never be linked to a person,
+  even by mistake.
+- Safety rows written with `"Not given"` (see
+  `power-automate-food-safety.md`) cannot match a real address, so they need
+  no special handling.
+- Filter array compares values in memory, so the typed address never becomes
+  part of a query and there is nothing to escape.
+
+## Step 5 — Nothing found → stop
+
+**Condition**, in advanced mode:
+
+```
+@and(
+  empty(body('Filter_maintenance')),
+  empty(body('Filter_safety')),
+  empty(body('Filter_suggestions'))
+)
+```
+
+- **True** → **Terminate**, status *Succeeded*. Send no email (rule 2 above).
+- **False** → continue with the steps below.
 
 The page already says "*If* any requests were sent with this address…" and
 suggests checking the junk folder, so an employee who used a different address
 is not misled.
 
+## Step 6 — Per-address limit (recommended)
+
+The Worker already limits each address to 3 requests an hour, but that counter
+lives in the memory of each Cloudflare isolate (see `worker/README.md`), so it
+slows a loop down without stopping it. Only the flow can count across every
+request.
+
+This step sits **after** Step 5, so it only counts addresses that are
+actually about to be emailed, and the log table stays small.
+
+In any workbook (a new `Portal logs.xlsx` is fine), create a table named
+`StatusEmailLog` with two columns, `Email` and `SentAt`. Then, in the
+**False** branch:
+
+1. **List rows present in a table** on `StatusEmailLog` (`List_log`),
+   DateTime Format `ISO 8601`.
+2. **Filter array** (`Filter_log`), from `body('List_log')?['value']`, in
+   advanced mode:
+   ```
+   @and(
+     equals(item()?['Email'], triggerBody()?['email']),
+     greaterOrEquals(ticks(item()?['SentAt']), ticks(addHours(utcNow(), -1)))
+   )
+   ```
+3. **Condition**: `length(body('Filter_log'))` is greater than or equal to `3`
+   - True → **Terminate**, status *Succeeded*
+   - False → **Add a row into a table** on `StatusEmailLog` with
+     `Email` = `triggerBody()?['email']` and `SentAt` = `utcNow()`, then
+     continue to Step 7.
+
+Clear out old rows once a month. The table only needs the last hour.
+
 ## Step 7 — Build the summary
 
-One **Select** per list, mapping each row to the same five fields the status
-page shows. Include nothing else: an email can be forwarded, and the summary
-does not need the description or location to be useful.
+Each Select below starts from the **25 most recent** matches. Excel adds new
+rows at the bottom, so the list is reversed first.
 
-| Key            | Maintenance                 | Safety                         | Suggestions               |
-| -------------- | --------------------------- | ------------------------------ | ------------------------- |
-| Reference      | `item()?['Reference']`      | `item()?['Reference']`         | `item()?['Reference']`    |
-| Type           | `Maintenance` / `Mantenimiento` | `Safety` / `Seguridad`     | `Suggestion` / `Sugerencia` |
-| Status         | `item()?['Status']`         | `item()?['Status']`            | `item()?['Status']`       |
-| Submitted      | `formatDateTime(item()?['Created'], 'dd MMM yyyy')` | same       | same                      |
-| Team comments  | `item()?['MaintenanceComments']` | `item()?['SafetyManagerComments']` | `item()?['ManagerComments']` |
+One **Select** per table:
 
-Pick the Type label with `if(equals(triggerBody()?['lang'], 'es'), 'Seguridad', 'Safety')`
-and so on. The comment columns are the ones the existing status flow already
-reads; reuse its column names.
+- From: `take(reverse(body('Filter_maintenance')), 25)` (and so on for each table)
+- Map (switch the map to text mode and paste one JSON object per table):
+
+Maintenance:
+
+```json
+{
+  "Reference":     "@{item()?['ID']}",
+  "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Mantenimiento', 'Maintenance')}",
+  "Status":        "@{item()?['Status']}",
+  "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
+  "Team comments": "@{item()?['MaintenanceComments']}"
+}
+```
+
+Safety:
+
+```json
+{
+  "Reference":     "@{item()?['ID']}",
+  "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Seguridad', 'Safety')}",
+  "Status":        "@{item()?['Status']}",
+  "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
+  "Team comments": "@{item()?['SafetyManagerComments']}"
+}
+```
+
+Suggestions (the date column is `Date` here, not `Time`):
+
+```json
+{
+  "Reference":     "@{item()?['ID']}",
+  "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Sugerencia', 'Suggestion')}",
+  "Status":        "@{item()?['Status']}",
+  "Submitted":     "@{if(empty(item()?['Date']), '', formatDateTime(item()?['Date'], 'dd MMM yyyy'))}",
+  "Team comments": "@{item()?['ManagerComments']}"
+}
+```
+
+Include nothing else. An email can be forwarded, and the summary does not need
+the description or location to be useful. These five fields are the same ones
+the status page shows.
 
 Then:
 
-- **Compose** `All_rows`: `union(body('Select_maintenance'), body('Select_safety'), body('Select_suggestions'))`
+- **Compose** `All_rows`:
+  `union(body('Select_maintenance'), body('Select_safety'), body('Select_suggestions'))`
 - **Create HTML table** from `outputs('All_rows')`, columns *Automatic*
 
 ## Step 8 — Send it
@@ -189,6 +289,11 @@ email the portal owner the run name and `result('Summarise')`, **without the
 employee's address**. The employee already got their 202, so a failure here is
 silent to them, and this alert is the only way anyone finds out.
 
+The failure most likely in practice is Excel answering *"The file is locked"*
+or a 429 while someone has the workbook open in the desktop app. On each
+**List rows** and **Add a row** action, set Retry Policy to Exponential,
+4 retries.
+
 ## Step 10 — Connect it to the Worker
 
 ```sh
@@ -203,11 +308,13 @@ Worker version that includes it, so deploy the Worker first if it is older.
 
 | Case | Expected |
 | ---- | -------- |
-| Address with requests in all three lists | One email listing them; page shows the confirmation |
+| Address with requests in all three tables | One email listing them; page shows the confirmation |
 | Address with no requests | No email; page shows the **same** confirmation |
+| A request in row 300+ of a table | Listed (proves pagination is on) |
 | Same address 4 times within an hour | Three emails at most |
-| Address in mixed case (`Ana.Lopez@…`) | Matches rows stored in any case |
+| Address stored in mixed case (`Ana.Lopez@…`) | Matches |
 | Anonymous suggestion | Never listed |
 | `lang: es` | Spanish subject, intro and type labels |
-| SharePoint unavailable | Page still shows the confirmation; owner gets the `Handle_failure` alert |
+| Submitted dates | Shown as dates (`04 Mar 2026`), not numbers like `46085` |
+| Workbook open on someone's desktop | Page still shows the confirmation; email arrives after retries, or owner gets the `Handle_failure` alert |
 | Flow turned off | Page shows "We couldn't send the summary right now" |
