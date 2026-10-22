@@ -231,6 +231,7 @@ Maintenance:
 {
   "Reference":     "@{item()?['ID']}",
   "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Mantenimiento', 'Maintenance')}",
+  "Request":       "@{if(greater(length(coalesce(item()?['description'], '')), 10), concat(substring(item()?['description'], 0, 10), '…'), coalesce(item()?['description'], ''))}",
   "Status":        "@{item()?['Status']}",
   "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
   "Team comments": "@{item()?['MaintenanceComments']}"
@@ -243,6 +244,7 @@ Safety:
 {
   "Reference":     "@{item()?['ID']}",
   "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Seguridad', 'Safety')}",
+  "Request":       "@{if(greater(length(coalesce(item()?['description'], '')), 10), concat(substring(item()?['description'], 0, 10), '…'), coalesce(item()?['description'], ''))}",
   "Status":        "@{item()?['Status']}",
   "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
   "Team comments": "@{item()?['SafetyManagerComments']}"
@@ -255,15 +257,18 @@ Suggestions (the date column is `Date` here, not `Time`):
 {
   "Reference":     "@{item()?['ID']}",
   "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Sugerencia', 'Suggestion')}",
+  "Request":       "@{if(greater(length(coalesce(item()?['suggestion'], '')), 10), concat(substring(item()?['suggestion'], 0, 10), '…'), coalesce(item()?['suggestion'], ''))}",
   "Status":        "@{item()?['Status']}",
   "Submitted":     "@{if(empty(item()?['Date']), '', formatDateTime(item()?['Date'], 'dd MMM yyyy'))}",
   "Team comments": "@{item()?['ManagerComments']}"
 }
 ```
 
-Include nothing else. An email can be forwarded, and the summary does not need
-the description or location to be useful. These five fields are the same ones
-the status page shows.
+`Request` is the first 10 characters of the employee's own text (`description`
+for maintenance and safety, `suggestion` for suggestions), followed by `…`
+when there is more. That is enough to tell requests apart while keeping the
+full text out of an email that can be forwarded. Add nothing beyond these six
+fields.
 
 Then:
 
