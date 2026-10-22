@@ -105,6 +105,15 @@
     }
     #not-found h3 { font-size: var(--text-t1); margin-bottom: var(--space-2); }
     #not-found p { font-size: var(--text-t3); color: var(--text-secondary); line-height: 1.6; }
+
+    .email-card { margin-top: var(--space-5); }
+    .email-intro { font-size: var(--text-t3); color: var(--text-secondary); line-height: 1.6; margin-bottom: var(--space-4); }
+    .email-card .search-row input { text-transform: none; letter-spacing: 0; font-weight: var(--weight-regular); }
+    #email-sent { display: none; margin-top: var(--space-4); flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+    #email-sent.show { display: flex; }
+    #email-sent .notice { align-items: flex-start; width: 100%; }
+    #email-sent .notice svg { margin-top: 3px; }
+    #email-sent-to { font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
@@ -211,6 +220,57 @@
           <button type="button" class="btn btn-outline" style="margin-top:var(--space-5)" onclick="resetSearch()" data-en="Search another reference" data-es="Buscar otra referencia">
             Search another reference
           </button>
+        </div>
+      </div>
+
+      <!-- No reference number? The summary is emailed rather than shown here:
+           work addresses are easy to guess, and a page that listed an
+           address's requests would show anyone a colleague's safety reports. -->
+      <div class="form-card email-card">
+        <label class="section-label" for="email-input" data-en="No reference number? Email me my requests" data-es="¿Sin número de referencia? Envíame mis solicitudes">No reference number? Email me my requests</label>
+        <p class="email-intro" data-en="Enter the email address you used on the form. We'll email that address a summary of its maintenance requests, safety concerns and suggestions, with the latest status and team comments." data-es="Ingresa el correo que usaste en el formulario. Enviaremos a ese correo un resumen de sus solicitudes de mantenimiento, reportes de seguridad y sugerencias, con el estado más reciente y los comentarios del equipo.">Enter the email address you used on the form. We'll email that address a summary of its maintenance requests, safety concerns and suggestions, with the latest status and team comments.</p>
+
+        <div id="email-form">
+          <div class="field" id="f-status-email">
+            <div class="search-row">
+              <input
+                type="email"
+                id="email-input"
+                data-en-placeholder="you@example.com"
+                data-es-placeholder="tu@ejemplo.com"
+                placeholder="you@example.com"
+                maxlength="254"
+                autocomplete="email"
+                spellcheck="false"
+                aria-describedby="email-hint"
+              />
+              <button type="button" class="btn-lookup" id="email-btn" onclick="emailMyRequests()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <span id="email-btn-text" data-en="Email me" data-es="Enviarme">Email me</span>
+              </button>
+            </div>
+            <span class="field-error" role="alert" data-en="Please enter a valid email address." data-es="Por favor ingresa un correo válido.">Please enter a valid email address.</span>
+          </div>
+          <div class="hint" id="email-hint" data-en="Requests sent without an email, and anonymous suggestions, aren't included — use the reference number for those." data-es="Las solicitudes enviadas sin correo y las sugerencias anónimas no se incluyen — usa el número de referencia para esas.">Requests sent without an email, and anonymous suggestions, aren't included — use the reference number for those.</div>
+
+          <div class="submit-error" id="email-failed" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span data-en="We couldn't send the summary right now. Check your connection and try again in a moment." data-es="No pudimos enviar el resumen ahora. Verifica tu conexión e inténtalo de nuevo en un momento.">We couldn't send the summary right now. Check your connection and try again in a moment.</span>
+          </div>
+        </div>
+
+        <!-- Deliberately the same whether or not the address has requests on
+             file — saying "none found" would tell a stranger which colleagues
+             have filed something. -->
+        <div id="email-sent" aria-live="polite">
+          <div class="notice">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div>
+              <span data-en="If any requests were sent with" data-es="Si se enviaron solicitudes con">If any requests were sent with</span>
+              <span id="email-sent-to"></span><span data-en=", a summary is on its way. It can take a few minutes — check your junk folder too." data-es=", el resumen ya va en camino. Puede tardar unos minutos — revisa también tu carpeta de correo no deseado.">, a summary is on its way. It can take a few minutes — check your junk folder too.</span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline" onclick="resetEmail()" data-en="Use a different address" data-es="Usar otro correo">Use a different address</button>
         </div>
       </div>
 
@@ -404,6 +464,85 @@
     if (s === 'done' || s === 'resolved' || s === 'closed') return 'status-done';
     if (s === 'open')                       return 'status-open';
     return 'status-default';
+  }
+
+  // ── Email me my requests ───────────────────────────────────
+  //
+  // The Worker answers { ok: true } whether or not the address has anything
+  // on file, so there is only one success screen to show. A failure here is
+  // an outage — or a wrong access code once that switch is on — never
+  // "no requests found".
+
+  const emailInput  = document.getElementById('email-input');
+  const emailBtn    = document.getElementById('email-btn');
+  const emailBtnTx  = document.getElementById('email-btn-text');
+  const emailForm   = document.getElementById('email-form');
+  const emailFailed = document.getElementById('email-failed');
+  const emailSent   = document.getElementById('email-sent');
+
+  // Must match LOOKUP_EMAIL in worker/index.js. Narrower than the forms'
+  // check: the flow searches by this address, so no apostrophe may reach it.
+  const LOOKUP_EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
+
+  emailInput.addEventListener('input', () => {
+    document.getElementById('f-status-email').classList.remove('invalid');
+    emailFailed.classList.remove('show');
+  });
+
+  emailInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !emailBtn.disabled) emailMyRequests();
+  });
+
+  function setEmailBusy(busy) {
+    emailBtn.disabled = busy;
+    const lang = currentLang();
+    emailBtnTx.textContent = busy
+      ? (lang === 'es' ? 'Enviando…' : 'Sending…')
+      : (emailBtnTx.getAttribute('data-' + lang) || emailBtnTx.getAttribute('data-en'));
+  }
+
+  function showEmailFailure(message) {
+    const span = emailFailed.querySelector('span');
+    span.textContent = message || span.getAttribute('data-' + currentLang()) || span.getAttribute('data-en');
+    emailFailed.classList.add('show');
+  }
+
+  async function emailMyRequests() {
+    const email = emailInput.value.trim();
+    if (!PortalForm.validateField('status-email', LOOKUP_EMAIL_RE.test(email) && email.length <= 254)) {
+      emailInput.focus();
+      return;
+    }
+
+    emailFailed.classList.remove('show');
+    setEmailBusy(true);
+
+    const res = await PortalForm.submitJSON('status-email', { email, lang: currentLang() });
+    setEmailBusy(false);
+
+    if (res.cancelled) return;
+    if (res.ok) {
+      document.getElementById('email-sent-to').textContent = email;
+      emailForm.style.display = 'none';
+      emailSent.classList.add('show');
+      return;
+    }
+    // The Worker rejected the address itself — say so at the field, in the
+    // page's own language, rather than as an outage.
+    if (res.error && res.error.endsWith('_email')) {
+      PortalForm.validateField('status-email', false);
+      return;
+    }
+    showEmailFailure(res.message);
+  }
+
+  function resetEmail() {
+    emailInput.value = '';
+    emailSent.classList.remove('show');
+    emailFailed.classList.remove('show');
+    document.getElementById('f-status-email').classList.remove('invalid');
+    emailForm.style.display = '';
+    emailInput.focus();
   }
 
   function resetSearch() {
