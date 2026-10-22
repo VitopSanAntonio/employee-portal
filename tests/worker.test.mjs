@@ -15,6 +15,7 @@ const ENV = {
   FLOW_SUGGESTION: 'https://flow.example/suggestion',
   FLOW_MAINTENANCE: 'https://flow.example/maintenance',
   FLOW_STATUS: 'https://flow.example/status',
+  FLOW_STATUS_EMAIL: 'https://flow.example/status-email',
   VALIDATE_FLOW_URL: 'https://flow.example/validate',
   VALIDATE_SECRET: 'validate-shared-secret',
   TIMEOFF_FLOW_URL: 'https://flow.example/timeoff',
@@ -275,6 +276,80 @@ const VALID_SAFETY = {
   const odd = await (await post('status', { referenceId: 'SUG-0001' })).json();
   check('status-non-string-comment-is-empty', odd.managerComments === '', JSON.stringify(odd.managerComments));
   upstreamReply = () => new Response('{}', { status: 200 });
+}
+
+// ── Email me my requests ─────────────────────────────────────
+{
+  // What reaches the flow: the address, lowercased, and the language. No
+  // source IP and no reference — it is a lookup, not a row.
+  const res = await post('status-email', { email: '  Ana.Lopez@Example.com'.trim(), lang: 'es' });
+  check('status-email: forwards address and language only',
+    res.status === 200 && forwarded &&
+    forwarded.url === ENV.FLOW_STATUS_EMAIL &&
+    JSON.stringify(forwarded.body) === JSON.stringify({ email: 'ana.lopez@example.com', lang: 'es' }),
+    JSON.stringify(forwarded && forwarded.body));
+
+  // The browser's answer must not depend on what the flow found, however the
+  // flow chooses to say it — or the route tells a stranger which addresses
+  // have requests on file.
+  const answers = [];
+  for (const reply of [
+    () => new Response(JSON.stringify({ found: true, count: 3, requests: [{ referenceId: 'SAF-123456' }] }), { status: 200 }),
+    () => new Response(JSON.stringify({ found: false }), { status: 200 }),
+    () => new Response('', { status: 202 }),
+    () => new Response(JSON.stringify({ found: false }), { status: 404 }),
+  ]) {
+    upstreamReply = reply;
+    // A fresh address each time, so the per-address ceiling below is not
+    // what answers.
+    const r = await post('status-email', { email: `answer${answers.length}@example.com` });
+    answers.push(`${r.status} ${await r.text()} ${calls.length}`);
+  }
+  check('status-email: found and not-found look the same',
+    answers.every(a => a === '200 {"ok":true} 1'), answers.join(' | '));
+
+  upstreamReply = () => new Response('boom', { status: 500 });
+  const down = await post('status-email', { email: 'outage@example.com' });
+  check('status-email: an outage is reported', down.status === 502, `${down.status}`);
+  upstreamReply = () => new Response('{}', { status: 200 });
+
+  // The flow searches by this address; an apostrophe would alter its OData
+  // filter rather than fail, so it never gets that far.
+  for (const [name, email, error] of [
+    ['apostrophe', "o'brien@example.com", 'invalid_email'],
+    ['filter syntax', "a@b.co' or Title ne '", 'invalid_email'],
+    ['not an address', 'not-an-address', 'invalid_email'],
+    ['missing', '', 'missing_email'],
+  ]) {
+    const r = await post('status-email', { email });
+    const body = await r.json();
+    check(`status-email: rejects ${name}`, r.status === 400 && body.error === error && calls.length === 0,
+      `${r.status} ${body.error}`);
+  }
+  const badLang = await post('status-email', { email: 'a@b.co', lang: 'fr' });
+  check('status-email: language is an allowlist', badLang.status === 400, `${badLang.status}`);
+
+  // Per IP: the route's own, tighter ceiling.
+  const ip = '198.51.100.40';
+  const perIp = [];
+  for (let i = 0; i < 4; i++) {
+    perIp.push((await post('status-email', { email: `ip${i}@example.com` }, { ip })).status);
+  }
+  check('status-email: per-IP ceiling', perIp.join(',') === '200,200,200,429', perIp.join(','));
+
+  // Per address, across IPs: once over, the answer is unchanged but the flow
+  // is not asked to send another one.
+  const sentTo = [];
+  for (let i = 0; i < 4; i++) {
+    const r = await post('status-email', { email: 'Inbox@Example.com' });
+    sentTo.push(`${r.status}:${calls.length}`);
+  }
+  check('status-email: per-address ceiling sends nothing, says the same',
+    sentTo.join(',') === '200:1,200:1,200:1,200:0', sentTo.join(','));
+
+  // Its own bucket: using it up must not block a safety report from that IP.
+  const after = await post('safety', VALID_SAFETY, { ip });
+  check('status-email: does not use up the submission allowance', after.status === 200, `${after.status}`);
 }
 
 // ── Response headers ─────────────────────────────────────────

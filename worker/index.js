@@ -111,6 +111,22 @@ const CLOCK_NUMBER = { max: 10, required: true, re: /^\d{1,10}$/ };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * The address on /status-email, which the flow looks rows up by rather than
+ * merely replying to. Narrower than EMAIL_RE on purpose: no apostrophe, quote,
+ * space or parenthesis can reach a flow that builds its SharePoint OData
+ * filter by string interpolation, where an apostrophe would not fail — it
+ * would change the query. The cost is that an o'brien@ address cannot use
+ * this route; it still gets status by reference number.
+ *
+ * Lowercased before forwarding, so the flow and the per-address throttle both
+ * see one spelling of each address.
+ */
+const LOOKUP_EMAIL = {
+  max: 254, required: true, email: true, lower: true,
+  re: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/,
+};
+
+/**
  * Matched by a Switch in the Power Automate flow. A value that is not exactly
  * one of these does not error — it falls through the Switch and the request is
  * accepted, logged, and never routed to anyone. Hence an allowlist rather than
@@ -273,6 +289,40 @@ const FORMS = {
     fields: { referenceId: { max: 20, required: true, re: /^(MNT|SAF|SUG)-\d{4,6}$/ } },
   },
 
+  /**
+   * "Email me my requests" — the status check for an employee who no longer
+   * has their reference number.
+   *
+   * The flow finds every maintenance request, safety concern and suggestion
+   * filed with this address and mails the summary *to that address*. Nothing
+   * about the result comes back here, and that is the whole design: a page
+   * that listed an address's requests would show anyone who typed a
+   * colleague's guessable work email every safety concern that colleague had
+   * reported. Only the mailbox owner ever sees the list.
+   *
+   * `blind` keeps the response from giving it away instead. Found, not
+   * found, or throttled, the browser gets the same `{ ok: true }`; only an
+   * outage is reported, and the flow answers before it looks anything up
+   * (docs/power-automate-status-email.md), so an outage says nothing about
+   * the address.
+   *
+   * Two throttles, because this route makes the company mailbox send mail:
+   * the per-IP `limitBucket` like every lookup, and `perAddress`, so a loop
+   * cannot fill one inbox from many IPs. Both are per-isolate speed bumps
+   * (see rateLimited); the flow keeps its own per-address limit as the wall.
+   */
+  'status-email': {
+    secret: 'FLOW_STATUS_EMAIL', requiresCode: REQUIRE_ACCESS_CODE,
+    passthrough: true, blind: true,
+    limitBucket: 'status-email', maxPerWindow: 3,
+    perAddress: { field: 'email', max: 3, windowMs: 60 * 60_000 },
+    fields: {
+      email: LOOKUP_EMAIL,
+      // Which language the flow writes the summary in.
+      lang:  { max: 2, oneOf: ['en', 'es'] },
+    },
+  },
+
   // ── Time off ────────────────────────────────────────────────
   //
   // Four routes replacing the two Microsoft Forms. They share a gate: the
@@ -412,13 +462,13 @@ const hits = new Map();
  * submission allowance meant a slow typist ran out of submissions before
  * reaching the submit button.
  */
-function rateLimited(bucket, ip, ceiling) {
+function rateLimited(bucket, ip, ceiling, windowMs = LIMITS.windowMs) {
   const now = Date.now();
   const key = bucket + ':' + ip;
   const rec = hits.get(key);
 
   if (!rec || now > rec.resetAt) {
-    hits.set(key, { count: 1, resetAt: now + LIMITS.windowMs });
+    hits.set(key, { count: 1, resetAt: now + windowMs });
     if (hits.size > 5000) {
       for (const [k, v] of hits) if (now > v.resetAt) hits.delete(k);
     }
@@ -592,7 +642,7 @@ function validatePayload(payload, fields) {
     // worse here than a rejection.
     if (rule.oneOf && !rule.oneOf.includes(raw)) return { error: `invalid_${key}` };
 
-    clean[key] = raw;
+    clean[key] = rule.lower ? raw.toLowerCase() : raw;
   }
 
   return { clean };
@@ -1089,6 +1139,15 @@ export default {
           ...(tracksSourceIp(formKey, clean) ? { _sourceIp: ip } : {}),
         };
 
+    // An address over its allowance gets the answer every other address gets,
+    // without the flow being asked to send anything — see FORMS['status-email'].
+    if (form.perAddress) {
+      const { field, max, windowMs } = form.perAddress;
+      if (rateLimited(formKey + ':' + field, clean[field], max, windowMs)) {
+        return json({ ok: true }, 200, origin);
+      }
+    }
+
     // Forward to Power Automate
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), LIMITS.flowTimeoutMs);
@@ -1120,6 +1179,14 @@ export default {
       });
 
       clearTimeout(timer);
+
+      // A blind route's answer never depends on what the flow found. A 404 is
+      // accepted too, so a flow that answers "no rows" that way still cannot
+      // tell a browser which addresses have requests on file.
+      if (form.blind) {
+        if (upstream.ok || upstream.status === 404) return json({ ok: true }, 200, origin);
+        return upstreamFailure(form, upstream, origin);
+      }
 
       // A lookup flow answers 404 for "no such record". That is an answer, not
       // a failure, and the page needs to tell the two apart: "check your badge

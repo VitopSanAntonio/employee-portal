@@ -17,6 +17,7 @@ and no way to tell what is running.
 | `POST /submit/suggestion`  | Employee suggestion → `FLOW_SUGGESTION`                    |
 | `POST /submit/maintenance` | Maintenance request → `FLOW_MAINTENANCE`                   |
 | `POST /submit/status`      | Status lookup → `FLOW_STATUS`, projected by `projectStatus` |
+| `POST /submit/status-email` | "Email me my requests" → `FLOW_STATUS_EMAIL`, always `{ ok: true }` |
 | `POST /submit/validate`        | Clock number → `VALIDATE_FLOW_URL`, returns `{ found, displayName }` |
 | `POST /submit/timeoff`         | Time-off request → `TIMEOFF_FLOW_URL`                    |
 | `POST /submit/timeoff-lookup`  | Balance + requests → `TIMEOFF_LOOKUP_FLOW_URL`           |
@@ -28,8 +29,9 @@ and no way to tell what is running.
 Set with `wrangler secret put <NAME>` (or the dashboard). None of these belong
 in this repository:
 
-- `FLOW_SAFETY`, `FLOW_SUGGESTION`, `FLOW_MAINTENANCE`, `FLOW_STATUS` — the
-  Power Automate trigger URLs, including their `sig=` tokens
+- `FLOW_SAFETY`, `FLOW_SUGGESTION`, `FLOW_MAINTENANCE`, `FLOW_STATUS`,
+  `FLOW_STATUS_EMAIL` — the Power Automate trigger URLs, including their
+  `sig=` tokens
 - `VALIDATE_FLOW_URL`, `TIMEOFF_FLOW_URL`, `TIMEOFF_LOOKUP_FLOW_URL`,
   `TIMEOFF_CANCEL_FLOW_URL` — the four time-off flow trigger URLs
 - `VALIDATE_SECRET` — sent to the validation flow as `X-Portal-Secret`
@@ -230,6 +232,29 @@ system", which is the correct thing for an employee to see in the meantime.
 only `/^(MNT|SAF|SUG)-\d{4,6}$/`. The "My time off" tab is where a time-off
 reference is looked up. Adding `TMO` there is a separate change.
 
+## Status by email
+
+`/submit/status-email` is for an employee who no longer has their reference
+number. They type the address they used on the form, and the flow emails
+**that address** a summary of its maintenance requests, safety concerns and
+suggestions. The flow is specified step by step in
+[`docs/power-automate-status-email.md`](../docs/power-automate-status-email.md).
+
+The result never comes back through this Worker, and that is deliberate. Work
+addresses are guessable, so a page that listed an address's requests would
+show anyone a colleague's safety reports, and even "nothing found" would
+reveal who has filed something. The route is declared `blind`: found, not
+found, or throttled, the browser gets `200 { "ok": true }`. Only an outage
+(a non-2xx other than 404, or a timeout) is reported, and the flow answers
+before it looks anything up, so an outage says nothing about the address.
+
+It follows the access-code switch like a submission, because it makes the
+company mailbox send mail. It also has two throttles: 3 per IP per minute on
+its own bucket, and 3 per address per hour (`perAddress`) regardless of IP.
+Over the per-address limit, the flow is not called and the answer is
+unchanged. Both are per-isolate speed bumps; the flow keeps the real
+per-address limit.
+
 ## The access-code switch
 
 ```js
@@ -339,6 +364,11 @@ experienced as one report.
   stopping an apostrophe from reaching a flow that interpolates it into an
   OData filter. If `CLOCK_NUMBER.re` is ever loosened, that filter needs
   escaping first.
+- **`LOOKUP_EMAIL` is narrower than `EMAIL_RE` on purpose.** The status-email
+  flow builds an OData filter from the address, and the pattern keeps
+  apostrophes out of it. `status-check.html` carries the same pattern as
+  `LOOKUP_EMAIL_RE`; change both together, and add escaping to the flow first
+  if it is ever loosened.
 - **Rate limiting is per-isolate.** `hits` is an in-memory Map, and Cloudflare
   runs many isolates, so the real ceiling is `maxPerWindow × isolates` per
   minute. It is a speed bump against a stuck retry loop, not a defence against

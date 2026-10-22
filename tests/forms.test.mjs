@@ -471,6 +471,53 @@ for (const [mode, body] of [['status-found', { found: true, status: 'In Progress
   await page.close();
 }
 
+// "Email me my requests": one confirmation whatever the address has on file,
+// an outage reported as an outage, and an address the flow could not search
+// by stopped at the field.
+for (const [mode, email, reply] of [
+  ['email-sent',           'Ana.Lopez@example.com', { status: 200, contentType: 'application/json', body: '{"ok":true}' }],
+  ['email-outage',         'ana@example.com',       { status: 502, contentType: 'application/json', body: '{"ok":false}' }],
+  ['email-rejected-local', "o'brien@example.com",   null],
+  ['email-rejected-proxy', 'ana@example.com',       { status: 400, contentType: 'application/json', body: '{"ok":false,"error":"invalid_email"}' }],
+]) {
+  const page = await browser.newPage();
+  let sent = null;
+  await page.route(isProxy, route => {
+    sent = { url: route.request().url(), body: JSON.parse(route.request().postData() || '{}') };
+    return route.fulfill(reply);
+  });
+  const prompts = watchPrompts(page);
+  await page.goto(`http://localhost:${PORT}/status-check.html`);
+  await page.fill('#email-input', email);
+  await page.click('#email-btn');
+  if (reply) await waitFor(() => sent);
+  await waitFor(() => page.locator('#email-btn').isEnabled());
+  await waitFor(async () =>
+    (await page.locator('#email-sent').isVisible()) ||
+    (await page.locator('#email-failed').isVisible()) ||
+    (await page.locator('#f-status-email.invalid').count()) > 0);
+
+  const sentShown   = await page.locator('#email-sent').isVisible();
+  const failShown   = await page.locator('#email-failed').isVisible();
+  const fieldErr    = (await page.locator('#f-status-email.invalid').count()) > 0;
+  const formShown   = await page.locator('#email-form').isVisible();
+  let pass;
+  if (mode === 'email-sent') {
+    pass = sentShown && !formShown && !failShown &&
+      (await page.locator('#email-sent-to').textContent()) === email &&
+      sent.url.endsWith('/submit/status-email') &&
+      JSON.stringify(sent.body) === JSON.stringify({ email, lang: 'en' });
+  } else if (mode === 'email-outage') {
+    pass = failShown && !sentShown && formShown && !fieldErr;
+  } else if (mode === 'email-rejected-local') {
+    pass = fieldErr && !sentShown && !failShown && sent === null;
+  } else {
+    pass = fieldErr && !sentShown && !failShown;
+  }
+  results.push({ page: 'status-check', mode, pass: pass && prompts.length === 0 });
+  await page.close();
+}
+
 // An anonymous suggestion must not leave a focusable "Your email" box behind:
 // height alone hid it visually while keyboard and screen-reader users still
 // tabbed straight into it.
