@@ -50,13 +50,17 @@ Pick the same table in each file that A4 uses. Column headers, taken from A4:
 | Status         | `Status`              | `Status`                | `Status`          |
 | Submitted      | `Time`                | `Time`                  | `Date`            |
 | Team comments  | `MaintenanceComments` | `SafetyManagerComments` | `ManagerComments` |
-| Email          | `Email` ⚠️            | `Email` ⚠️              | `Email` ⚠️        |
+| Email          | `Employee Email`      | `Employee Email`        | `EmployeeEmail`   |
 | Anonymous      | —                     | —                       | `Anonymous` ⚠️    |
 
-⚠️ A4 never reads the email or anonymous columns, so these two names are
-**not confirmed**. Check the header row in each workbook, and change `Email` /
-`Anonymous` in Steps 4 and 6 if they are spelled differently. Excel headers
-are matched exactly, including capitals and spaces.
+Note the space: `Employee Email` in maintenance and safety, `EmployeeEmail`
+in suggestions. A wrong header does not cause an error. Every row just reads
+as blank, nothing matches, and the flow quietly stops at Step 5.
+
+⚠️ `Anonymous` is **not confirmed**. If the header is spelled differently,
+the check silently lets everything through, so verify it against the
+suggestions workbook. Excel headers are matched exactly, including capitals
+and spaces.
 
 ## What the flow receives
 
@@ -133,14 +137,14 @@ One **Filter array** per table. Name them `Filter_maintenance`,
 Maintenance and safety:
 
 ```
-@equals(toLower(trim(coalesce(item()?['Email'], ''))), triggerBody()?['email'])
+@equals(toLower(trim(coalesce(item()?['Employee Email'], ''))), triggerBody()?['email'])
 ```
 
 Suggestions:
 
 ```
 @and(
-  equals(toLower(trim(coalesce(item()?['Email'], ''))), triggerBody()?['email']),
+  equals(toLower(trim(coalesce(item()?['EmployeeEmail'], ''))), triggerBody()?['email']),
   not(equals(toLower(trim(coalesce(item()?['Anonymous'], ''))), 'yes'))
 )
 ```
@@ -227,6 +231,7 @@ Maintenance:
 {
   "Reference":     "@{item()?['ID']}",
   "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Mantenimiento', 'Maintenance')}",
+  "Request":       "@{if(greater(length(coalesce(item()?['description'], '')), 100), concat(substring(item()?['description'], 0, 100), '…'), coalesce(item()?['description'], ''))}",
   "Status":        "@{item()?['Status']}",
   "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
   "Team comments": "@{item()?['MaintenanceComments']}"
@@ -239,6 +244,7 @@ Safety:
 {
   "Reference":     "@{item()?['ID']}",
   "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Seguridad', 'Safety')}",
+  "Request":       "@{if(greater(length(coalesce(item()?['description'], '')), 100), concat(substring(item()?['description'], 0, 100), '…'), coalesce(item()?['description'], ''))}",
   "Status":        "@{item()?['Status']}",
   "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
   "Team comments": "@{item()?['SafetyManagerComments']}"
@@ -251,15 +257,18 @@ Suggestions (the date column is `Date` here, not `Time`):
 {
   "Reference":     "@{item()?['ID']}",
   "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Sugerencia', 'Suggestion')}",
+  "Request":       "@{if(greater(length(coalesce(item()?['suggestion'], '')), 100), concat(substring(item()?['suggestion'], 0, 100), '…'), coalesce(item()?['suggestion'], ''))}",
   "Status":        "@{item()?['Status']}",
   "Submitted":     "@{if(empty(item()?['Date']), '', formatDateTime(item()?['Date'], 'dd MMM yyyy'))}",
   "Team comments": "@{item()?['ManagerComments']}"
 }
 ```
 
-Include nothing else. An email can be forwarded, and the summary does not need
-the description or location to be useful. These five fields are the same ones
-the status page shows.
+`Request` is the first 100 characters of the employee's own text (`description`
+for maintenance and safety, `suggestion` for suggestions), followed by `…`
+when there is more. That is enough to tell requests apart while keeping the
+full text out of an email that can be forwarded. Add nothing beyond these six
+fields.
 
 Then:
 
