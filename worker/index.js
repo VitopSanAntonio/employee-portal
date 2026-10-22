@@ -113,9 +113,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /**
  * The address on /status-email, which the flow looks rows up by rather than
  * merely replying to. Narrower than EMAIL_RE on purpose: no apostrophe, quote,
- * space or parenthesis can reach a flow that builds its SharePoint OData
- * filter by string interpolation, where an apostrophe would not fail — it
- * would change the query. The cost is that an o'brien@ address cannot use
+ * space or parenthesis can reach a flow that builds an OData filter (Excel's
+ * or SharePoint's Filter Query) by string interpolation, where an apostrophe
+ * would not fail — it would change the query. The documented flow matches
+ * with Filter array instead, so this is the backstop if it is ever changed. The cost is that an o'brien@ address cannot use
  * this route; it still gets status by reference number.
  *
  * Lowercased before forwarding, so the flow and the per-address throttle both
