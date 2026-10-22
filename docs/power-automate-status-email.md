@@ -30,25 +30,33 @@ Everything below follows from that. Three rules matter most:
    (`blind: true` in `worker/index.js`), but a flow that keeps its Response
    empty does not depend on that.
 
-## Before you start: your column names
+## The tables and columns
 
-The expressions below use these placeholder column names. Replace each with
-the **exact header text** in your tables. The quickest way to find them is to
-open the existing status flow: it already reads every one of these columns.
+These are the same workbooks the existing **A4. Status Check - HTML Request**
+flow reads. Every one is on OneDrive for Business (Location: *OneDrive for
+Business*, the `me` source in that flow):
 
-| Placeholder           | What it holds                                       | Tables              |
-| --------------------- | --------------------------------------------------- | ------------------- |
-| `Email`               | The address typed on the form                       | all three           |
-| `Reference`           | `MNT-…` / `SAF-…` / `SUG-…`                          | all three           |
-| `Status`              | Pending, In Progress, Done…                         | all three           |
-| `Timestamp`           | When it was submitted                               | all three           |
-| `Maintenance Comments`| The team's comments                                 | maintenance         |
-| `Safety Manager Comments` | The team's comments                             | safety              |
-| `Manager Comments`    | The team's comments                                 | suggestions         |
-| `Anonymous`           | `Yes` / `No`                                        | suggestions         |
+| Table       | File                                                |
+| ----------- | --------------------------------------------------- |
+| Maintenance | `/1. PowerAutomate Workflows/Maintenance_Tracker.xlsx` |
+| Safety      | `/1. PowerAutomate Workflows/Safety_Tracker.xlsx`      |
+| Suggestions | `/SuggestionTracker.xlsx`                              |
 
-Headers with spaces are fine. Write them as they appear,
-e.g. `item()?['Safety Manager Comments']`.
+Pick the same table in each file that A4 uses. Column headers, taken from A4:
+
+| Holds          | Maintenance           | Safety                  | Suggestions       |
+| -------------- | --------------------- | ----------------------- | ----------------- |
+| Reference      | `ID`                  | `ID`                    | `ID`              |
+| Status         | `Status`              | `Status`                | `Status`          |
+| Submitted      | `Time`                | `Time`                  | `Date`            |
+| Team comments  | `MaintenanceComments` | `SafetyManagerComments` | `ManagerComments` |
+| Email          | `Email` ⚠️            | `Email` ⚠️              | `Email` ⚠️        |
+| Anonymous      | —                     | —                       | `Anonymous` ⚠️    |
+
+⚠️ A4 never reads the email or anonymous columns, so these two names are
+**not confirmed**. Check the header row in each workbook, and change `Email` /
+`Anonymous` in Steps 4 and 6 if they are spelled differently. Excel headers
+are matched exactly, including capitals and spaces.
 
 ## What the flow receives
 
@@ -97,8 +105,7 @@ address.
 
 Add one **List rows present in a table** (Excel Online (Business)) per table.
 Name them `List_maintenance`, `List_safety` and `List_suggestions`. Point each
-at the same Location / Document Library / File / Table its submit flow writes
-to.
+at the file and table listed in [The tables and columns](#the-tables-and-columns).
 
 Set these on **each** of the three:
 
@@ -218,17 +225,37 @@ Maintenance:
 
 ```json
 {
-  "Reference":     "@{item()?['Reference']}",
+  "Reference":     "@{item()?['ID']}",
   "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Mantenimiento', 'Maintenance')}",
   "Status":        "@{item()?['Status']}",
-  "Submitted":     "@{if(empty(item()?['Timestamp']), '', formatDateTime(item()?['Timestamp'], 'dd MMM yyyy'))}",
-  "Team comments": "@{item()?['Maintenance Comments']}"
+  "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
+  "Team comments": "@{item()?['MaintenanceComments']}"
 }
 ```
 
-Safety: the same, with `'Seguridad', 'Safety'` and `item()?['Safety Manager Comments']`.
+Safety:
 
-Suggestions: the same, with `'Sugerencia', 'Suggestion'` and `item()?['Manager Comments']`.
+```json
+{
+  "Reference":     "@{item()?['ID']}",
+  "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Seguridad', 'Safety')}",
+  "Status":        "@{item()?['Status']}",
+  "Submitted":     "@{if(empty(item()?['Time']), '', formatDateTime(item()?['Time'], 'dd MMM yyyy'))}",
+  "Team comments": "@{item()?['SafetyManagerComments']}"
+}
+```
+
+Suggestions (the date column is `Date` here, not `Time`):
+
+```json
+{
+  "Reference":     "@{item()?['ID']}",
+  "Type":          "@{if(equals(triggerBody()?['lang'], 'es'), 'Sugerencia', 'Suggestion')}",
+  "Status":        "@{item()?['Status']}",
+  "Submitted":     "@{if(empty(item()?['Date']), '', formatDateTime(item()?['Date'], 'dd MMM yyyy'))}",
+  "Team comments": "@{item()?['ManagerComments']}"
+}
+```
 
 Include nothing else. An email can be forwarded, and the summary does not need
 the description or location to be useful. These five fields are the same ones
