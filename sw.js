@@ -5,7 +5,7 @@
    Bump CACHE_VERSION when shell assets change to evict old caches.
 ──────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'portal-v11';
+const CACHE_VERSION = 'portal-v12';
 
 // How long to wait for the network before serving the cached copy. Without a
 // bound, a weak signal is worse than no signal: fetch() does not reject on a

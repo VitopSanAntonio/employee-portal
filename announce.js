@@ -1,35 +1,32 @@
-/* ── Coming-soon announcement ────────────────────────────────────
+/* ── Portal announcement ──────────────────────────────────────────
    Loaded by index.html only, after lang.js so PortalStorage and the
-   translations are already in place.
+   translations are already in place. The wording lives in the
+   #announce block of index.html; this file decides when it shows.
 
-   Announces the in-portal time off pages while employees are still
-   being sent to the Microsoft Forms. It is only truthful while that
-   is the case — see ANNOUNCE below.
+   Currently: 2027 time off opens on 1 December (LEAVE_YEARS in
+   worker/index.js). Earlier it announced the move off Microsoft
+   Forms — reuse it the same way: new copy, new SEEN_KEY, new ENDS.
 ──────────────────────────────────────────────────────────────── */
 
 (function () {
   'use strict';
 
   /* ── THE ANNOUNCEMENT SWITCH ──────────────────────────────────
-     Must be turned off when LEGACY_FALLBACK in time-off.html goes
-     false: at that moment the pages below stop being "coming soon"
-     and this becomes an advert for something already on the screen
-     behind it. The two live in different files because the pages
-     are different; keeping them in step is a go-live checklist
-     item (docs/power-automate-time-off.md).
-
      ENDS is a backstop, not the plan. An announcement nobody
      remembers to take down is worse than one that never ran, so
-     this one stops on its own whatever anybody forgets.
+     this one stops on its own whatever anybody forgets — two weeks
+     after 2027 opens, by which point it is old news. Plant time.
   ────────────────────────────────────────────────────────────── */
-  const ANNOUNCE = false;
-  const ENDS = new Date('2026-12-31T23:59:59');
+  const ANNOUNCE = true;
+  const ENDS = new Date('2026-12-15T00:00:00-06:00');
 
   // Re-offered rather than dismissed forever. The floor kiosk is shared, so a
   // single "Got it" from the first person through would otherwise hide this
   // from everybody behind them; a week means a phone user is not nagged every
   // visit while the kiosk still re-announces it during the run-up.
-  const SEEN_KEY = 'timeoff_announce_seen';
+  // A new key per announcement, so having dismissed the last one does not
+  // hide this one.
+  const SEEN_KEY = 'leave2027_announce_seen';
   const QUIET_DAYS = 7;
 
   const store = window.PortalStorage;
@@ -50,6 +47,7 @@
   let returnFocusTo = null;
 
   function show(i) {
+    if (!shots.length) return;
     slide = (i + shots.length) % shots.length;
     shots.forEach((s, n) => s.classList.toggle('on', n === slide));
     dots.forEach((d, n) => {
@@ -100,5 +98,6 @@
   // first frame simply stays put and the dots still work, so nothing is
   // unreachable — it just does not move.
   const stillness = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (!stillness.matches) timer = setInterval(() => show(slide + 1), 4200);
+  // Only a slideshow when there is more than one picture to show.
+  if (!stillness.matches && shots.length > 1) timer = setInterval(() => show(slide + 1), 4200);
 })();

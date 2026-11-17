@@ -104,8 +104,9 @@ for (const season of seasonNames) {
 // Skipped once go-live turns it off: there is then no dialog to open, and
 // waiting for one would fail the build on the commit that turns it off. The
 // home page itself is still scanned above either way.
-const announceOn = /const ANNOUNCE = true;/.test(
-  fs.readFileSync(new URL('../announce.js', import.meta.url), 'utf8'));
+const announceSrc = fs.readFileSync(new URL('../announce.js', import.meta.url), 'utf8');
+const announceEnds = new Date((announceSrc.match(/const ENDS = new Date\('([^']+)'\)/) || [])[1]);
+const announceOn = /const ANNOUNCE = true;/.test(announceSrc) && !(Date.now() > announceEnds);
 
 for (const lang of announceOn ? ['en', 'es'] : []) {
   const page = await context.newPage();
