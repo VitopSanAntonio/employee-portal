@@ -134,7 +134,7 @@ the SharePoint list. The projections double as the shape the flows must return:
 {
   "found": true,
   "displayName": "Albiar A.",
-  "balances": [ { "leaveType": "Vacation", "hours": 64 } ],
+  "balances": [ { "leaveType": "Vacation", "year": 2026, "hours": 64 } ],
   "requests": [ {
     "referenceId": "TMO-100001", "leaveType": "Vacation",
     "startDate": "2026-09-15", "endDate": "2026-09-17",

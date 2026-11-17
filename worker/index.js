@@ -188,6 +188,17 @@ const TIMEOFF_UPSTREAM_ERRORS = {
     as: 'invalid_leave_type', status: 400,
     fallback: 'That time off type is not available. Please pick another.',
   },
+  // The flow's own year guard (Check_Year), behind checkTimeOffDates above.
+  // Only reachable if the two disagree — the flow still accepts a year whose
+  // columns exist after the Worker has closed it, but not the other way round.
+  outside_leave_year: {
+    as: 'outside_leave_year', status: 400,
+    fallback: 'Time off cannot be requested for those dates yet.',
+  },
+  crosses_leave_year: {
+    as: 'crosses_leave_year', status: 400,
+    fallback: 'A request cannot run from one year into the next. Submit one request per year.',
+  },
 };
 
 /**
@@ -721,22 +732,53 @@ function isCalendarDate(value) {
 }
 
 /**
- * The leave year requests may fall in. Both dates must be inside it.
+ * The leave years requests may fall in, and when each one is bookable.
  *
- * ── READ THIS BEFORE NEW YEAR ──────────────────────────────────────────
- * This window is deliberately a fixed year rather than "the current year",
- * because balances are loaded per year and 2027's are not in SharePoint yet.
- * It therefore has a cliff: at 00:00 on 1 January 2027 every request starts
- * failing with `outside_leave_year` until these two lines are changed. That
- * is a hard stop for the whole feature, not a degradation.
+ * Balances are loaded per year (the 2027 columns sit next to the 2026 ones in
+ * Leave Balances), so a year is only listed here once its balances exist.
  *
- * Change both values together with the 2027 balances, and update the matching
- * `min`/`max` on the two date inputs in time-off-request.html. Tests read the
- * window out of this constant rather than hardcoding it, so moving it is an
- * ordinary edit and not a build failure.
+ *   opensOn        first plant-local day dates in that year can be requested
+ *   bookableUntil  last plant-local day they can be — the stragglers filing a
+ *                  late-December sick day in early January still get in
+ *
+ * Both edges move on their own at midnight in San Antonio, so nobody has to
+ * deploy at 00:00 on 1 December or 1 January. To delay an opening, move its
+ * `opensOn` and deploy.
+ *
+ * ── EVERY NOVEMBER ─────────────────────────────────────────────────────
+ * Add next year's row once its balance columns are loaded, and the same row
+ * to LEAVE_YEARS in time-off-request.js (a test fails if they disagree).
  * ──────────────────────────────────────────────────────────────────────
  */
-const LEAVE_YEAR = { from: '2026-01-01', to: '2026-12-31' };
+const LEAVE_YEARS = [
+  { from: '2026-01-01', to: '2026-12-31', opensOn: '2025-12-01', bookableUntil: '2027-01-15' },
+  { from: '2027-01-01', to: '2027-12-31', opensOn: '2026-12-01', bookableUntil: '2028-01-15' },
+];
+
+const PLANT_TZ = 'America/Chicago';
+
+/**
+ * Today's date at the plant, as YYYY-MM-DD. The Worker runs in UTC, and
+ * 18:00 on 30 November in San Antonio is already 1 December there — which
+ * would open next year six hours early. en-CA formats as YYYY-MM-DD.
+ */
+function plantDate(now) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: PLANT_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+}
+
+/**
+ * The span of dates bookable right now: from the first open year's first day
+ * to the last open year's last day. Open years are always adjacent, so one
+ * span is enough. Null only if the table above has run out.
+ */
+function leaveWindow(now = new Date()) {
+  const today = plantDate(now);
+  const open = LEAVE_YEARS.filter(y => today >= y.opensOn && today <= y.bookableUntil);
+  if (!open.length) return null;
+  return { from: open[0].from, to: open[open.length - 1].to };
+}
 
 /**
  * Cross-field rules for a time-off request. `fields` can only see one key at a
@@ -746,12 +788,18 @@ const LEAVE_YEAR = { from: '2026-01-01', to: '2026-12-31' };
  * clearer: every value involved is a validated ISO-8601 date, and those sort
  * lexicographically.
  */
-function checkTimeOffDates(clean) {
+function checkTimeOffDates(clean, now = new Date()) {
   if (clean.endDate < clean.startDate) return 'end_before_start';
-  // Catches the mistyped year. Before this, 1999 and 2099 were both accepted
-  // and a slip in a date picker booked time off decades out, where it sat in
-  // the employee's list for good.
-  if (clean.startDate < LEAVE_YEAR.from || clean.endDate > LEAVE_YEAR.to) {
+  // One request draws on one year's balance. A week over New Year is two
+  // requests: the flow has a single hours figure and no way to split it.
+  if (clean.startDate.slice(0, 4) !== clean.endDate.slice(0, 4)) {
+    return 'crosses_leave_year';
+  }
+  // Catches the mistyped year, and next year's dates before they open. Before
+  // this, 1999 and 2099 were both accepted and a slip in a date picker booked
+  // time off decades out, where it sat in the employee's list for good.
+  const win = leaveWindow(now);
+  if (!win || clean.startDate < win.from || clean.endDate > win.to) {
     return 'outside_leave_year';
   }
   // A ceiling no genuine request can reach — every hour of every day in the
@@ -819,6 +867,9 @@ function projectTimeOffLookup(data) {
     balances: Array.isArray(data.balances)
       ? data.balances.slice(0, 20).map(b => ({
           leaveType: str(b && b.leaveType, 60),
+          // Vacation and Floating Holiday come once per open year; LSK and
+          // Attendance Reward span years and come without one (null).
+          year:      num(b && b.year),
           hours:     num(b && b.hours),
         }))
       : [],
@@ -982,7 +1033,7 @@ function tracksSourceIp(formKey, payload) {
 
 // Exported for tests/worker.test.mjs only; the access code is off in the
 // committed config, so the route never reaches it under test.
-export { safeEqual };
+export { safeEqual, leaveWindow, checkTimeOffDates, LEAVE_YEARS };
 
 // ─────────────────────────────────────────────────────────────
 // Worker

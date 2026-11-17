@@ -5,7 +5,7 @@
 // The Worker is the only server-side code in the repo and the only thing
 // standing between a stranger with curl and a row in SharePoint, so the
 // rules it enforces are worth pinning down.
-import worker, { safeEqual } from '../worker/index.js';
+import worker, { safeEqual, leaveWindow, checkTimeOffDates, LEAVE_YEARS } from '../worker/index.js';
 import { report } from './helpers.mjs';
 import fs from 'fs';
 
@@ -916,59 +916,84 @@ const VALID_SAFETY = {
   }
 }
 
-// ── Time off happens inside one leave year ───────────────────
+// ── Time off happens inside the open leave years ─────────────
 //
-// Balances are loaded per year, so a request outside the year the Worker knows
+// Balances are loaded per year, so a request outside the years the Worker knows
 // about has no balance to draw on. Before this, 1999, 2099 and a 36-year range
 // were all accepted, and a slip in a date picker booked time off decades out
 // where it sat in the employee's list for good.
 //
-// The window is read out of the Worker rather than written here. It is
-// configuration and it is *meant* to move — it has to, every January — so
-// hardcoding 2026 would turn next year's one-line edit into a failing build.
-// Reading it also buys better coverage: these land on its own edges.
+// Next year opens on its own at midnight in San Antonio (not UTC), and the
+// previous year stays bookable for late filings until its `bookableUntil`.
 {
-  const src = fs.readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
-  const win = src.match(/const LEAVE_YEAR = \{ from: '(\d{4}-\d{2}-\d{2})', to: '(\d{4}-\d{2}-\d{2})' \}/);
-  if (!win) throw new Error('tests/worker: could not read LEAVE_YEAR out of worker/index.js');
-  const [, FROM, TO] = win;
+  const at = iso => new Date(iso);
+  const win = now => JSON.stringify(leaveWindow(at(now)));
+  const Y26 = { from: '2026-01-01', to: '2026-12-31' };
+  const Y26_27 = { from: '2026-01-01', to: '2027-12-31' };
+  const Y27 = { from: '2027-01-01', to: '2027-12-31' };
 
-  // Day arithmetic through Date, so stepping off either end crosses years.
+  for (const [name, now, expect] of [
+    ['30 Nov 23:59:59 CST — 2027 still closed', '2026-12-01T05:59:59Z', Y26],
+    ['1 Dec 00:00 CST — 2027 opens', '2026-12-01T06:00:00Z', Y26_27],
+    ['30 Nov 18:00 CST — already 1 Dec in UTC, still closed', '2026-12-01T00:00:00Z', Y26],
+    ['15 Jan 2027 23:59 CST — 2026 still open for late filings', '2027-01-16T05:59:00Z', Y26_27],
+    ['16 Jan 2027 00:00 CST — 2026 closes', '2027-01-16T06:00:00Z', Y27],
+  ]) {
+    check(`leave-window: ${name}`, win(now) === JSON.stringify(expect), win(now));
+  }
+
+  const REQ = (startDate, endDate) => ({ startDate, endDate, hours: 8 });
+  for (const [name, now, req, expect] of [
+    ['a 2027 date on 30 Nov is refused', '2026-12-01T05:59:59Z', REQ('2027-03-15', '2027-03-15'), 'outside_leave_year'],
+    ['a 2027 date on 1 Dec is accepted', '2026-12-01T06:00:00Z', REQ('2027-03-15', '2027-03-15'), null],
+    ['a normal 2026 date before 1 Dec', '2026-11-17T18:00:00Z', REQ('2026-12-14', '2026-12-14'), null],
+    ['a normal 2026 date after 1 Dec', '2026-12-02T18:00:00Z', REQ('2026-12-14', '2026-12-14'), null],
+    ['28 Dec 2026 to 4 Jan 2027 is two requests', '2026-12-02T18:00:00Z', { ...REQ('2026-12-28', '2027-01-04'), hours: 40 }, 'crosses_leave_year'],
+    ['a late 2026 filing on 10 Jan', '2027-01-10T18:00:00Z', REQ('2026-12-30', '2026-12-30'), null],
+    ['a 2026 date after 15 Jan', '2027-01-20T18:00:00Z', REQ('2026-12-30', '2026-12-30'), 'outside_leave_year'],
+    ['a mistyped year', '2026-12-02T18:00:00Z', REQ('2062-10-01', '2062-10-02'), 'outside_leave_year'],
+  ]) {
+    const got = checkTimeOffDates(req, at(now));
+    check(`leave-window: ${name}`, got === expect, String(got));
+  }
+
+  // The route itself, on today's real window: the first and last open day pass,
+  // one day either side does not.
   const shift = (iso, days) => {
     const d = new Date(iso + 'T00:00:00Z');
     d.setUTCDate(d.getUTCDate() + days);
     return d.toISOString().slice(0, 10);
   };
-
+  const { from: FROM, to: TO } = leaveWindow();
   upstreamReply = () => new Response('{}', { status: 200 });
   const TO_REQ = { clockNumber: '048213', leaveType: 'Vacation', hours: 8 };
-
-  for (const [name, startDate, endDate, expect] of [
+  for (const [name, startDate, endDate, expect, error] of [
     ['first day in the window', FROM, FROM, 200],
     ['last day in the window', TO, TO, 200],
-    ['spanning the whole window', FROM, TO, 200],
-    ['starting the day before', shift(FROM, -1), FROM, 400],
-    ['ending the day after', TO, shift(TO, 1), 400],
-    ['a mistyped year', '2062-10-01', '2062-10-02', 400],
+    ['the day before', shift(FROM, -1), shift(FROM, -1), 400, 'outside_leave_year'],
+    ['the day after', shift(TO, 1), shift(TO, 1), 400, 'outside_leave_year'],
+    ['across New Year', `${TO.slice(0, 4)}-12-28`, shift(`${TO.slice(0, 4)}-12-31`, 4), 400, 'crosses_leave_year'],
   ]) {
     const res = await post('timeoff', { ...TO_REQ, startDate, endDate });
     const body = await res.json();
     check(`timeoff-leave-year: ${name}`,
-      res.status === expect && (expect === 200 || body.error === 'outside_leave_year'),
+      res.status === expect && (expect === 200 || body.error === error),
       `${res.status} ${body.error || ''}`.trim());
   }
 
-  // The page carries the same window in two more places. All three have to move
-  // together every January, and nothing else in the build would notice if they
-  // did not.
+  // The page carries the same table. Both have to move together every
+  // November, and nothing else in the build would notice if they did not.
+  const table = src => {
+    const m = src.match(/const LEAVE_YEARS = \[([\s\S]*?)\];/);
+    return m ? m[1].replace(/\s+/g, ' ').replace(/,\s*$/, '').trim() : null;
+  };
+  const workerSrc = fs.readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
   const page = fs.readFileSync(new URL('../time-off-request.js', import.meta.url), 'utf8');
-  const html = fs.readFileSync(new URL('../time-off-request.html', import.meta.url), 'utf8');
-  check('timeoff-leave-year: the page script agrees',
-    page.includes(`const LEAVE_YEAR = { from: '${FROM}', to: '${TO}' };`));
-  const pickers = [...html.matchAll(/<input type="date"[^>]*min="([^"]+)" max="([^"]+)"/g)];
-  check('timeoff-leave-year: both date pickers agree',
-    pickers.length === 2 && pickers.every(m => m[1] === FROM && m[2] === TO),
-    pickers.map(m => `${m[1]}..${m[2]}`).join(' '));
+  check('timeoff-leave-year: the page script agrees with the Worker',
+    table(workerSrc) !== null && table(workerSrc) === table(page),
+    `${table(workerSrc)} | ${table(page)}`);
+  check('timeoff-leave-year: the Worker table is the one exported',
+    LEAVE_YEARS.length >= 1 && table(workerSrc).includes(LEAVE_YEARS[0].from));
 }
 
 // ── Time off: hours against the date range ───────────────────

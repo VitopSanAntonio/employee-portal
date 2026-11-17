@@ -306,10 +306,54 @@
     return !!answer && answer.value === 'Yes';
   }
 
-  // Must match LEAVE_YEAR in worker/index.js and the min/max on the two date
-  // inputs. The Worker is what actually enforces it; this is so an employee
-  // hears it from the field rather than from a failed submission.
-  const LEAVE_YEAR = { from: '2026-01-01', to: '2026-12-31' };
+  // Must match LEAVE_YEARS in worker/index.js (a test compares them). The
+  // Worker is what actually enforces it; this is so an employee hears it from
+  // the date picker rather than from a failed submission. Evaluated on the
+  // device's clock, which on a kiosk can be off — the Worker's is what counts.
+  const LEAVE_YEARS = [
+    { from: '2026-01-01', to: '2026-12-31', opensOn: '2025-12-01', bookableUntil: '2027-01-15' },
+    { from: '2027-01-01', to: '2027-12-31', opensOn: '2026-12-01', bookableUntil: '2028-01-15' },
+  ];
+
+  /** Today at the plant as YYYY-MM-DD, whatever time zone the device is in. */
+  function plantDate(now) {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(now);
+  }
+
+  /** Bookable span right now, and the years it covers (for the copy). */
+  function leaveWindow() {
+    const today = plantDate(new Date());
+    const open = LEAVE_YEARS.filter(y => today >= y.opensOn && today <= y.bookableUntil);
+    if (!open.length) return { from: '', to: '', years: [] };
+    return {
+      from: open[0].from,
+      to: open[open.length - 1].to,
+      years: open.map(y => y.from.slice(0, 4))
+    };
+  }
+
+  /** "2026", or "2026 or 2027" / "2026 o 2027". */
+  function yearsText(lang) {
+    return leaveWindow().years.join(lang === 'es' ? ' o ' : ' or ');
+  }
+
+  // Put the current window on both pickers and into the out-of-range copy.
+  // Run once at load; a page left open across midnight on 1 December picks up
+  // the new year on its next load, and the Worker accepts it either way.
+  (function applyLeaveWindow() {
+    const win = leaveWindow();
+    ['startDate', 'endDate'].forEach(id => {
+      const input = document.getElementById(id);
+      const err = document.getElementById(id + '-error');
+      if (input) { input.min = win.from; input.max = win.to; }
+      if (err) {
+        err.setAttribute('data-en-year', 'Time off can only be requested for dates in ' + yearsText('en') + '.');
+        err.setAttribute('data-es-year', 'El tiempo libre solo se puede solicitar para fechas de ' + yearsText('es') + '.');
+      }
+    });
+  })();
 
   // Must stay in step with the Worker's own check on the timeoff-cancel route.
   // Note 4- and 5-digit references are deliberately inside it: makeRef only
@@ -347,10 +391,11 @@
     // The picker's own min/max stops most of this, but a typed date gets past
     // it in some browsers and the Worker would then reject the whole
     // submission — better to say so at the field.
+    const win = leaveWindow();
     if (!startDate) {
       showFieldError('startDate-error', null);
       valid = PortalForm.validateField('startDate', false) && valid;
-    } else if (startDate < LEAVE_YEAR.from || startDate > LEAVE_YEAR.to) {
+    } else if (startDate < win.from || startDate > win.to) {
       showFieldError('startDate-error', 'year');
       valid = PortalForm.validateField('startDate', false) && valid;
     } else {
@@ -365,8 +410,13 @@
       // not a shortcut around parsing.
       showFieldError('endDate-error', 'order');
       valid = PortalForm.validateField('endDate', false) && valid;
-    } else if (endDate < LEAVE_YEAR.from || endDate > LEAVE_YEAR.to) {
+    } else if (endDate < win.from || endDate > win.to) {
       showFieldError('endDate-error', 'year');
+      valid = PortalForm.validateField('endDate', false) && valid;
+    } else if (startDate && startDate.slice(0, 4) !== endDate.slice(0, 4)) {
+      // One request draws on one year's balance — a week over New Year is two
+      // requests. The Worker refuses it too (crosses_leave_year).
+      showFieldError('endDate-error', 'cross');
       valid = PortalForm.validateField('endDate', false) && valid;
     } else {
       PortalForm.validateField('endDate', true);
@@ -485,8 +535,12 @@
         '. Para cambiarla, cancélala en Mi tiempo libre y envía una nueva.'
     },
     outside_leave_year: {
-      en: () => 'Time off can only be requested for dates in 2026.',
-      es: () => 'El tiempo libre solo se puede solicitar para fechas de 2026.'
+      en: () => 'Time off can only be requested for dates in ' + yearsText('en') + '.',
+      es: () => 'El tiempo libre solo se puede solicitar para fechas de ' + yearsText('es') + '.'
+    },
+    crosses_leave_year: {
+      en: () => 'A request cannot run from one year into the next. Submit one request per year.',
+      es: () => 'Una solicitud no puede pasar de un año al siguiente. Envía una solicitud por año.'
     },
     // Only reachable from a page cached before the whole-hours rule shipped;
     // the current one blocks it before submitting.
@@ -750,12 +804,19 @@
       balanceGrid.appendChild(empty);
       return;
     }
-    mine.balances.forEach(b => {
+    // Vacation and Floating Holiday come once per year with a `year`; only the
+    // years currently bookable are shown, so 2027 appears on 1 December and
+    // 2026 goes once its late-filing grace ends. LSK and Attendance Reward
+    // span years and have no `year` — always shown, as before.
+    const openYears = leaveWindow().years;
+    mine.balances
+      .filter(b => !b.year || openYears.includes(String(b.year)))
+      .forEach(b => {
       const card = document.createElement('div');
       card.className = 'balance-card';
       const label = document.createElement('div');
       label.className = 'b-label';
-      label.textContent = leaveTypeLabel(b.leaveType);
+      label.textContent = leaveTypeLabel(b.leaveType) + (b.year ? ' ' + b.year : '');
       const hours = document.createElement('div');
       hours.className = 'b-hours';
       hours.textContent = b.hours === null || b.hours === undefined ? '—' : String(b.hours);
