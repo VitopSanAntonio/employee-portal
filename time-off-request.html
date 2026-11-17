@@ -406,15 +406,15 @@
               <div class="form-row">
                 <div class="field" id="f-startDate">
                   <label for="startDate" data-en="Start date" data-es="Fecha de inicio">Start date</label>
-                  <!-- min/max must match LEAVE_YEAR in worker/index.js. They stop the
-                       mistyped year at the picker; the Worker enforces it for real. -->
-                  <input type="date" id="startDate" name="startDate" min="2026-01-01" max="2026-12-31">
-                  <span class="field-error" role="alert" id="startDate-error" data-en="Please choose a start date." data-es="Por favor elige una fecha de inicio." data-en-year="Time off can only be requested for dates in 2026." data-es-year="El tiempo libre solo se puede solicitar para fechas de 2026.">Please choose a start date.</span>
+                  <!-- min/max are set by time-off-request.js from LEAVE_YEARS, as is
+                       the data-*-year copy. The Worker enforces the window for real. -->
+                  <input type="date" id="startDate" name="startDate">
+                  <span class="field-error" role="alert" id="startDate-error" data-en="Please choose a start date." data-es="Por favor elige una fecha de inicio.">Please choose a start date.</span>
                 </div>
                 <div class="field" id="f-endDate">
                   <label for="endDate" data-en="End date" data-es="Fecha de fin">End date</label>
-                  <input type="date" id="endDate" name="endDate" min="2026-01-01" max="2026-12-31">
-                  <span class="field-error" role="alert" id="endDate-error" data-en="Please choose an end date." data-es="Por favor elige una fecha de fin." data-en-order="End date must be on or after the start date." data-es-order="La fecha de fin debe ser igual o posterior a la de inicio." data-en-year="Time off can only be requested for dates in 2026." data-es-year="El tiempo libre solo se puede solicitar para fechas de 2026.">Please choose an end date.</span>
+                  <input type="date" id="endDate" name="endDate">
+                  <span class="field-error" role="alert" id="endDate-error" data-en="Please choose an end date." data-es="Por favor elige una fecha de fin." data-en-order="End date must be on or after the start date." data-es-order="La fecha de fin debe ser igual o posterior a la de inicio." data-en-cross="Start and end must be in the same year. Submit one request per year." data-es-cross="El inicio y el fin deben estar en el mismo año. Envía una solicitud por año.">Please choose an end date.</span>
                 </div>
               </div>
 

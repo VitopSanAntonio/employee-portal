@@ -1369,6 +1369,112 @@ for (const [outcome, lang, expect, reject] of [
   await page.close();
 }
 
+// ── Time off: the 2027 rollover, from the page's side ─────────
+//
+// The page opens next year on the same plant-local midnight as the Worker,
+// labels per-year balances, hides years that are not open, and refuses a
+// request across New Year before it reaches the wire. The device clock is
+// pinned either side of 00:00 CST on 1 December.
+for (const [when, now, maxDate, show2027] of [
+  ['30-nov-23-59-cst', '2026-12-01T05:59:00Z', '2026-12-31', false],
+  ['1-dec-00-00-cst',  '2026-12-01T06:00:30Z', '2027-12-31', true],
+]) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.clock.setFixedTime(new Date(now));
+  let submitCalls = 0;
+  await page.route(isProxy, route => {
+    const url = route.request().url();
+    if (url.includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    if (url.includes('/submit/timeoff-lookup')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          found: true, displayName: 'Albiar A.',
+          balances: [
+            { leaveType: 'Vacation', year: 2026, hours: 7 },
+            { leaveType: 'Vacation', year: 2027, hours: 152 },
+            { leaveType: 'Floating Holiday', year: 2026, hours: 20 },
+            { leaveType: 'Floating Holiday', year: 2027, hours: 24 },
+            { leaveType: 'LSK CarryOver', year: null, hours: 0 },
+            { leaveType: 'Perfect Attendance Reward', year: null, hours: 0 }
+          ],
+          requests: []
+        }) });
+    }
+    if (url.includes('/submit/timeoff')) submitCalls++;
+    return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ referenceId: 'TMO-004242' }) });
+  });
+
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  const max = await page.getAttribute('#endDate', 'max');
+  results.push({ page: 'time-off-request', mode: `rollover-${when}-picker-max`,
+    pass: max === maxDate, detail: max });
+
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+
+  // A 2027 date: refused at the field before 1 Dec, accepted after.
+  await page.selectOption('#leaveType', 'Vacation');
+  await page.fill('#startDate', '2027-03-15');
+  await page.fill('#endDate', '2027-03-15');
+  await page.fill('#hours', '8');
+  await page.click('#submit-btn');
+  if (show2027) {
+    await waitFor(async () => submitCalls === 1);
+    results.push({ page: 'time-off-request', mode: `rollover-${when}-2027-date-submits`,
+      pass: submitCalls === 1, detail: `${submitCalls} calls` });
+  } else {
+    await page.waitForSelector('#f-startDate.invalid');
+    const msg = await page.locator('#startDate-error').textContent();
+    results.push({ page: 'time-off-request', mode: `rollover-${when}-2027-date-blocked`,
+      pass: submitCalls === 0 && msg.includes('dates in 2026.'), detail: msg });
+  }
+
+  // Balance cards: per-year ones are labelled; next year's only once open.
+  await page.click('#tab-mine');
+  await page.waitForSelector('#balance-grid .balance-card');
+  const labels = await page.locator('#balance-grid .b-label').allTextContents();
+  const want = show2027
+    ? ['Vacation 2026', 'Vacation 2027', 'Floating Holiday 2026', 'Floating Holiday 2027', 'LSK CarryOver', 'Perfect Attendance Reward']
+    : ['Vacation 2026', 'Floating Holiday 2026', 'LSK CarryOver', 'Perfect Attendance Reward'];
+  results.push({ page: 'time-off-request', mode: `rollover-${when}-balance-cards`,
+    pass: JSON.stringify(labels) === JSON.stringify(want), detail: labels.join(' | ') });
+  await ctx.close();
+}
+
+// A week over New Year is two requests: refused at the field, nothing sent.
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.clock.setFixedTime(new Date('2026-12-02T18:00:00Z'));
+  let submitCalls = 0;
+  await page.route(isProxy, route => {
+    if (route.request().url().includes('/submit/validate')) {
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ found: true, displayName: 'Albiar A.' }) });
+    }
+    submitCalls++;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+  await page.goto(`http://localhost:${PORT}/time-off-request.html`);
+  await page.fill('#clockNumber', '048213');
+  await page.waitForSelector('#gate.show');
+  await page.selectOption('#leaveType', 'Vacation');
+  await page.fill('#startDate', '2026-12-28');
+  await page.fill('#endDate', '2027-01-04');
+  await page.fill('#hours', '40');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#f-endDate.invalid');
+  const msg = await page.locator('#endDate-error').textContent();
+  results.push({ page: 'time-off-request', mode: 'rollover-cross-year-blocked',
+    pass: submitCalls === 0 && msg.includes('same year'), detail: msg });
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 report(results);

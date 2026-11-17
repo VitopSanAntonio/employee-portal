@@ -391,54 +391,38 @@ Requests already filed in the portal stay in SharePoint and stay cancellable —
 rolling back hides the portal cards, it does not remove the pages. An employee
 with the direct link still reaches a working `time-off-request.html`.
 
-### Every January — the leave year
+### Every November — the leave years
 
-Requests are confined to one calendar year, currently **2026**. A request with
-either date outside it is refused with `outside_leave_year`. This exists because
-balances are loaded per year: a request against a year SharePoint has no
-balances for has nothing to draw on, and because it stops a mistyped year (a
-slip in a date picker) booking time off decades out.
+Requests are confined to the leave years whose balances exist, listed in
+`LEAVE_YEARS` in `worker/index.js` (the gate) and again in
+`time-off-request.js` (the date pickers and copy — a test fails if the two
+disagree). Each row says when that year opens and how long it stays bookable:
 
-**It has a cliff.** At 00:00 on 1 January 2027 every request starts failing
-until the window is moved. That is a hard stop for the whole feature, not a
-degradation — so move it together with the new year's balances, before the
-year turns rather than after.
+```js
+{ from: '2027-01-01', to: '2027-12-31', opensOn: '2026-12-01', bookableUntil: '2028-01-15' },
+```
 
-The window is written in three places and all three must move together:
+Both edges move on their own at midnight **in San Antonio** (not UTC — the
+Worker converts), so nobody deploys at 00:00. The previous year stays open
+until 15 January so a late-December sick day filed after New Year still gets
+in; 2026 balances can only be used for 2026 dates. A request whose start and
+end fall in different years is refused (`crosses_leave_year`) — the employee
+submits one per year.
 
-| File | What to change |
-| --- | --- |
-| `worker/index.js` | `const LEAVE_YEAR = { from: …, to: … }` — the one that enforces it |
-| `time-off-request.js` | `const LEAVE_YEAR = { from: …, to: … }` — so the field says so before a submission fails |
-| `time-off-request.html` | `min` / `max` on both `<input type="date">`, and the "dates in 2026" wording in the two `data-*-year` messages and the `SUBMIT_ERRORS.outside_leave_year` copy |
+Each November:
 
-A test reads the window out of `worker/index.js` and fails if the page script or
-either date picker disagrees, so a half-done rollover is caught by the build
-rather than by an employee. The wording is not checked — prose is the one part
-still worth reading yourself.
+1. Add `<Year>Entitlement` / `<Year>Used` / `<Year>Balance` (calculated)
+   columns for Vacation and Floating Holiday to Leave Balances, load the
+   entitlements in a view showing only those columns, set `Used` to 0.
+2. Point E1, E2 and E4 at the new columns (they pick columns by the request's
+   start year; LSK and Attendance Reward have no year).
+3. Add the year's row to `LEAVE_YEARS` in both files, bump `CACHE_VERSION`,
+   push, and deploy the Worker. To delay an opening, move `opensOn`.
 
-#### Leave the old year open for a few weeks
-
-The plant has no sick days, so employees use Floating Holiday for them — often
-an hour or two at a time, and usually filed **after** the fact, once they are
-back. That is why there is no four-hour floor on anything but Vacation.
-
-It means the rollover is not a clean switch. Somebody out sick on 30 December
-who files on 2 January is filing 2026 dates against a 2027 window, and gets
-`outside_leave_year` for a request that is perfectly legitimate.
-
-So when you roll over, move `to` and leave `from` where it is for a few weeks:
-
-    from: '2026-01-01',  to: '2027-12-31'
-
-Both years are then bookable, the stragglers get in, and you narrow `from` to
-`'2027-01-01'` once they have. The only thing the wide window gives up in the
-meantime is some of the protection against a mistyped year, which is worth it
-for a fortnight.
-
-If you would rather not, the alternative is fine too — the handful of late
-January filings go in by hand. Just decide which before the year turns, rather
-than while somebody is standing at the kiosk.
+The lookup flow returns Vacation and Floating Holiday once per year with a
+`year` field; the page shows only years currently open and labels them
+("Vacation 2027"). LSK CarryOver and Perfect Attendance Reward come without a
+year and always show.
 
 ### Known at go-live
 
