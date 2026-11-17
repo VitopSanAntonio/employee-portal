@@ -438,8 +438,10 @@ for (const s of seasons) {
 // genuinely off instead of timing out waiting for a dialog that will never
 // open. Getting this wrong would have failed the build on the one commit whose
 // entire purpose is to turn it off.
-const announceOn = /const ANNOUNCE = true;/.test(
-  fs.readFileSync(path.join(ROOT, 'announce.js'), 'utf8'));
+const announceSrc = fs.readFileSync(path.join(ROOT, 'announce.js'), 'utf8');
+const announceEnds = new Date((announceSrc.match(/const ENDS = new Date\('([^']+)'\)/) || [])[1]);
+// Past ENDS it switches itself off, which must read as "off", not as a failure.
+const announceOn = /const ANNOUNCE = true;/.test(announceSrc) && !(Date.now() > announceEnds);
 
 if (announceOn) {
   const ctx = await browser.newContext();
@@ -457,14 +459,16 @@ if (announceOn) {
   check('announce-takes-focus',
     await page.evaluate(() => document.querySelector('#announce').contains(document.activeElement)));
 
-  // Both previews ship, and the second one is real rather than a placeholder.
+  // Pictures are optional per announcement; when there are some, they load
+  // and the dots switch between them.
   const shots = await page.evaluate(() =>
     [...document.querySelectorAll('.announce-shot')].map(i => i.complete && i.naturalWidth > 0));
-  check('announce-previews-load', shots.length === 2 && shots[0] === true, JSON.stringify(shots));
-
-  await page.locator('.announce-dot').nth(1).click();
-  check('announce-dots-switch-the-preview',
-    (await page.locator('.announce-shot').nth(1).getAttribute('class')).includes('on'));
+  check('announce-previews-load', shots.every(Boolean), JSON.stringify(shots));
+  if (shots.length > 1) {
+    await page.locator('.announce-dot').nth(1).click();
+    check('announce-dots-switch-the-preview',
+      (await page.locator('.announce-shot').nth(1).getAttribute('class')).includes('on'));
+  }
 
   await page.keyboard.press('Escape');
   check('announce-escape-closes', (await page.locator('#announce').isVisible()) === false);
@@ -519,8 +523,11 @@ if (announceOn) {
   check('announce-aria-labels-translate',
     (await page.locator('#announce-close').getAttribute('aria-label')) === 'Cerrar',
     await page.locator('#announce-close').getAttribute('aria-label'));
+  // Against the markup's own data-es, so new wording does not break it.
+  const title = page.locator('#announce-title');
   check('announce-body-translates',
-    (await page.locator('#announce-title').textContent()).includes('se muda al portal'));
+    (await title.textContent()) === (await title.getAttribute('data-es')),
+    await title.textContent());
   await ctx.close();
 }
 
